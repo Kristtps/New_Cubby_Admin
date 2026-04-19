@@ -114,7 +114,7 @@ async function fetchCustomerById(customerId) {
         const { data, error } = await supabase
             .from('customers')
             .select('*')
-            .eq('id', customerId)
+            .eq('customer_id', customerId)
             .single();
 
         if (error) throw error;
@@ -384,23 +384,24 @@ async function updateRates(ratesData) {
  * Get dashboard statistics
  */
 async function getDashboardStats() {
-    try {
-        const [lockersCount, customersCount, todayRevenue, activeRentals] = await Promise.all([
-            getLockersTotalCount(),
-            getCustomersTotalCount(),
-            getTodayRevenue(),
-            getActiveRentalsCount()
-        ]);
+    const stats = {
+        totalLockers: 0,
+        totalCustomers: 0,
+        todayRevenue: 0,
+        activeRentals: 0
+    };
 
-        return {
-            totalLockers: lockersCount,
-            totalCustomers: customersCount,
-            todayRevenue: todayRevenue,
-            activeRentals: activeRentals
-        };
+    try {
+        // Fetch each stat individually so one failure doesn't block the others
+        try { stats.totalLockers = await getLockersTotalCount(); } catch (e) { console.error(e); }
+        try { stats.totalCustomers = await getCustomersTotalCount(); } catch (e) { console.error(e); }
+        try { stats.todayRevenue = await getTodayRevenue(); } catch (e) { console.error(e); }
+        try { stats.activeRentals = await getActiveRentalsCount(); } catch (e) { console.error(e); }
+
+        return stats;
     } catch (error) {
-        console.error('Error getting dashboard stats:', error);
-        return null;
+        console.error('Error in stats aggregation:', error);
+        return stats; // Return zeros rather than null
     }
 }
 

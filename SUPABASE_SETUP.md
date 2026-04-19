@@ -300,6 +300,40 @@ const realtimeRentals = supabase
 3. Set up authentication (optional)
 4. Configure Row Level Security (RLS) for production
 
+### Step 8: Security Policies (RLS)
+
+To secure your data, run these queries to ensure only admins can see all data and customers can only see their own:
+
+```sql
+-- 1. Create the admin table
+CREATE TABLE admin (
+  id UUID PRIMARY KEY REFERENCES auth.users(id),
+  email TEXT
+);
+
+-- 2. Enable RLS on customers
+ALTER TABLE customers ENABLE ROW LEVEL SECURITY;
+
+-- 3. Admin Policy: Can see all customers
+CREATE POLICY "Admin can see all customers"
+ON public.customers
+FOR ALL
+TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM admin
+    WHERE id = auth.uid()
+  )
+);
+
+-- 4. Customer Policy: Can only see their own record
+CREATE POLICY "Customers see own record"
+ON public.customers
+FOR SELECT
+TO authenticated
+USING (customer_id = auth.uid());
+```
+
 ---
 
 For questions, check [Supabase Docs](https://supabase.com/docs)

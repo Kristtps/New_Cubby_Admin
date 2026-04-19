@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Customers - CoinCubby Admin Panel</title>
     <link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
     <div class="container">
         <!-- Sidebar -->
@@ -13,8 +15,10 @@
             <div class="logo-section">
                 <div class="logo">
                     <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <rect width="40" height="40" rx="8" fill="#3B82F6"/>
-                        <path d="M20 10C14.48 10 10 14.48 10 20C10 25.52 14.48 30 20 30C25.52 30 30 25.52 30 20C30 14.48 25.52 10 20 10ZM20 28C15.58 28 12 24.42 12 20C12 15.58 15.58 12 20 12C24.42 12 28 15.58 28 20C28 24.42 24.42 28 20 28Z" fill="white"/>
+                        <rect width="40" height="40" rx="8" fill="#3B82F6" />
+                        <path
+                            d="M20 10C14.48 10 10 14.48 10 20C10 25.52 14.48 30 20 30C25.52 30 30 25.52 30 20C30 14.48 25.52 10 20 10ZM20 28C15.58 28 12 24.42 12 20C12 15.58 15.58 12 20 12C24.42 12 28 15.58 28 20C28 24.42 24.42 28 20 28Z"
+                            fill="white" />
                     </svg>
                     <span>CoinCubby</span>
                 </div>
@@ -110,32 +114,8 @@
                             </tr>
                         </thead>
                         <tbody id="customers-tbody">
-                            <tr data-customer-id="1">
-                                <td class="name-cell"><span data-field="name">malaluanmarkangelo</span></td>
-                                <td class="email-cell"><span data-field="email">malaluanmarkangelo@gmail.com</span></td>
-                                <td class="role-cell"><span class="role-badge admin" data-field="role">admin</span></td>
-                                <td class="wallet-cell"><span data-field="wallet" data-currency="₱">250.00</span></td>
-                                <td class="rentals-cell"><span data-field="rentals">0</span></td>
-                                <td class="spent-cell"><span data-field="spent" data-currency="₱">0.00</span></td>
-                                <td class="joined-cell"><span data-field="joined">Apr 17, 2026</span></td>
-                            </tr>
-                            <tr data-customer-id="2">
-                                <td class="name-cell"><span data-field="name">Billy Rebate</span></td>
-                                <td class="email-cell"><span data-field="email">billyrebate3@gmail.com</span></td>
-                                <td class="role-cell"><span class="role-badge admin" data-field="role">admin</span></td>
-                                <td class="wallet-cell"><span data-field="wallet" data-currency="₱">0.00</span></td>
-                                <td class="rentals-cell"><span data-field="rentals">0</span></td>
-                                <td class="spent-cell"><span data-field="spent" data-currency="₱">0.00</span></td>
-                                <td class="joined-cell"><span data-field="joined">Apr 17, 2026</span></td>
-                            </tr>
-                            <tr data-customer-id="3">
-                                <td class="name-cell"><span data-field="name">Samantha Claire Balon</span></td>
-                                <td class="email-cell"><span data-field="email">smnthbalon@gmail.com</span></td>
-                                <td class="role-cell"><span class="role-badge admin" data-field="role">admin</span></td>
-                                <td class="wallet-cell"><span data-field="wallet" data-currency="₱">90.00</span></td>
-                                <td class="rentals-cell"><span data-field="rentals">1</span></td>
-                                <td class="spent-cell"><span data-field="spent" data-currency="₱">10.00</span></td>
-                                <td class="joined-cell"><span data-field="joined">Apr 17, 2026</span></td>
+                            <tr class="loading-state">
+                                <td colspan="7" style="text-align: center; padding: 2rem;">Loading customers...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -144,47 +124,13 @@
         </main>
     </div>
 
-    <script>
-        (function() {
-            const auth = localStorage.getItem('coincubby_auth');
-            if (!auth) {
-                window.location.href = 'login.html';
-            }
-        })();
-    </script>
+    <!-- Database Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-client.js"></script>
+    <script src="db-operations.js"></script>
     <script src="script.js"></script>
     <script src="customers.js"></script>
 
 </body>
-</html>
-                                <td class="joined-cell"><span data-field="joined">Apr 17, 2026</span></td>
-                            </tr>
-                            <tr data-customer-id="2">
-                                <td class="name-cell"><span data-field="name">Billy Rebate</span></td>
-                                <td class="email-cell"><span data-field="email">billyrebate3@gmail.com</span></td>
-                                <td class="role-cell"><span class="role-badge admin" data-field="role">admin</span></td>
-                                <td class="wallet-cell"><span data-field="wallet" data-currency="₱">0.00</span></td>
-                                <td class="rentals-cell"><span data-field="rentals">0</span></td>
-                                <td class="spent-cell"><span data-field="spent" data-currency="₱">0.00</span></td>
-                                <td class="joined-cell"><span data-field="joined">Apr 17, 2026</span></td>
-                            </tr>
-                            <tr data-customer-id="3">
-                                <td class="name-cell"><span data-field="name">Samantha Claire Balon</span></td>
-                                <td class="email-cell"><span data-field="email">smnthbalon@gmail.com</span></td>
-                                <td class="role-cell"><span class="role-badge admin" data-field="role">admin</span></td>
-                                <td class="wallet-cell"><span data-field="wallet" data-currency="₱">90.00</span></td>
-                                <td class="rentals-cell"><span data-field="rentals">1</span></td>
-                                <td class="spent-cell"><span data-field="spent" data-currency="₱">10.00</span></td>
-                                <td class="joined-cell"><span data-field="joined">Apr 17, 2026</span></td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </main>
-    </div>
 
-    <script src="script.js"></script>
-    <script src="customers.js"></script>
-</body>
 </html>

@@ -1,6 +1,6 @@
 // Customers page specific functionality
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     initializeSidebar();
     initializeCustomersPage();
 });
@@ -8,12 +8,20 @@ document.addEventListener('DOMContentLoaded', function() {
 /**
  * Initialize customers page
  */
-function initializeCustomersPage() {
+async function initializeCustomersPage() {
     const tbody = document.getElementById('customers-tbody');
     if (!tbody) return;
-    
-    // Add event listeners for customer rows if needed
-    tbody.addEventListener('click', function(e) {
+
+    // Wait for Supabase to be initialized if the promise exists
+    if (window.supabasePromise) {
+        await window.supabasePromise;
+    }
+
+    // Load actual data from Supabase
+    await loadCustomersFromSupabase();
+
+    // Add event listeners for customer rows
+    tbody.addEventListener('click', function (e) {
         const row = e.target.closest('tr');
         if (row) {
             const customerId = row.getAttribute('data-customer-id');
@@ -21,6 +29,55 @@ function initializeCustomersPage() {
             // Implement navigation or detail view logic here
         }
     });
+}
+
+/**
+ * Load customers from Supabase and refresh the table
+ */
+async function loadCustomersFromSupabase() {
+    try {
+        // Ensure we have the client, not the factory library
+        const client = window.supabase;
+
+        if (!client || typeof client.from !== 'function') {
+            throw new Error('Supabase client not properly initialized. Check supabase-client.js');
+        }
+
+        const { data: customers, error } = await client
+            .from('customers')
+            .select('*');
+
+        if (error) throw error;
+
+        // Map Supabase data to the format expected by refreshCustomersFromDatabase
+        // Columns match THE ACTUAL database schema from your screenshot
+        const mapped = (customers || []).map(c => ({
+            id:      c.customer_id,
+            name:    c.full_name || 'N/A',
+            email:   c.email || 'N/A',
+            role:    'customer',
+            wallet:  0, // Dropped from DB, defaulting to 0
+            rentals: 0, // Dropped from DB, defaulting to 0
+            spent:   0, // Dropped from DB, defaulting to 0
+            joined:  'N/A' // Dropped from DB, defaulting to N/A
+        }));
+
+        if (mapped.length === 0) {
+            const tbody = document.getElementById('customers-tbody');
+            if (tbody) {
+                tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 3rem;">No customers found in the database.</td></tr>`;
+            }
+        } else {
+            refreshCustomersFromDatabase(mapped);
+        }
+
+    } catch (err) {
+        console.error('Failed to load customers:', err.message);
+        const tbody = document.getElementById('customers-tbody');
+        if (tbody) {
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--danger); padding: 1rem;">Failed to load customers: ${err.message}</td></tr>`;
+        }
+    }
 }
 
 /**
@@ -96,10 +153,10 @@ function updateCustomerRole(customerId, role) {
 function addCustomerRow(customerData) {
     const tbody = document.getElementById('customers-tbody');
     if (!tbody) return;
-    
+
     const newRow = document.createElement('tr');
     newRow.setAttribute('data-customer-id', customerData.id);
-    
+
     newRow.innerHTML = `
         <td class="name-cell"><span data-field="name">${customerData.name}</span></td>
         <td class="email-cell"><span data-field="email">${customerData.email}</span></td>
@@ -109,7 +166,7 @@ function addCustomerRow(customerData) {
         <td class="spent-cell"><span data-field="spent" data-currency="₱">${parseFloat(customerData.spent).toFixed(2)}</span></td>
         <td class="joined-cell"><span data-field="joined">${customerData.joined}</span></td>
     `;
-    
+
     tbody.appendChild(newRow);
 }
 
@@ -150,10 +207,10 @@ function removeCustomerRow(customerId) {
 function refreshCustomersFromDatabase(customersData) {
     const tbody = document.getElementById('customers-tbody');
     if (!tbody) return;
-    
+
     // Clear current rows
     tbody.innerHTML = '';
-    
+
     // Add updated rows
     customersData.forEach(customer => {
         addCustomerRow(customer);
