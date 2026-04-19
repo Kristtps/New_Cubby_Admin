@@ -18,6 +18,11 @@ document.addEventListener('click', function(e) {
 
 // Protect this page from unauthorized access (only if not authenticated)
 document.addEventListener('DOMContentLoaded', async function() {
+    // Wait for Supabase to initialize if needed
+    if (window.supabasePromise) {
+        await window.supabasePromise;
+    }
+    
     if (typeof protectPage !== 'undefined') {
         protectPage();
     } else if (typeof isUserAuthenticated !== 'undefined') {

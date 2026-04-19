@@ -8,11 +8,19 @@ document.addEventListener('DOMContentLoaded', function() {
 /**
  * Initialize customers page
  */
-function initializeCustomersPage() {
+async function initializeCustomersPage() {
     const tbody = document.getElementById('customers-tbody');
     if (!tbody) return;
-    
-    // Add event listeners for customer rows if needed
+
+    // Wait for Supabase to be initialized if the promise exists
+    if (window.supabasePromise) {
+        await window.supabasePromise;
+    }
+
+    // Load actual data from Supabase
+    await loadCustomersFromSupabase();
+
+    // Add event listeners for customer rows
     tbody.addEventListener('click', function(e) {
         const row = e.target.closest('tr');
         if (row) {
@@ -21,6 +29,58 @@ function initializeCustomersPage() {
             // Implement navigation or detail view logic here
         }
     });
+}
+
+/**
+ * Load customers from Supabase and refresh the table
+ */
+async function loadCustomersFromSupabase() {
+    try {
+        // Ensure we have the client, not the factory library
+        const client = window.supabase;
+        
+        if (!client || typeof client.from !== 'function') {
+            throw new Error('Supabase client not properly initialized. Check supabase-client.js');
+        }
+
+        const { data: customers, error } = await client
+            .from('customers')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        // Map Supabase data to the format expected by refreshCustomersFromDatabase
+        // Columns match THE ACTUAL database schema from your screenshot
+        const mapped = (customers || []).map(c => ({
+            id:      c.customer_id,
+            name:    c.full_name || 'N/A',
+            email:   c.email || 'N/A',
+            role:    'customer', // Default role since it's not in your schema
+            wallet:  c.wallet || 0,
+            rentals: c.rentals || 0,
+            spent:   c.spent || 0,
+            joined:  c.created_at 
+                     ? new Date(c.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) 
+                     : 'N/A'
+        }));
+
+        if (mapped.length === 0) {
+            const tbody = document.getElementById('customers-tbody');
+            if (tbody) {
+                tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 3rem;">No customers found in the database.</td></tr>`;
+            }
+        } else {
+            refreshCustomersFromDatabase(mapped);
+        }
+
+    } catch (err) {
+        console.error('Failed to load customers:', err.message);
+        const tbody = document.getElementById('customers-tbody');
+        if (tbody) {
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--danger); padding: 1rem;">Failed to load customers: ${err.message}</td></tr>`;
+        }
+    }
 }
 
 /**
