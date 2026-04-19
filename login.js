@@ -2,18 +2,37 @@
 // LOGIN PAGE - JAVASCRIPT FUNCTIONALITY
 // ========================================
 
-// Demo credentials for testing
-const DEMO_CREDENTIALS = {
-    email: 'admin@coincubby.com',
-    password: 'password123'
-};
+const SUPABASE_URL = "https://cjuimxgxovdmijuenagr.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNqdWlteGd4b3ZkbWlqdWVuYWdyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0MzQ0OTEsImV4cCI6MjA5MjAxMDQ5MX0.t6ixuFiD2iYzrNZsc1QjG3gpdTdBuMY37qTKzwxdg18"; // your full key
+
+let supabaseClient;
 
 // Initialize login page
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function () {
+    // Load Supabase script dynamically if it's missing
+    if (!window.supabase) {
+        try {
+            await new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
+                script.onload = resolve;
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
+        } catch (e) {
+            console.error('Failed to load Supabase script:', e);
+            showError('Initialization failed. Please check your internet connection.');
+        }
+    }
+
+    if (window.supabase) {
+        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    }
+
     // Force show login for demo/reset - CLEAR STORED AUTH
     localStorage.removeItem('coincubby_auth');
     console.log('✓ Demo mode: Auth cleared, login form will show');
-    
+
     // Only initialize login form if we're on login page
     if (document.getElementById('loginForm')) {
         initializeLoginForm();
@@ -37,11 +56,11 @@ function initializeLoginForm() {
 
     // Toggle password visibility
     if (togglePassword) {
-        togglePassword.addEventListener('click', function(e) {
+        togglePassword.addEventListener('click', function (e) {
             e.preventDefault();
             const type = passwordInput.type === 'password' ? 'text' : 'password';
             passwordInput.type = type;
-            
+
             // Rotate icon
             this.style.transform = type === 'text' ? 'scaleX(-1)' : 'scaleX(1)';
         });
@@ -50,14 +69,14 @@ function initializeLoginForm() {
     // Real-time validation
     if (emailInput) {
         emailInput.addEventListener('blur', validateEmail);
-        emailInput.addEventListener('input', function() {
+        emailInput.addEventListener('input', function () {
             clearError('emailError');
         });
     }
 
     if (passwordInput) {
         passwordInput.addEventListener('blur', validatePassword);
-        passwordInput.addEventListener('input', function() {
+        passwordInput.addEventListener('input', function () {
             clearError('passwordError');
         });
     }
@@ -93,34 +112,38 @@ async function handleLoginSubmit(e) {
     submitBtn.querySelector('.btn-text').textContent = 'Signing in...';
 
     try {
-        // Simulate API call delay
-        await new Promise(resolve => setTimeout(resolve, 800));
-
-        // Check credentials (in production, this would be an API call)
-        if (email === DEMO_CREDENTIALS.email && password === DEMO_CREDENTIALS.password) {
-            // Login successful
-            showSuccess('Login successful! Redirecting...');
-            
-            // Store authentication
-            storeLoginCredentials({
-                email: email,
-                loginTime: new Date().toISOString(),
-                rememberMe: rememberMe
-            });
-
-            // Redirect to dashboard after short delay
-            setTimeout(() => {
-                redirectToDashboard();
-            }, 1500);
-        } else if (email === DEMO_CREDENTIALS.email) {
-            // Wrong password
-            showError('Incorrect password. Please try again.');
-            validatePassword();
-        } else {
-            // Email not found
-            showError('Invalid email address. Use: admin@coincubby.com');
-            validateEmail();
+        // Check if supabase is initialized
+        if (!supabaseClient) {
+            showError('Supabase client not initialized. Check your internet connection.');
+            return;
         }
+
+        // Authenticate with Supabase
+        const { data, error } = await supabaseClient.auth.signInWithPassword({
+            email: email,
+            password: password,
+        });
+
+        if (error) {
+            showError(error.message || 'Incorrect email or password. Please try again.');
+            validatePassword();
+            return;
+        }
+
+        // Login successful
+        showSuccess('Login successful! Redirecting...');
+
+        // Store authentication
+        storeLoginCredentials({
+            email: data.user.email,
+            loginTime: new Date().toISOString(),
+            rememberMe: rememberMe
+        });
+
+        // Redirect to dashboard after short delay
+        setTimeout(() => {
+            redirectToDashboard();
+        }, 1500);
     } catch (error) {
         console.error('Login error:', error);
         showError('An error occurred during login. Please try again.');
@@ -226,7 +249,7 @@ function showSuccess(message) {
 function clearMessages() {
     const errorAlert = document.getElementById('loginError');
     const successAlert = document.getElementById('loginSuccess');
-    
+
     if (errorAlert) errorAlert.style.display = 'none';
     if (successAlert) successAlert.style.display = 'none';
 }
@@ -320,7 +343,7 @@ function protectPage() {
     // Only run on non-login pages
     const currentPath = window.location.pathname;
     const fileName = currentPath.split('/').pop();
-    
+
     // Don't protect login page itself
     if (fileName === 'login.html' || fileName === '') {
         return;
@@ -328,7 +351,7 @@ function protectPage() {
 
     // Check if user is authenticated
     const authData = getAuthData();
-    
+
     if (!authData || !authData.isAuthenticated) {
         // Prevent infinite redirects with a flag
         if (!window.redirecting) {
@@ -363,7 +386,7 @@ function addLogoutButton() {
         <span>Logout</span>
     `;
 
-    logoutItem.addEventListener('click', function(e) {
+    logoutItem.addEventListener('click', function (e) {
         e.preventDefault();
         if (confirm('Are you sure you want to logout?')) {
             logoutUser();
