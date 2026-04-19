@@ -54,12 +54,12 @@ document.addEventListener('DOMContentLoaded', async function() {
                 // Update UI with database data
                 const dashboardData = {
                     stats: {
-                        'total-lockers': lockers.length || 0,
-                        'active-rentals': stats.activeRentals || 0,
-                        'total-customers': stats.totalCustomers || 0,
-                        'today-revenue': (stats.todayRevenue || 0).toFixed(2)
+                        'total-lockers': (lockers && lockers.length) || 0,
+                        'active-rentals': (stats && stats.activeRentals) || 0,
+                        'total-customers': (stats && stats.totalCustomers) || 0,
+                        'today-revenue': ((stats && stats.todayRevenue) || 0).toFixed(2)
                     },
-                    recentRentals: stats.recentRentals || []
+                    recentRentals: (stats && stats.recentRentals) || []
                 };
                 
                 refreshDashboardFromDatabase(dashboardData);

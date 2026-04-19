@@ -53,8 +53,7 @@ window.supabasePromise = initSupabase();
  * Check if Supabase is properly initialized
  */
 function isSupabaseConnected() {
-    return SUPABASE_URL !== 'https://cjuimxgxovdmijuenagr.supabase.co' &&
-        SUPABASE_ANON_KEY !== 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNqdWlteGd4b3ZkbWlqdWVuYWdyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0MzQ0OTEsImV4cCI6MjA5MjAxMDQ5MX0.t6ixuFiD2iYzrNZsc1QjG3gpdTdBuMY37qTKzwxdg18';
+    return window.supabase && typeof window.supabase.from === 'function';
 }
 
 /**

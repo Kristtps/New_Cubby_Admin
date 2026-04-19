@@ -1,6 +1,6 @@
 // Customers page specific functionality
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     initializeSidebar();
     initializeCustomersPage();
 });
@@ -21,7 +21,7 @@ async function initializeCustomersPage() {
     await loadCustomersFromSupabase();
 
     // Add event listeners for customer rows
-    tbody.addEventListener('click', function(e) {
+    tbody.addEventListener('click', function (e) {
         const row = e.target.closest('tr');
         if (row) {
             const customerId = row.getAttribute('data-customer-id');
@@ -38,15 +38,14 @@ async function loadCustomersFromSupabase() {
     try {
         // Ensure we have the client, not the factory library
         const client = window.supabase;
-        
+
         if (!client || typeof client.from !== 'function') {
             throw new Error('Supabase client not properly initialized. Check supabase-client.js');
         }
 
         const { data: customers, error } = await client
             .from('customers')
-            .select('*')
-            .order('created_at', { ascending: false });
+            .select('*');
 
         if (error) throw error;
 
@@ -56,13 +55,11 @@ async function loadCustomersFromSupabase() {
             id:      c.customer_id,
             name:    c.full_name || 'N/A',
             email:   c.email || 'N/A',
-            role:    'customer', // Default role since it's not in your schema
-            wallet:  c.wallet || 0,
-            rentals: c.rentals || 0,
-            spent:   c.spent || 0,
-            joined:  c.created_at 
-                     ? new Date(c.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) 
-                     : 'N/A'
+            role:    'customer',
+            wallet:  0, // Dropped from DB, defaulting to 0
+            rentals: 0, // Dropped from DB, defaulting to 0
+            spent:   0, // Dropped from DB, defaulting to 0
+            joined:  'N/A' // Dropped from DB, defaulting to N/A
         }));
 
         if (mapped.length === 0) {
@@ -156,10 +153,10 @@ function updateCustomerRole(customerId, role) {
 function addCustomerRow(customerData) {
     const tbody = document.getElementById('customers-tbody');
     if (!tbody) return;
-    
+
     const newRow = document.createElement('tr');
     newRow.setAttribute('data-customer-id', customerData.id);
-    
+
     newRow.innerHTML = `
         <td class="name-cell"><span data-field="name">${customerData.name}</span></td>
         <td class="email-cell"><span data-field="email">${customerData.email}</span></td>
@@ -169,7 +166,7 @@ function addCustomerRow(customerData) {
         <td class="spent-cell"><span data-field="spent" data-currency="₱">${parseFloat(customerData.spent).toFixed(2)}</span></td>
         <td class="joined-cell"><span data-field="joined">${customerData.joined}</span></td>
     `;
-    
+
     tbody.appendChild(newRow);
 }
 
@@ -210,10 +207,10 @@ function removeCustomerRow(customerId) {
 function refreshCustomersFromDatabase(customersData) {
     const tbody = document.getElementById('customers-tbody');
     if (!tbody) return;
-    
+
     // Clear current rows
     tbody.innerHTML = '';
-    
+
     // Add updated rows
     customersData.forEach(customer => {
         addCustomerRow(customer);
