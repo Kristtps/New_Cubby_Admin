@@ -148,12 +148,21 @@ async function createCustomer(customerData) {
  * LOCKERS TABLE OPERATIONS
  */
 
+function getSupabaseClient() {
+    return window.supabaseClient || window.supabase;
+}
+
 /**
  * Fetch all lockers
  */
 async function fetchAllLockers() {
     try {
-        const { data, error } = await supabase
+        const client = getSupabaseClient();
+        if (!client || typeof client.from !== 'function') {
+            throw new Error('Supabase client is not initialized');
+        }
+
+        const { data, error } = await client
             .from('lockers')
             .select('*')
             .order('locker_id', { ascending: true });
@@ -163,7 +172,7 @@ async function fetchAllLockers() {
         return data;
     } catch (error) {
         console.error('Error fetching lockers:', error);
-        return [];
+        return null;
     }
 }
 
@@ -172,9 +181,14 @@ async function fetchAllLockers() {
  */
 async function updateLockerStatus(lockerId, status) {
     try {
-        const { data, error } = await supabase
+        const client = getSupabaseClient();
+        if (!client || typeof client.from !== 'function') {
+            throw new Error('Supabase client is not initialized');
+        }
+
+        const { data, error } = await client
             .from('lockers')
-            .update({ status: status, updated_at: new Date() })
+            .update({ status: status })
             .eq('locker_id', lockerId)
             .select();
 
@@ -183,6 +197,54 @@ async function updateLockerStatus(lockerId, status) {
         return data;
     } catch (error) {
         console.error('Error updating locker status:', error);
+        return null;
+    }
+}
+
+/**
+ * Create a single locker
+ */
+async function createLocker(lockerData) {
+    try {
+        const client = getSupabaseClient();
+        if (!client || typeof client.from !== 'function') {
+            throw new Error('Supabase client is not initialized');
+        }
+
+        const { data, error } = await client
+            .from('lockers')
+            .insert([lockerData])
+            .select();
+
+        if (error) throw error;
+        console.log('✓ Locker created:', data);
+        return data;
+    } catch (error) {
+        console.error('Error creating locker:', error);
+        return null;
+    }
+}
+
+/**
+ * Create multiple lockers at once
+ */
+async function createLockersBatch(lockersData) {
+    try {
+        const client = getSupabaseClient();
+        if (!client || typeof client.from !== 'function') {
+            throw new Error('Supabase client is not initialized');
+        }
+
+        const { data, error } = await client
+            .from('lockers')
+            .insert(lockersData)
+            .select();
+
+        if (error) throw error;
+        console.log('✓ Lockers batch created:', data);
+        return data;
+    } catch (error) {
+        console.error('Error creating lockers batch:', error);
         return null;
     }
 }
@@ -473,6 +535,8 @@ window.dbOps = {
     // Lockers
     fetchAllLockers,
     updateLockerStatus,
+    createLocker,
+    createLockersBatch,
     getLockerCountByStatus,
 
     // Transactions

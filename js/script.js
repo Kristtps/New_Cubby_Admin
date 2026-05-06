@@ -42,7 +42,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     
     // Check which page we're on
     if (document.getElementById('lockers-table')) {
-        initializeLockerManagement();
+        await initializeLockerManagement();
     } else {
         // Try to load data from database first
         if (typeof isSupabaseConnected !== 'undefined' && isSupabaseConnected()) {
@@ -270,13 +270,47 @@ function initializeSidebar() {
 
 // ==================== LOCKER MANAGEMENT PAGE FUNCTIONS ====================
 
+let lockerRecords = [];
+
 /**
  * Initialize locker management page functionality
  */
-function initializeLockerManagement() {
+async function initializeLockerManagement() {
+    lockerRecords = await loadLockerRecords();
+    renderLockersTable();
     initializeActionButtons();
     initializeAddLockerButton();
     initializeModal();
+}
+
+async function loadLockerRecords() {
+    try {
+        if (typeof isSupabaseConnected !== 'undefined' && isSupabaseConnected() &&
+            typeof dbOps !== 'undefined' && dbOps.fetchAllLockers) {
+            const dbRows = await dbOps.fetchAllLockers();
+            if (dbRows === null) {
+                alert('Supabase lockers connection failed. Showing local sample data.');
+                return getDefaultLockerData();
+            }
+            if (!Array.isArray(dbRows)) {
+                alert('Unexpected lockers response from Supabase. Showing local sample data.');
+                return getDefaultLockerData();
+            }
+            if (dbRows.length === 0) {
+                alert('No lockers found from Supabase. Showing local sample data.');
+                return getDefaultLockerData();
+            }
+            const mapped = mapDbRowsToLockerRecords(dbRows || []);
+            if (mapped.length === 0) {
+                alert('Could not map Supabase lockers data. Showing local sample data.');
+                return getDefaultLockerData();
+            }
+            return mapped;
+        }
+    } catch (error) {
+        console.error('Error loading lockers from database:', error);
+    }
+    return getDefaultLockerData();
 }
 
 /**
@@ -294,13 +328,17 @@ function initializeActionButtons() {
         const row = btn.closest('tr');
         const lockerId = row.getAttribute('data-locker-row');
         const action = btn.getAttribute('data-action');
+        const locker = lockerRecords.find(item => item.code === lockerId);
+        if (!locker) return;
         
         if (action === 'occupied') {
-            handleOccupiedToggle(lockerId, row, btn);
+            handleOccupiedToggle(locker);
         } else if (action === 'maintenance') {
-            handleMaintenanceToggle(lockerId, row, btn);
+            handleMaintenanceToggle(locker);
+        } else if (action === 'emergency-unlock') {
+            handleEmergencyUnlock(locker);
         } else if (action === 'delete') {
-            handleDeleteAction(lockerId, row);
+            handleDeleteAction(locker);
         }
     });
 }
@@ -308,82 +346,52 @@ function initializeActionButtons() {
 /**
  * Handle occupied toggle button click - cycles between available and occupied
  */
-function handleOccupiedToggle(lockerId, row, btn) {
-    const statusCell = row.querySelector('.status-cell .status-badge');
-    if (!statusCell) return;
-    
-    const currentStatus = statusCell.textContent.trim();
-    let newStatus;
-    
-    // Toggle between available and occupied
-    if (currentStatus === 'occupied') {
-        newStatus = 'available';
-    } else if (currentStatus === 'available') {
-        newStatus = 'occupied';
-    } else {
-        // If in other status (maintenance, payment), cycle to available first
-        newStatus = 'available';
-    }
-    
-    // Update status badge
-    statusCell.textContent = newStatus;
-    statusCell.className = `status-badge ${newStatus}`;
-    
-    console.log(`Occupied toggle for locker: ${lockerId} -> ${newStatus}`);
-    // Call API here to update database: updateLockerStatus(lockerId, newStatus);
+function handleOccupiedToggle(locker) {
+    locker.status = locker.status === 'occupied' ? 'available' : 'occupied';
+    persistLockerStatus(locker);
+    renderLockersTable();
+    console.log(`Occupied toggle for locker: ${locker.code} -> ${locker.status}`);
 }
 
 /**
  * Handle maintenance toggle button click - cycles between available and maintenance
  */
-function handleMaintenanceToggle(lockerId, row, btn) {
-    const statusCell = row.querySelector('.status-cell .status-badge');
-    if (!statusCell) return;
-    
-    const currentStatus = statusCell.textContent.trim();
-    let newStatus;
-    
-    // Toggle between available and maintenance
-    if (currentStatus === 'maintenance') {
-        newStatus = 'available';
-    } else if (currentStatus === 'available') {
-        newStatus = 'maintenance';
-    } else {
-        // If in other status (occupied, payment), cycle to available first
-        newStatus = 'available';
-    }
-    
-    // Update status badge
-    statusCell.textContent = newStatus;
-    statusCell.className = `status-badge ${newStatus}`;
-    
-    console.log(`Maintenance toggle for locker: ${lockerId} -> ${newStatus}`);
-    // Call API here to update database: updateLockerStatus(lockerId, newStatus);
+function handleMaintenanceToggle(locker) {
+    locker.status = locker.status === 'maintenance' ? 'available' : 'maintenance';
+    persistLockerStatus(locker);
+    renderLockersTable();
+    console.log(`Maintenance toggle for locker: ${locker.code} -> ${locker.status}`);
+}
+
+/**
+ * Emergency unlock always returns the locker to available.
+ */
+function handleEmergencyUnlock(locker) {
+    if (!confirm(`Emergency unlock ${locker.code}?`)) return;
+    locker.status = 'available';
+    persistLockerStatus(locker);
+    renderLockersTable();
+    console.log(`Emergency unlock applied to locker: ${locker.code}`);
 }
 
 /**
  * Handle delete button click
  */
-function handleDeleteAction(lockerId, row) {
-    if (confirm(`Are you sure you want to delete locker ${lockerId}?`)) {
-        console.log(`Delete action for locker: ${lockerId}`);
-        // Add fade out animation
-        row.style.opacity = '0';
-        row.style.transform = 'translateX(-20px)';
-        setTimeout(() => {
-            row.remove();
-        }, 300);
-    }
+function handleDeleteAction(locker) {
+    if (!confirm(`Are you sure you want to delete locker ${locker.code}?`)) return;
+    lockerRecords = lockerRecords.filter(item => item.code !== locker.code);
+    renderLockersTable();
+    console.log(`Delete action for locker: ${locker.code}`);
 }
 
 /**
  * Initialize add locker button
  */
 function initializeAddLockerButton() {
-    const addBtn = document.getElementById('add-locker-btn');
-    if (addBtn) {
-        addBtn.addEventListener('click', function() {
-            openAddLockerModal();
+    const addModuleBtn = document.getElementById('add-module-btn');
+    if (addModuleBtn) {
+        addModuleBtn.addEventListener('click', function() {
+            addDefaultModule();
         });
     }
 }
@@ -471,9 +479,8 @@ function handleAddLockerSubmit() {
     };
     
     console.log('Adding new locker:', lockerData);
-    
-    // Add the locker to the table
-    addLockerRow(lockerData);
+    lockerRecords.push(lockerData);
+    renderLockersTable();
     
     // Close modal
     closeAddLockerModal();
@@ -482,60 +489,13 @@ function handleAddLockerSubmit() {
     alert(`Locker ${lockerData.code} added successfully!`);
 }
 
-/**
- * Update a locker row in the table
- * @param {string} lockerId - Locker ID (e.g., 'L1', 'M2', 'S3')
- * @param {object} lockerData - Updated locker data
- * Example: { code: 'L1', size: 'Large', module: 'M1', device: 'DEV-01', status: 'occupied' }
- */
-function updateLockerRow(lockerId, lockerData) {
-    const row = document.querySelector(`tr[data-locker-row="${lockerId}"]`);
-    if (!row) return;
-    
-    // Update each field
-    if (lockerData.code) {
-        const codeField = row.querySelector('[data-field="code"]');
-        if (codeField) codeField.textContent = lockerData.code;
-    }
-    
-    if (lockerData.size) {
-        const sizeField = row.querySelector('[data-field="size"]');
-        if (sizeField) sizeField.textContent = lockerData.size;
-    }
-    
-    if (lockerData.module) {
-        const moduleField = row.querySelector('[data-field="module"]');
-        if (moduleField) moduleField.textContent = lockerData.module;
-    }
-    
-    if (lockerData.device) {
-        const deviceField = row.querySelector('[data-field="device"]');
-        if (deviceField) deviceField.textContent = lockerData.device;
-    }
-    
-    if (lockerData.status) {
-        const statusField = row.querySelector('[data-field="status"]');
-        if (statusField) {
-            // Remove old status classes
-            statusField.classList.remove('available', 'occupied', 'payment', 'maintenance');
-            // Add new status class
-            statusField.classList.add(lockerData.status);
-            statusField.textContent = lockerData.status;
-        }
-    }
-}
-
-/**
- * Add a new locker row to the table
- * @param {object} lockerData - New locker data
- */
 function addLockerRow(lockerData) {
     const tbody = document.getElementById('lockers-tbody');
     if (!tbody) return;
-    
+
     const newRow = document.createElement('tr');
     newRow.setAttribute('data-locker-row', lockerData.code);
-    
+
     newRow.innerHTML = `
         <td class="code-cell"><span class="locker-code" data-field="code">${lockerData.code}</span></td>
         <td class="size-cell"><span data-field="size">${lockerData.size}</span></td>
@@ -554,6 +514,13 @@ function addLockerRow(lockerData) {
                     <path d="M12 2v20m0-20L7 7m10 0L17 7M5 12h14m-14 5h14"></path>
                 </svg>
             </button>
+            <button class="action-btn emergency-btn" title="Emergency Unlock" data-action="emergency-unlock">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 1v6"></path>
+                    <path d="M5 8v5a7 7 0 0 0 14 0V8"></path>
+                    <rect x="9" y="11" width="6" height="4" rx="1"></rect>
+                </svg>
+            </button>
             <button class="action-btn delete-btn" title="Delete" data-action="delete">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <polyline points="3 6 5 6 21 6"></polyline>
@@ -564,23 +531,31 @@ function addLockerRow(lockerData) {
             </button>
         </td>
     `;
-    
+
     tbody.appendChild(newRow);
 }
 
-/**
- * Remove a locker row from the table
- * @param {string} lockerId - Locker ID to remove
- */
-function removeLockerRow(lockerId) {
-    const row = document.querySelector(`tr[data-locker-row="${lockerId}"]`);
-    if (row) {
-        row.style.opacity = '0';
-        row.style.transform = 'translateX(-20px)';
-        setTimeout(() => {
-            row.remove();
-        }, 300);
+function renderLockersTable() {
+    const tbody = document.getElementById('lockers-tbody');
+    if (!tbody) return;
+
+    tbody.innerHTML = '';
+    if (!Array.isArray(lockerRecords) || lockerRecords.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#6b7280;">No lockers to display.</td></tr>';
+        return;
     }
+
+    const grouped = groupLockersByModule(lockerRecords);
+    Object.keys(grouped)
+        .sort((a, b) => parseInt(a.replace('M', ''), 10) - parseInt(b.replace('M', ''), 10))
+        .forEach(moduleName => {
+            const groupRow = document.createElement('tr');
+            groupRow.className = 'module-group-row';
+            groupRow.innerHTML = `<td colspan="6">${moduleName} • ${grouped[moduleName].length} lockers</td>`;
+            tbody.appendChild(groupRow);
+
+            grouped[moduleName].forEach(locker => addLockerRow(locker));
+        });
 }
 
 /**
@@ -588,16 +563,183 @@ function removeLockerRow(lockerId) {
  * @param {array} lockersData - Array of locker objects
  */
 function updateAllLockers(lockersData) {
-    const tbody = document.getElementById('lockers-tbody');
-    if (!tbody) return;
-    
-    // Clear existing rows
-    tbody.innerHTML = '';
-    
-    // Add new rows from database
-    lockersData.forEach(locker => {
-        addLockerRow(locker);
+    lockerRecords = lockersData.slice();
+    renderLockersTable();
+}
+
+function groupLockersByModule(lockersData) {
+    return lockersData.reduce((acc, locker) => {
+        if (!acc[locker.module]) {
+            acc[locker.module] = [];
+        }
+        acc[locker.module].push(locker);
+        return acc;
+    }, {});
+}
+
+function addDefaultModule() {
+    const nextModuleNumber = getNextModuleNumber();
+    const moduleName = `M${nextModuleNumber}`;
+    const deviceId = `DEV-${String(nextModuleNumber).padStart(2, '0')}`;
+    const template = getModuleTemplate();
+
+    if (!confirm(`Add ${moduleName} with ${template.length} lockers (same setup as existing modules)?`)) return;
+
+    const moduleLockers = template.map(locker => {
+        const code = getNextLockerCode(locker.prefix);
+        return {
+            code: code,
+            size: locker.size,
+            module: moduleName,
+            device: deviceId,
+            status: 'available'
+        };
     });
+
+    lockerRecords.push(...moduleLockers);
+    persistNewModuleLockers(moduleLockers);
+
+    renderLockersTable();
+    alert(`${moduleName} added successfully.`);
+}
+
+function getNextModuleNumber() {
+    const modules = lockerRecords.map(locker => parseInt(locker.module.replace('M', ''), 10));
+    const maxModule = modules.length ? Math.max(...modules) : 0;
+    return maxModule + 1;
+}
+
+function getModuleTemplate() {
+    return [
+        { prefix: 'L', size: 'Large' },
+        { prefix: 'M', size: 'Medium' },
+        { prefix: 'S', size: 'Small' },
+        { prefix: 'S', size: 'Small' }
+    ];
+}
+
+function getDefaultLockerData() {
+    return [
+        { code: 'L1', size: 'Large', module: 'M1', device: 'DEV-01', status: 'available' },
+        { code: 'M1', size: 'Medium', module: 'M1', device: 'DEV-01', status: 'available' },
+        { code: 'S1', size: 'Small', module: 'M1', device: 'DEV-01', status: 'occupied' },
+        { code: 'S2', size: 'Small', module: 'M1', device: 'DEV-01', status: 'occupied' },
+        { code: 'L2', size: 'Large', module: 'M2', device: 'DEV-02', status: 'occupied' },
+        { code: 'M2', size: 'Medium', module: 'M2', device: 'DEV-02', status: 'available' },
+        { code: 'S3', size: 'Small', module: 'M2', device: 'DEV-02', status: 'available' },
+        { code: 'S4', size: 'Small', module: 'M2', device: 'DEV-02', status: 'maintenance' }
+    ];
+}
+
+function normalizeStatus(status) {
+    const value = String(status || 'available').toLowerCase();
+    if (value === 'available' || value === 'occupied' || value === 'maintenance' || value === 'payment') {
+        return value;
+    }
+    return 'available';
+}
+
+function formatStatusForDb(status) {
+    const normalized = normalizeStatus(status);
+    return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+}
+
+function getSizeTypeIdFromSize(size) {
+    const map = { Small: 1, Medium: 2, Large: 3 };
+    return map[size] || 1;
+}
+
+function mapDbRowsToLockerRecords(rows) {
+    if (!Array.isArray(rows) || rows.length === 0) return [];
+
+    const sortedRows = rows.slice().sort((a, b) => {
+        const aId = a.locker_id || a.id || 0;
+        const bId = b.locker_id || b.id || 0;
+        return aId - bId;
+    });
+
+    return sortedRows.map((row, index) => {
+        const number = row.locker_number || row.code || `L${index + 1}`;
+        const moduleNumber = row.module_number || row.module || row.module_id || inferModuleFromLockerNumber(number);
+        const size = row.size ||
+            (row.size_type_id === 1 ? 'Small' : row.size_type_id === 2 ? 'Medium' : 'Large');
+        return {
+            code: number,
+            size: size,
+            module: String(moduleNumber).startsWith('M') ? String(moduleNumber) : `M${moduleNumber}`,
+            device: row.device || row.device_id || `DEV-${String(Math.floor(index / 4) + 1).padStart(2, '0')}`,
+            status: normalizeStatus(row.status),
+            dbLockerId: row.locker_id || row.id || null
+        };
+    });
+}
+
+function inferModuleFromLockerNumber(lockerNumber) {
+    const code = String(lockerNumber || '').toUpperCase();
+    const numericPart = parseInt(code.replace(/^[A-Z]+/, ''), 10);
+    if (code.startsWith('L') || code.startsWith('M')) {
+        if (!isNaN(numericPart)) return `M${numericPart}`;
+    }
+    if (code.startsWith('S')) {
+        if (!isNaN(numericPart)) return numericPart <= 2 ? 'M1' : 'M2';
+    }
+    return 'M1';
+}
+
+function getNextLockerCode(prefix) {
+    const samePrefix = lockerRecords
+        .map(locker => locker.code || '')
+        .filter(code => code.startsWith(prefix))
+        .map(code => parseInt(code.replace(prefix, ''), 10))
+        .filter(value => !isNaN(value));
+    const next = samePrefix.length ? Math.max(...samePrefix) + 1 : 1;
+    return `${prefix}${next}`;
+}
+
+async function persistLockerStatus(locker) {
+    if (!(typeof isSupabaseConnected !== 'undefined' && isSupabaseConnected() &&
+        typeof dbOps !== 'undefined' && dbOps.updateLockerStatus && locker.dbLockerId)) {
+        return;
+    }
+    try {
+        const result = await dbOps.updateLockerStatus(locker.dbLockerId, formatStatusForDb(locker.status));
+        if (!result) {
+            alert(`Failed to update locker ${locker.code} in Supabase.`);
+        }
+    } catch (error) {
+        console.error('Error saving locker status:', error);
+        alert(`Failed to update locker ${locker.code} in Supabase.`);
+    }
+}
+
+async function persistNewModuleLockers(newLockers) {
+    if (!(typeof isSupabaseConnected !== 'undefined' && isSupabaseConnected() &&
+        typeof dbOps !== 'undefined' && dbOps.createLockersBatch)) {
+        return;
+    }
+
+    const dbPayload = newLockers.map(locker => ({
+        locker_number: locker.code,
+        size_type_id: getSizeTypeIdFromSize(locker.size),
+        status: formatStatusForDb(locker.status)
+    }));
+
+    try {
+        const inserted = await dbOps.createLockersBatch(dbPayload);
+        if (!inserted) {
+            alert('Failed to save new module lockers to Supabase.');
+            return;
+        }
+        if (Array.isArray(inserted)) {
+            inserted.forEach((row, index) => {
+                if (newLockers[index]) {
+                    newLockers[index].dbLockerId = row.locker_id || row.id || null;
+                }
+            });
+        }
+    } catch (error) {
+        console.error('Error saving new module lockers:', error);
+    }
 }
 
 // Locker interaction

@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CoinCubby - Locker Management</title>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="../css/styles.css">
 </head>
 <body>
     <div class="container">
@@ -94,13 +94,17 @@
                     <h1>Locker Management</h1>
                     <p class="subtitle">Control compartments, toggle maintenance, and configure modules.</p>
                 </div>
-                <button class="btn-primary" id="add-locker-btn">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="12" y1="5" x2="12" y2="19"></line>
-                        <line x1="5" y1="12" x2="19" y2="12"></line>
-                    </svg>
-                    Add Locker
-                </button>
+                <div class="header-actions">
+                    <button class="btn-secondary" id="add-module-btn">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="7" height="7"></rect>
+                            <rect x="14" y="3" width="7" height="7"></rect>
+                            <rect x="3" y="14" width="7" height="7"></rect>
+                            <rect x="14" y="14" width="7" height="7"></rect>
+                        </svg>
+                        Add Module
+                    </button>
+                </div>
             </div>
 
             <!-- Status Legend -->
@@ -136,154 +140,7 @@
                             <th>Actions</th>
                         </tr>
                     </thead>
-                    <tbody id="lockers-tbody">
-                        <tr data-locker-row="L1">
-                            <td class="code-cell">
-                                <span class="locker-code" data-field="code">L1</span>
-                            </td>
-                            <td class="size-cell">
-                                <span data-field="size">Large</span>
-                            </td>
-                            <td class="module-cell">
-                                <span data-field="module">M1</span>
-                            </td>
-                            <td class="device-cell">
-                                <span data-field="device">DEV-01</span>
-                            </td>
-                            <td class="status-cell">
-                                <span class="status-badge available" data-field="status">available</span>
-                            </td>
-                            <td class="actions-cell">
-                                <button class="action-btn occupied-btn" title="Toggle Occupied/Available" data-action="occupied">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <rect x="3" y="11" width="18" height="11"></rect>
-                                        <path d="M7 11V7a4 4 0 0 1 4-4h2a4 4 0 0 1 4 4v4"></path>
-                                    </svg>
-                                </button>
-                                <button class="action-btn maintenance-btn" title="Toggle Maintenance" data-action="maintenance">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <path d="M12 2v20m0-20L7 7m10 0L17 7M5 12h14m-14 5h14"></path>
-                                    </svg>
-                                </button>
-                                <button class="action-btn delete-btn" title="Delete" data-action="delete">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <polyline points="3 6 5 6 21 6"></polyline>
-                                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                                        <line x1="10" y1="11" x2="10" y2="17"></line>
-                                        <line x1="14" y1="11" x2="14" y2="17"></line>
-                                    </svg>
-                                </button>
-                            </td>
-                        </tr>
-                        <tr data-locker-row="L2">
-                            <td class="code-cell"><span class="locker-code" data-field="code">L2</span></td>
-                            <td class="size-cell"><span data-field="size">Large</span></td>
-                            <td class="module-cell"><span data-field="module">M1</span></td>
-                            <td class="device-cell"><span data-field="device">DEV-01</span></td>
-                            <td class="status-cell"><span class="status-badge maintenance" data-field="status">maintenance</span></td>
-                            <td class="actions-cell">
-                                <button class="action-btn occupied-btn" title="Toggle Occupied/Available" data-action="occupied"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11"></rect><path d="M7 11V7a4 4 0 0 1 4-4h2a4 4 0 0 1 4 4v4"></path></svg></button>
-                                <button class="action-btn maintenance-btn" title="Toggle Maintenance" data-action="maintenance"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20m0-20L7 7m10 0L17 7M5 12h14m-14 5h14"></path></svg></button>
-                                <button class="action-btn delete-btn" title="Delete" data-action="delete"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></button>
-                            </td>
-                        </tr>
-                        <tr data-locker-row="L3">
-                            <td class="code-cell"><span class="locker-code" data-field="code">L3</span></td>
-                            <td class="size-cell"><span data-field="size">Large</span></td>
-                            <td class="module-cell"><span data-field="module">M2</span></td>
-                            <td class="device-cell"><span data-field="device">DEV-02</span></td>
-                            <td class="status-cell"><span class="status-badge occupied" data-field="status">occupied</span></td>
-                            <td class="actions-cell">
-                                <button class="action-btn occupied-btn" title="Toggle Occupied/Available" data-action="occupied"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11"></rect><path d="M7 11V7a4 4 0 0 1 4-4h2a4 4 0 0 1 4 4v4"></path></svg></button>
-                                <button class="action-btn maintenance-btn" title="Toggle Maintenance" data-action="maintenance"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20m0-20L7 7m10 0L17 7M5 12h14m-14 5h14"></path></svg></button>
-                                <button class="action-btn delete-btn" title="Delete" data-action="delete"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></button>
-                            </td>
-                        </tr>
-                        <tr data-locker-row="L4">
-                            <td class="code-cell"><span class="locker-code" data-field="code">L4</span></td>
-                            <td class="size-cell"><span data-field="size">Large</span></td>
-                            <td class="module-cell"><span data-field="module">M2</span></td>
-                            <td class="device-cell"><span data-field="device">DEV-02</span></td>
-                            <td class="status-cell"><span class="status-badge available" data-field="status">available</span></td>
-                            <td class="actions-cell">
-                                <button class="action-btn occupied-btn" title="Toggle Occupied/Available" data-action="occupied"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11"></rect><path d="M7 11V7a4 4 0 0 1 4-4h2a4 4 0 0 1 4 4v4"></path></svg></button>
-                                <button class="action-btn maintenance-btn" title="Toggle Maintenance" data-action="maintenance"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20m0-20L7 7m10 0L17 7M5 12h14m-14 5h14"></path></svg></button>
-                                <button class="action-btn delete-btn" title="Delete" data-action="delete"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></button>
-                            </td>
-                        </tr>
-                        <tr data-locker-row="M1">
-                            <td class="code-cell"><span class="locker-code" data-field="code">M1</span></td>
-                            <td class="size-cell"><span data-field="size">Medium</span></td>
-                            <td class="module-cell"><span data-field="module">M1</span></td>
-                            <td class="device-cell"><span data-field="device">DEV-01</span></td>
-                            <td class="status-cell"><span class="status-badge available" data-field="status">available</span></td>
-                            <td class="actions-cell">
-                                <button class="action-btn occupied-btn" title="Toggle Occupied/Available" data-action="occupied"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11"></rect><path d="M7 11V7a4 4 0 0 1 4-4h2a4 4 0 0 1 4 4v4"></path></svg></button>
-                                <button class="action-btn maintenance-btn" title="Toggle Maintenance" data-action="maintenance"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20m0-20L7 7m10 0L17 7M5 12h14m-14 5h14"></path></svg></button>
-                                <button class="action-btn delete-btn" title="Delete" data-action="delete"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></button>
-                            </td>
-                        </tr>
-                        <tr data-locker-row="M2">
-                            <td class="code-cell"><span class="locker-code" data-field="code">M2</span></td>
-                            <td class="size-cell"><span data-field="size">Medium</span></td>
-                            <td class="module-cell"><span data-field="module">M1</span></td>
-                            <td class="device-cell"><span data-field="device">DEV-01</span></td>
-                            <td class="status-cell"><span class="status-badge occupied" data-field="status">occupied</span></td>
-                            <td class="actions-cell">
-                                <button class="action-btn occupied-btn" title="Toggle Occupied/Available" data-action="occupied"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11"></rect><path d="M7 11V7a4 4 0 0 1 4-4h2a4 4 0 0 1 4 4v4"></path></svg></button>
-                                <button class="action-btn maintenance-btn" title="Toggle Maintenance" data-action="maintenance"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20m0-20L7 7m10 0L17 7M5 12h14m-14 5h14"></path></svg></button>
-                                <button class="action-btn delete-btn" title="Delete" data-action="delete"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></button>
-                            </td>
-                        </tr>
-                        <tr data-locker-row="M3">
-                            <td class="code-cell"><span class="locker-code" data-field="code">M3</span></td>
-                            <td class="size-cell"><span data-field="size">Medium</span></td>
-                            <td class="module-cell"><span data-field="module">M2</span></td>
-                            <td class="device-cell"><span data-field="device">DEV-02</span></td>
-                            <td class="status-cell"><span class="status-badge available" data-field="status">available</span></td>
-                            <td class="actions-cell">
-                                <button class="action-btn occupied-btn" title="Toggle Occupied/Available" data-action="occupied"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11"></rect><path d="M7 11V7a4 4 0 0 1 4-4h2a4 4 0 0 1 4 4v4"></path></svg></button>
-                                <button class="action-btn maintenance-btn" title="Toggle Maintenance" data-action="maintenance"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20m0-20L7 7m10 0L17 7M5 12h14m-14 5h14"></path></svg></button>
-                                <button class="action-btn delete-btn" title="Delete" data-action="delete"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></button>
-                            </td>
-                        </tr>
-                        <tr data-locker-row="M4">
-                            <td class="code-cell"><span class="locker-code" data-field="code">M4</span></td>
-                            <td class="size-cell"><span data-field="size">Medium</span></td>
-                            <td class="module-cell"><span data-field="module">M2</span></td>
-                            <td class="device-cell"><span data-field="device">DEV-02</span></td>
-                            <td class="status-cell"><span class="status-badge available" data-field="status">available</span></td>
-                            <td class="actions-cell">
-                                <button class="action-btn occupied-btn" title="Toggle Occupied/Available" data-action="occupied"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11"></rect><path d="M7 11V7a4 4 0 0 1 4-4h2a4 4 0 0 1 4 4v4"></path></svg></button>
-                                <button class="action-btn maintenance-btn" title="Toggle Maintenance" data-action="maintenance"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20m0-20L7 7m10 0L17 7M5 12h14m-14 5h14"></path></svg></button>
-                                <button class="action-btn delete-btn" title="Delete" data-action="delete"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></button>
-                            </td>
-                        </tr>
-                        <tr data-locker-row="S1">
-                            <td class="code-cell"><span class="locker-code" data-field="code">S1</span></td>
-                            <td class="size-cell"><span data-field="size">Small</span></td>
-                            <td class="module-cell"><span data-field="module">M1</span></td>
-                            <td class="device-cell"><span data-field="device">DEV-01</span></td>
-                            <td class="status-cell"><span class="status-badge occupied" data-field="status">occupied</span></td>
-                            <td class="actions-cell">
-                                <button class="action-btn occupied-btn" title="Toggle Occupied/Available" data-action="occupied"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11"></rect><path d="M7 11V7a4 4 0 0 1 4-4h2a4 4 0 0 1 4 4v4"></path></svg></button>
-                                <button class="action-btn maintenance-btn" title="Toggle Maintenance" data-action="maintenance"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20m0-20L7 7m10 0L17 7M5 12h14m-14 5h14"></path></svg></button>
-                                <button class="action-btn delete-btn" title="Delete" data-action="delete"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></button>
-                            </td>
-                        </tr>
-                        <tr data-locker-row="S2">
-                            <td class="code-cell"><span class="locker-code" data-field="code">S2</span></td>
-                            <td class="size-cell"><span data-field="size">Small</span></td>
-                            <td class="module-cell"><span data-field="module">M1</span></td>
-                            <td class="device-cell"><span data-field="device">DEV-01</span></td>
-                            <td class="status-cell"><span class="status-badge occupied" data-field="status">occupied</span></td>
-                            <td class="actions-cell">
-                                <button class="action-btn occupied-btn" title="Toggle Occupied/Available" data-action="occupied"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11"></rect><path d="M7 11V7a4 4 0 0 1 4-4h2a4 4 0 0 1 4 4v4"></path></svg></button>
-                                <button class="action-btn maintenance-btn" title="Toggle Maintenance" data-action="maintenance"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20m0-20L7 7m10 0L17 7M5 12h14m-14 5h14"></path></svg></button>
-                                <button class="action-btn delete-btn" title="Delete" data-action="delete"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></button>
-                            </td>
-                        </tr>
-                    </tbody>
+                    <tbody id="lockers-tbody"></tbody>
                 </table>
             </div>
         </main>
@@ -350,8 +207,8 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="supabase-client.js"></script>
-    <script src="db-operations.js"></script>
+    <script src="../js/supabase-client.js"></script>
+    <script src="../js/db-operations.js"></script>
     <script>
         (function() {
             const auth = localStorage.getItem('coincubby_auth');
@@ -360,7 +217,7 @@
             }
         })();
     </script>
-    <script src="script.js"></script>
+    <script src="../js/script.js"></script>
 
 </body>
 </html>
