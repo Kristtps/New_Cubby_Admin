@@ -2,64 +2,8 @@
 // AUDIT LOG PAGE - JAVASCRIPT FUNCTIONALITY
 // ========================================
 
-// Sample audit log entries
-const auditLogEntries = [
-    {
-        id: 1,
-        action: 'rental created',
-        badge: 'S1',
-        badgeType: 'warning',
-        description: 'Rented for 1h. ₱10 via wallet',
-        user: 'smthbalon@gmail.com',
-        timestamp: 'Apr 17, 2026, 5:43 AM',
-        icon: 'info',
-        type: 'rental'
-    },
-    {
-        id: 2,
-        action: 'system initialized',
-        badge: 'DEV-01',
-        badgeType: 'secondary',
-        description: 'Device DEV-01 powered on and connected',
-        user: 'system',
-        timestamp: 'Apr 17, 2026, 12:55 AM',
-        icon: 'info',
-        type: 'system'
-    },
-    {
-        id: 3,
-        action: 'locker added',
-        badge: 'L1',
-        badgeType: 'primary',
-        description: 'New large locker configured',
-        user: 'admin@coincubby.com',
-        timestamp: 'Apr 17, 2026, 12:55 AM',
-        icon: 'info',
-        type: 'locker'
-    },
-    {
-        id: 4,
-        action: 'maintenance mode',
-        badge: 'L2',
-        badgeType: 'warning',
-        description: 'Locker put in maintenance',
-        user: 'admin@coincubby.com',
-        timestamp: 'Apr 17, 2026, 12:55 AM',
-        icon: 'warning',
-        type: 'maintenance'
-    },
-    {
-        id: 5,
-        action: 'cash collected',
-        badge: 'DEV-01',
-        badgeType: 'secondary',
-        description: 'Collected ₱2,450 in coins and bills',
-        user: 'admin@coincubby.com',
-        timestamp: 'Apr 17, 2026, 12:55 AM',
-        icon: 'success',
-        type: 'transaction'
-    }
-];
+// Audit log entries (initially empty)
+const auditLogEntries = [];
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', async function() {
@@ -95,15 +39,17 @@ async function loadAuditLogEntries() {
                         // Transform database entries to UI format
                         auditLogEntries.length = 0; // Clear existing entries
                         entries.forEach(entry => {
+                            const details = entry.details || {};
                             auditLogEntries.push({
-                                id: entry.id,
-                                action: entry.action,
-                                badge: entry.entity_id || '-',
-                                description: entry.details ? entry.details.description || '' : '',
+                                id: entry.log_id,
+                                action: entry.action || 'Action',
+                                badge: details.badge || '-',
+                                badgeType: details.badgeType || 'secondary',
+                                description: details.description || '',
                                 user: entry.user_id || 'system',
-                                timestamp: new Date(entry.created_at).toLocaleString(),
-                                icon: 'info',
-                                type: entry.entity_type || 'system'
+                                timestamp: new Date(entry.timestamp).toLocaleString(),
+                                icon: details.icon || 'info',
+                                type: details.type || 'system'
                             });
                         });
                         console.log('✓ Audit log loaded from database:', auditLogEntries);
@@ -157,7 +103,7 @@ function displayAuditLog(entries = auditLogEntries) {
             <div class="auditlog-content">
                 <div class="auditlog-header">
                     <span class="auditlog-action">${entry.action}</span>
-                    <span class="auditlog-badge badge-${entry.badgeType}">${entry.badge}</span>
+                    <span class="auditlog-badge badge-${entry.badgeType || 'secondary'}">${entry.badge}</span>
                 </div>
                 <p class="auditlog-description">${entry.description}</p>
                 <div class="auditlog-meta">
@@ -184,30 +130,42 @@ function getIconSVG(iconType) {
 }
 
 /**
- * Add new audit log entry
+ * Add new audit log entry and persist to database
  */
-function addAuditLogEntry(entry) {
+async function addAuditLogEntry(entry) {
     try {
-        const newEntry = {
-            id: auditLogEntries.length + 1,
-            timestamp: new Date().toLocaleString('en-US', {
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-                hour12: true
-            }),
+        const dbEntry = {
+            action: entry.action,
+            user_id: entry.user_id || null,
+            details: {
+                description: entry.description,
+                badge: entry.badge,
+                badgeType: entry.badgeType,
+                icon: entry.icon,
+                type: entry.type
+            },
+            timestamp: new Date().toISOString()
+        };
+
+        // Persist to Supabase if connected
+        if (typeof isSupabaseConnected !== 'undefined' && isSupabaseConnected()) {
+            if (typeof dbOps !== 'undefined' && dbOps.createAuditLog) {
+                await dbOps.createAuditLog(dbEntry);
+            }
+        }
+
+        const uiEntry = {
+            id: Date.now(),
+            timestamp: new Date().toLocaleString(),
             ...entry
         };
 
-        auditLogEntries.unshift(newEntry);
+        auditLogEntries.unshift(uiEntry);
         saveToLocalStorage();
         displayAuditLog();
         
-        console.log('✓ Audit log entry added:', newEntry);
-        return newEntry;
+        console.log('✓ Audit log entry added:', uiEntry);
+        return uiEntry;
     } catch (error) {
         console.error('Error adding audit log entry:', error);
     }
@@ -219,7 +177,6 @@ function addAuditLogEntry(entry) {
 function saveToLocalStorage() {
     try {
         localStorage.setItem('coincubby_audit_log', JSON.stringify(auditLogEntries));
-        console.log('✓ Audit log saved to localStorage');
     } catch (error) {
         console.error('Error saving to localStorage:', error);
     }
@@ -234,7 +191,6 @@ function filterAuditLogByType(type) {
         : auditLogEntries.filter(entry => entry.type === type);
     
     displayAuditLog(filtered);
-    console.log(`✓ Filtered audit log by type: ${type}`);
 }
 
 /**
@@ -243,28 +199,13 @@ function filterAuditLogByType(type) {
 function searchAuditLog(searchTerm) {
     const term = searchTerm.toLowerCase();
     const filtered = auditLogEntries.filter(entry => 
-        entry.action.toLowerCase().includes(term) ||
-        entry.description.toLowerCase().includes(term) ||
-        entry.user.toLowerCase().includes(term) ||
-        entry.badge.toLowerCase().includes(term)
+        (entry.action && entry.action.toLowerCase().includes(term)) ||
+        (entry.description && entry.description.toLowerCase().includes(term)) ||
+        (entry.user && entry.user.toLowerCase().includes(term)) ||
+        (entry.badge && entry.badge.toLowerCase().includes(term))
     );
     
     displayAuditLog(filtered);
-    console.log(`✓ Audit log search: "${searchTerm}" - found ${filtered.length} entries`);
-}
-
-/**
- * Get entries by action type
- */
-function getEntriesByAction(action) {
-    return auditLogEntries.filter(entry => entry.action === action);
-}
-
-/**
- * Get entries by user
- */
-function getEntriesByUser(user) {
-    return auditLogEntries.filter(entry => entry.user === user);
 }
 
 /**
@@ -306,8 +247,6 @@ function exportAuditLogAsCSV() {
         a.download = `audit_log_${new Date().toISOString().split('T')[0]}.csv`;
         a.click();
         window.URL.revokeObjectURL(url);
-
-        console.log('✓ Audit log exported as CSV');
     } catch (error) {
         console.error('Error exporting audit log:', error);
     }
@@ -326,8 +265,6 @@ function exportAuditLogAsJSON() {
         a.download = `audit_log_${new Date().toISOString().split('T')[0]}.json`;
         a.click();
         window.URL.revokeObjectURL(url);
-
-        console.log('✓ Audit log exported as JSON');
     } catch (error) {
         console.error('Error exporting audit log:', error);
     }
@@ -345,13 +282,8 @@ function getAuditLogStatistics() {
     };
 
     auditLogEntries.forEach(entry => {
-        // Count by type
         stats.byType[entry.type] = (stats.byType[entry.type] || 0) + 1;
-
-        // Count by action
         stats.byAction[entry.action] = (stats.byAction[entry.action] || 0) + 1;
-
-        // Count by user
         stats.byUser[entry.user] = (stats.byUser[entry.user] || 0) + 1;
     });
 

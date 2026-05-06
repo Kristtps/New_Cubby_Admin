@@ -1,46 +1,5 @@
-// Sample transaction data
-const transactionData = [
-    {
-        id: 1,
-        date: 'Apr 17, 10:53',
-        customerName: 'malaluanmarkangelo',
-        customerEmail: 'malaluanmarkangelo@gmail.com',
-        type: 'Wallet Load',
-        method: 'App',
-        locker: '-',
-        amount: 50.00
-    },
-    {
-        id: 2,
-        date: 'Apr 17, 05:43',
-        customerName: 'Samantha Claire Balon',
-        customerEmail: 'smthbalon@gmail.com',
-        type: 'Rental Payment',
-        method: 'Wallet',
-        locker: 'S1',
-        amount: 10.00
-    },
-    {
-        id: 3,
-        date: 'Apr 17, 04:54',
-        customerName: 'malaluanmarkangelo',
-        customerEmail: 'malaluanmarkangelo@gmail.com',
-        type: 'Wallet Load',
-        method: 'App',
-        locker: '-',
-        amount: 200.00
-    },
-    {
-        id: 4,
-        date: 'Apr 17, 01:16',
-        customerName: 'Samantha Claire Balon',
-        customerEmail: 'smthbalon@gmail.com',
-        type: 'Wallet Load',
-        method: 'App',
-        locker: '-',
-        amount: 100.00
-    }
-];
+// Transaction data (initially empty)
+const transactionData = [];
 
 // Initialize the page
 document.addEventListener('DOMContentLoaded', async function() {
@@ -79,31 +38,37 @@ document.addEventListener('DOMContentLoaded', async function() {
 function populateTransactionTableFromDatabase(transactions) {
     const tableBody = document.getElementById('transactionTableBody');
     
-    if (!tableBody || transactions.length === 0) {
+    if (!tableBody || !transactions || transactions.length === 0) {
         populateTransactionTable(); // Fall back to sample data
         return;
     }
     
     tableBody.innerHTML = transactions.map(tx => {
-        const date = new Date(tx.created_at).toLocaleString('en-US', {
+        // Use start_time for the date display
+        const date = new Date(tx.start_time || tx.created_at).toLocaleString('en-US', {
             month: 'short',
             day: 'numeric',
             hour: '2-digit',
             minute: '2-digit'
         });
         
-        return `<tr data-transaction-id="${tx.id}">
+        // Use joined data if available
+        const customerName = tx.customers ? tx.customers.full_name : (tx.customer_name || 'Unknown');
+        const customerEmail = tx.customers ? tx.customers.email : (tx.customer_email || '-');
+        const lockerNumber = tx.lockers ? tx.lockers.locker_number : (tx.locker_id || '-');
+        
+        return `<tr data-transaction-id="${tx.transaction_id || tx.id}">
             <td class="date-cell">${date}</td>
             <td class="customer-cell">
                 <div class="customer-info">
-                    <div class="customer-name">${tx.customer_name || 'Unknown'}</div>
-                    <div class="customer-email">${tx.customer_email || '-'}</div>
+                    <div class="customer-name">${customerName}</div>
+                    <div class="customer-email">${customerEmail}</div>
                 </div>
             </td>
-            <td class="type-cell">${tx.type || 'Payment'}</td>
-            <td class="method-cell">${tx.payment_method || tx.method || '-'}</td>
-            <td class="locker-cell">${tx.locker_id || '-'}</td>
-            <td class="amount-cell">₱${parseFloat(tx.amount).toFixed(2)}</td>
+            <td class="type-cell">${tx.status || tx.type || 'Active'}</td>
+            <td class="method-cell">${tx.qr_token ? 'QR Token: ' + tx.qr_token : (tx.payment_method || tx.method || '-')}</td>
+            <td class="locker-cell">${lockerNumber}</td>
+            <td class="amount-cell">₱${tx.amount ? parseFloat(tx.amount).toFixed(2) : '0.00'}</td>
         </tr>`;
     }).join('');
 }
@@ -114,6 +79,8 @@ function populateTransactionTableFromDatabase(transactions) {
 function populateTransactionTable() {
     const tableBody = document.getElementById('transactionTableBody');
     
+    if (!tableBody) return;
+
     tableBody.innerHTML = transactionData.map(transaction => `
         <tr>
             <td class="date-cell">${transaction.date}</td>

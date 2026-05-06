@@ -59,7 +59,8 @@ document.addEventListener('DOMContentLoaded', async function() {
                         'total-customers': (stats && stats.totalCustomers) || 0,
                         'today-revenue': ((stats && stats.todayRevenue) || 0).toFixed(2)
                     },
-                    recentRentals: (stats && stats.recentRentals) || []
+                    recentRentals: (stats && stats.recentRentals) || [],
+                    lockers: lockers
                 };
                 
                 refreshDashboardFromDatabase(dashboardData);
@@ -140,14 +141,23 @@ function updateAllStats(statsData) {
 function updateLockerStatus(lockerId, newStatus) {
     const locker = document.querySelector(`[data-locker-id="${lockerId}"]`);
     if (locker) {
-        // Remove old status classes
         locker.classList.remove('available', 'occupied', 'payment', 'maintenance');
-        
-        // Add new status class
         locker.classList.add(newStatus);
-        
-        // Update data attribute
         locker.setAttribute('data-status', newStatus);
+        
+        const iconContainer = locker.querySelector('svg');
+        if (iconContainer) {
+            if (newStatus === 'available') {
+                // Unlock icon for available
+                iconContainer.innerHTML = '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path>';
+            } else if (newStatus === 'maintenance') {
+                // Tool/Wrench icon for maintenance
+                iconContainer.innerHTML = '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>';
+            } else {
+                // Package icon for Occupied (In Use)
+                iconContainer.innerHTML = '<path d="M12 2L2 7l10 5 10-5-10-5z"></path><path d="M2 17l10 5 10-5"></path><path d="M2 7v10"></path><path d="M12 12v10"></path><path d="M22 7v10"></path>';
+            }
+        }
     }
 }
 
@@ -230,7 +240,7 @@ function refreshDashboardFromDatabase(dashboardData) {
     
     // Update locker statuses
     if (dashboardData.lockers) {
-        updateLockerStatuses(dashboardData.lockers);
+        dashboardData.lockers.forEach(locker => { const lockerId = locker.locker_number || locker.code; const status = (locker.status || "available").toLowerCase(); updateLockerStatus(lockerId, status); });
     }
     
     // Update module availability counts
@@ -347,20 +357,28 @@ function initializeActionButtons() {
  * Handle occupied toggle button click - cycles between available and occupied
  */
 function handleOccupiedToggle(locker) {
+    const oldStatus = locker.status;
     locker.status = locker.status === 'occupied' ? 'available' : 'occupied';
     persistLockerStatus(locker);
     renderLockersTable();
-    console.log(`Occupied toggle for locker: ${locker.code} -> ${locker.status}`);
+    
+    if (typeof dbOps !== 'undefined' && dbOps.logConfigChangeEvent) {
+        dbOps.logConfigChangeEvent('Locker Status Toggle', `Locker ${locker.code} toggled from ${oldStatus} to ${locker.status}.`, { lockerId: locker.code, oldStatus, newStatus: locker.status });
+    }
 }
 
 /**
  * Handle maintenance toggle button click - cycles between available and maintenance
  */
 function handleMaintenanceToggle(locker) {
+    const oldStatus = locker.status;
     locker.status = locker.status === 'maintenance' ? 'available' : 'maintenance';
     persistLockerStatus(locker);
     renderLockersTable();
-    console.log(`Maintenance toggle for locker: ${locker.code} -> ${locker.status}`);
+    
+    if (typeof dbOps !== 'undefined' && dbOps.logConfigChangeEvent) {
+        dbOps.logConfigChangeEvent('Maintenance Toggle', `Locker ${locker.code} toggled maintenance mode (from ${oldStatus} to ${locker.status}).`, { lockerId: locker.code, oldStatus, newStatus: locker.status });
+    }
 }
 
 /**
@@ -368,10 +386,14 @@ function handleMaintenanceToggle(locker) {
  */
 function handleEmergencyUnlock(locker) {
     if (!confirm(`Emergency unlock ${locker.code}?`)) return;
+    const oldStatus = locker.status;
     locker.status = 'available';
     persistLockerStatus(locker);
     renderLockersTable();
-    console.log(`Emergency unlock applied to locker: ${locker.code}`);
+    
+    if (typeof dbOps !== 'undefined' && dbOps.logConfigChangeEvent) {
+        dbOps.logConfigChangeEvent('Emergency Unlock', `Locker ${locker.code} was emergency unlocked (Status: ${oldStatus} -> available).`, { lockerId: locker.code, oldStatus });
+    }
 }
 
 /**
@@ -379,9 +401,13 @@ function handleEmergencyUnlock(locker) {
  */
 function handleDeleteAction(locker) {
     if (!confirm(`Are you sure you want to delete locker ${locker.code}?`)) return;
+    
+    if (typeof dbOps !== 'undefined' && dbOps.logConfigChangeEvent) {
+        dbOps.logConfigChangeEvent('Locker Deleted', `Locker ${locker.code} was removed from the system.`, { lockerId: locker.code, lastStatus: locker.status });
+    }
+    
     lockerRecords = lockerRecords.filter(item => item.code !== locker.code);
     renderLockersTable();
-    console.log(`Delete action for locker: ${locker.code}`);
 }
 
 /**
@@ -619,16 +645,7 @@ function getModuleTemplate() {
 }
 
 function getDefaultLockerData() {
-    return [
-        { code: 'L1', size: 'Large', module: 'M1', device: 'DEV-01', status: 'available' },
-        { code: 'M1', size: 'Medium', module: 'M1', device: 'DEV-01', status: 'available' },
-        { code: 'S1', size: 'Small', module: 'M1', device: 'DEV-01', status: 'occupied' },
-        { code: 'S2', size: 'Small', module: 'M1', device: 'DEV-01', status: 'occupied' },
-        { code: 'L2', size: 'Large', module: 'M2', device: 'DEV-02', status: 'occupied' },
-        { code: 'M2', size: 'Medium', module: 'M2', device: 'DEV-02', status: 'available' },
-        { code: 'S3', size: 'Small', module: 'M2', device: 'DEV-02', status: 'available' },
-        { code: 'S4', size: 'Small', module: 'M2', device: 'DEV-02', status: 'maintenance' }
-    ];
+    return [];
 }
 
 function normalizeStatus(status) {

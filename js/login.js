@@ -36,7 +36,6 @@ document.addEventListener('DOMContentLoaded', async function () {
     // Only initialize login form if we're on login page
     if (document.getElementById('loginForm')) {
         initializeLoginForm();
-        // Skip checkAuthStatus() to always show login
     }
 });
 
@@ -60,8 +59,6 @@ function initializeLoginForm() {
             e.preventDefault();
             const type = passwordInput.type === 'password' ? 'text' : 'password';
             passwordInput.type = type;
-
-            // Rotate icon
             this.style.transform = type === 'text' ? 'scaleX(-1)' : 'scaleX(1)';
         });
     }
@@ -97,28 +94,23 @@ async function handleLoginSubmit(e) {
     const password = document.getElementById('password').value;
     const rememberMe = document.getElementById('rememberMe').checked;
 
-    // Clear previous messages
     clearMessages();
 
-    // Validate inputs
     if (!validateEmail() || !validatePassword()) {
         return;
     }
 
-    // Disable submit button
     const submitBtn = document.querySelector('.btn-login');
     const originalText = submitBtn.querySelector('.btn-text').textContent;
     submitBtn.disabled = true;
     submitBtn.querySelector('.btn-text').textContent = 'Signing in...';
 
     try {
-        // Check if supabase is initialized
         if (!supabaseClient) {
             showError('Supabase client not initialized. Check your internet connection.');
             return;
         }
 
-        // Authenticate with Supabase
         const { data, error } = await supabaseClient.auth.signInWithPassword({
             email: email,
             password: password,
@@ -126,6 +118,14 @@ async function handleLoginSubmit(e) {
 
         if (error) {
             showError(error.message || 'Incorrect email or password. Please try again.');
+            
+            // LOG SECURITY EVENT: Failed Login
+            try {
+                if (typeof dbOps !== 'undefined' && dbOps.logConfigChangeEvent) {
+                    await dbOps.logConfigChangeEvent('Failed Login', `Failed login attempt for ${email}. Error: ${error.message}`, { email, error: error.message });
+                }
+            } catch (logErr) { console.warn('Logging failed:', logErr); }
+            
             validatePassword();
             return;
         }
@@ -133,14 +133,19 @@ async function handleLoginSubmit(e) {
         // Login successful
         showSuccess('Login successful! Redirecting...');
 
-        // Store authentication
+        // LOG AUTH EVENT: Successful Login
+        try {
+            if (typeof dbOps !== 'undefined' && dbOps.logLoginEvent) {
+                await dbOps.logLoginEvent(data.user.email);
+            }
+        } catch (logErr) { console.warn('Logging failed:', logErr); }
+
         storeLoginCredentials({
             email: data.user.email,
             loginTime: new Date().toISOString(),
             rememberMe: rememberMe
         });
 
-        // Redirect to dashboard after short delay
         setTimeout(() => {
             redirectToDashboard();
         }, 1500);
@@ -148,7 +153,6 @@ async function handleLoginSubmit(e) {
         console.error('Login error:', error);
         showError('An error occurred during login. Please try again.');
     } finally {
-        // Re-enable submit button
         submitBtn.disabled = false;
         submitBtn.querySelector('.btn-text').textContent = originalText;
     }
@@ -249,7 +253,6 @@ function showSuccess(message) {
 function clearMessages() {
     const errorAlert = document.getElementById('loginError');
     const successAlert = document.getElementById('loginSuccess');
-
     if (errorAlert) errorAlert.style.display = 'none';
     if (successAlert) successAlert.style.display = 'none';
 }
@@ -266,7 +269,6 @@ function storeLoginCredentials(credentials) {
         loginTime: credentials.loginTime,
         rememberMe: credentials.rememberMe || false
     };
-
     localStorage.setItem('coincubby_auth', JSON.stringify(authData));
     console.log('✓ User authenticated:', credentials.email);
 }
@@ -277,21 +279,11 @@ function storeLoginCredentials(credentials) {
 function getAuthData() {
     try {
         const authData = localStorage.getItem('coincubby_auth');
-        if (!authData) {
-            console.log('No auth data found');
-            return null;
-        }
-        const parsed = JSON.parse(authData);
-        console.log('✓ Auth data retrieved:', parsed.email);
-        return parsed;
+        if (!authData) return null;
+        return JSON.parse(authData);
     } catch (error) {
         console.error('Error reading auth data:', error);
-        // Clear corrupted data
-        try {
-            localStorage.removeItem('coincubby_auth');
-        } catch (e) {
-            console.error('Could not clear auth data:', e);
-        }
+        localStorage.removeItem('coincubby_auth');
         return null;
     }
 }
@@ -301,26 +293,23 @@ function getAuthData() {
  */
 function isUserAuthenticated() {
     const authData = getAuthData();
-    const isAuth = authData && authData.isAuthenticated === true;
-    console.log('Authentication check:', isAuth ? 'AUTHENTICATED' : 'NOT AUTHENTICATED');
-    return isAuth;
-}
-
-/**
- * Check authentication status on login page
- * If already logged in, redirect to dashboard
- */
-function checkAuthStatus() {
-    if (isUserAuthenticated()) {
-        console.log('User already authenticated, redirecting to dashboard...');
-        redirectToDashboard();
-    }
+    return authData && authData.isAuthenticated === true;
 }
 
 /**
  * Logout user
  */
-function logoutUser() {
+async function logoutUser() {
+    const authData = getAuthData();
+    const email = authData ? authData.email : 'Unknown';
+    
+    // LOG AUTH EVENT: Logout
+    try {
+        if (typeof dbOps !== 'undefined' && dbOps.logLogoutEvent) {
+            await dbOps.logLogoutEvent(email);
+        }
+    } catch (e) { console.warn('Logout logging failed:', e); }
+    
     localStorage.removeItem('coincubby_auth');
     console.log('✓ User logged out');
     window.location.href = 'login.html';
@@ -333,65 +322,15 @@ function redirectToDashboard() {
     window.location.href = 'index.html';
 }
 
-// ==================== PAGE PROTECTION ====================
-
 /**
- * Protect pages - add this to every HTML file before </body>
- * This will redirect to login if user is not authenticated
+ * Protect pages
  */
 function protectPage() {
-    // Only run on non-login pages
-    const currentPath = window.location.pathname;
-    const fileName = currentPath.split('/').pop();
-
-    // Don't protect login page itself
-    if (fileName === 'login.html' || fileName === '') {
-        return;
-    }
-
-    // Check if user is authenticated
     const authData = getAuthData();
-
     if (!authData || !authData.isAuthenticated) {
-        // Prevent infinite redirects with a flag
         if (!window.redirecting) {
             window.redirecting = true;
-            console.log('User not authenticated, redirecting to login...');
             window.location.href = 'login.html';
         }
     }
-}
-
-/**
- * Add logout button to sidebar
- * Call this from script.js or other dashboard pages
- */
-function addLogoutButton() {
-    const nav = document.querySelector('.nav-menu');
-    if (!nav) return;
-
-    const existingLogout = document.getElementById('logout-btn');
-    if (existingLogout) return; // Already added
-
-    const logoutItem = document.createElement('a');
-    logoutItem.id = 'logout-btn';
-    logoutItem.href = '#';
-    logoutItem.className = 'nav-item logout-item';
-    logoutItem.innerHTML = `
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-            <polyline points="16 17 21 12 16 7"></polyline>
-            <line x1="21" y1="12" x2="9" y2="12"></line>
-        </svg>
-        <span>Logout</span>
-    `;
-
-    logoutItem.addEventListener('click', function (e) {
-        e.preventDefault();
-        if (confirm('Are you sure you want to logout?')) {
-            logoutUser();
-        }
-    });
-
-    nav.appendChild(logoutItem);
 }
