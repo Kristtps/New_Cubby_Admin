@@ -77,9 +77,9 @@
             </nav>
 
             <div class="user-profile">
-                <div class="avatar">B</div>
+                <div class="avatar">A</div>
                 <div class="user-info">
-                    <p class="user-name">Billy Rebate</p>
+                    <p class="user-name">Admin</p>
                     <p class="user-role">Admin</p>
                 </div>
                 <a href="#" class="sign-out">Sign out</a>
@@ -95,6 +95,12 @@
                     <p class="subtitle">Control compartments, toggle maintenance, and configure modules.</p>
                 </div>
                 <div class="header-actions">
+                    <button class="btn-secondary" id="add-locker-btn" style="margin-right: 10px;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 5v14M5 12h14"></path>
+                        </svg>
+                        Add Locker
+                    </button>
                     <button class="btn-secondary" id="add-module-btn">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <rect x="3" y="3" width="7" height="7"></rect>
@@ -178,15 +184,10 @@
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="locker-module">Module #</label>
-                        <input 
-                            type="number" 
-                            id="locker-module" 
-                            name="module" 
-                            placeholder="1" 
-                            min="1" 
-                            required
-                        >
+                        <label for="locker-module">Module</label>
+                        <select id="locker-module" name="module_id" required>
+                            <option value="">Select Module</option>
+                        </select>
                     </div>
 
                     <div class="form-group">

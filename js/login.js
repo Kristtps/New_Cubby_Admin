@@ -130,7 +130,28 @@ async function handleLoginSubmit(e) {
             return;
         }
 
-        // Login successful
+        // Login successful - Now check if this is an Admin (not a Customer)
+        const { data: customerData, error: customerError } = await supabaseClient
+            .from('customers')
+            .select('customer_id')
+            .eq('email', email)
+            .maybeSingle();
+
+        if (customerData) {
+            // User exists in the customers table, so they are not an admin
+            await supabaseClient.auth.signOut();
+            showError('Access Denied: This account is registered as a Customer. Only Administrators can access the Admin Panel.');
+            
+            // Log security event
+            try {
+                if (typeof dbOps !== 'undefined' && dbOps.logConfigChangeEvent) {
+                    await dbOps.logConfigChangeEvent('Unauthorized Access Attempt', `Customer ${email} attempted to access Admin Panel.`, { email });
+                }
+            } catch (logErr) { console.warn('Logging failed:', logErr); }
+            
+            return;
+        }
+
         showSuccess('Login successful! Redirecting...');
 
         // LOG AUTH EVENT: Successful Login

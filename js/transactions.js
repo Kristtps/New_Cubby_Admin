@@ -16,8 +16,32 @@ document.addEventListener('DOMContentLoaded', async function() {
             console.log('Loading transactions from Supabase...');
             if (typeof dbOps !== 'undefined' && dbOps.fetchAllTransactions) {
                 const transactions = await dbOps.fetchAllTransactions();
+                
+                // Store in global array for filtering/searching
+                transactionData.length = 0; // Clear existing
+                transactions.forEach(tx => {
+                    const mappedTx = {
+                        id: tx.transaction_id || tx.id,
+                        date: new Date(tx.start_time || tx.created_at).toLocaleString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        }),
+                        customerName: tx.customers ? tx.customers.full_name : (tx.customer_name || 'Unknown'),
+                        customerEmail: tx.customers ? tx.customers.email : (tx.customer_email || '-'),
+                        type: tx.status || tx.type || 'Active',
+                        method: tx.qr_token ? 'QR Token' : (tx.payment_method || tx.method || 'Cash'),
+                        locker: tx.lockers ? tx.lockers.locker_number : (tx.locker_id || '-'),
+                        amount: parseFloat(tx.amount || 0),
+                        timestamp: new Date(tx.start_time || tx.created_at).getTime()
+                    };
+                    transactionData.push(mappedTx);
+                });
+
                 populateTransactionTableFromDatabase(transactions);
-                console.log('Transactions loaded from database');
+                updateSummaryStats();
+                console.log('Transactions loaded from database and stats updated');
             } else {
                 throw new Error('dbOps not available');
             }
@@ -31,6 +55,38 @@ document.addEventListener('DOMContentLoaded', async function() {
         populateTransactionTable();
     }
 });
+
+/**
+ * Update summary stats cards from transactionData
+ */
+function updateSummaryStats() {
+    const todayTotalElem = document.getElementById('today-total');
+    const allCountElem = document.getElementById('all-transactions-count');
+    const coinsOnHandElem = document.getElementById('coins-on-hand');
+    const billsOnHandElem = document.getElementById('bills-on-hand');
+
+    if (!transactionData || transactionData.length === 0) return;
+
+    // 1. All Transactions Count
+    if (allCountElem) allCountElem.textContent = transactionData.length;
+
+    // 2. Today's Total
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayTotal = transactionData
+        .filter(tx => tx.timestamp >= today.getTime())
+        .reduce((sum, tx) => sum + tx.amount, 0);
+    
+    if (todayTotalElem) todayTotalElem.textContent = `₱${todayTotal.toFixed(2)}`;
+
+    // 3. Coins vs Bills (Heuristic based on amount for demo, or method if available)
+    // For this demonstration, let's assume amounts <= 20 are coins, > 20 are bills
+    const coinsTotal = transactionData.reduce((sum, tx) => sum + (tx.amount <= 20 ? tx.amount : 0), 0);
+    const billsTotal = transactionData.reduce((sum, tx) => sum + (tx.amount > 20 ? tx.amount : 0), 0);
+
+    if (coinsOnHandElem) coinsOnHandElem.textContent = `₱${coinsTotal.toFixed(2)}`;
+    if (billsOnHandElem) billsOnHandElem.textContent = `₱${billsTotal.toFixed(2)}`;
+}
 
 /**
  * Populate transaction table from database data

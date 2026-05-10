@@ -148,6 +148,98 @@ async function createCustomer(customerData) {
 }
 
 /**
+ * MODULES TABLE OPERATIONS
+ */
+
+/**
+ * Fetch all modules
+ */
+async function fetchAllModules() {
+    try {
+        const client = getSupabaseClient();
+        if (!client || typeof client.from !== 'function') {
+            throw new Error('Supabase client is not initialized');
+        }
+
+        const { data, error } = await client
+            .from('modules')
+            .select('*')
+            .order('module_id', { ascending: true });
+
+        if (error) throw error;
+        console.log('✓ Modules fetched:', data);
+        return data;
+    } catch (error) {
+        console.error('Error fetching modules:', error);
+        return [];
+    }
+}
+
+/**
+ * Create a new module
+ */
+async function createModule(moduleData) {
+    try {
+        const client = getSupabaseClient();
+        const { data, error } = await client
+            .from('modules')
+            .insert([moduleData])
+            .select();
+
+        if (error) throw error;
+        
+        await logConfigChangeEvent('Module Created', `New module created: ${moduleData.name || 'Unnamed'}.`, moduleData);
+        
+        console.log('✓ Module created:', data);
+        return data;
+    } catch (error) {
+        console.error('Error creating module:', error);
+        return null;
+    }
+}
+
+/**
+ * Update module
+ */
+async function updateModule(moduleId, moduleData) {
+    try {
+        const client = getSupabaseClient();
+        const { data, error } = await client
+            .from('modules')
+            .update(moduleData)
+            .eq('module_id', moduleId)
+            .select();
+
+        if (error) throw error;
+        console.log('✓ Module updated:', data);
+        return data;
+    } catch (error) {
+        console.error('Error updating module:', error);
+        return null;
+    }
+}
+
+/**
+ * Delete module
+ */
+async function deleteModule(moduleId) {
+    try {
+        const client = getSupabaseClient();
+        const { error } = await client
+            .from('modules')
+            .delete()
+            .eq('module_id', moduleId);
+
+        if (error) throw error;
+        console.log('✓ Module deleted:', moduleId);
+        return true;
+    } catch (error) {
+        console.error('Error deleting module:', error);
+        return false;
+    }
+}
+
+/**
  * LOCKERS TABLE OPERATIONS
  */
 
@@ -156,7 +248,7 @@ function getSupabaseClient() {
 }
 
 /**
- * Fetch all lockers
+ * Fetch all lockers with module details
  */
 async function fetchAllLockers() {
     try {
@@ -167,7 +259,7 @@ async function fetchAllLockers() {
 
         const { data, error } = await client
             .from('lockers')
-            .select('*')
+            .select('*, modules(*)')
             .order('locker_id', { ascending: true });
 
         if (error) throw error;
@@ -349,16 +441,6 @@ async function createTransaction(transactionData) {
         console.error('Error creating transaction:', error);
         return null;
     }
-}
-
-/**
- * Get today's total revenue
- * Note: Since 'amount' is not in the new transactions schema, this is currently returning 0.
- * Future implementation should calculate this based on duration and rates.
- */
-async function getTodayRevenue() {
-    // TODO: Calculate based on rates and duration since 'amount' field was removed
-    return 0;
 }
 
 /**
@@ -831,6 +913,12 @@ window.dbOps = {
     createLocker,
     createLockersBatch,
     getLockerCountByStatus,
+
+    // Modules
+    fetchAllModules,
+    createModule,
+    updateModule,
+    deleteModule,
 
     // Transactions
     fetchAllTransactions,
