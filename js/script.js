@@ -1,7 +1,7 @@
 // Add interactive features and database integration support
 // Sign Out Button Handler - Makes all .sign-out links functional
 
-document.addEventListener('click', function(e) {
+document.addEventListener('click', function (e) {
     const logoutLink = e.target.closest('.sign-out');
     if (logoutLink) {
         e.preventDefault();
@@ -17,12 +17,12 @@ document.addEventListener('click', function(e) {
 });
 
 // Protect this page from unauthorized access (only if not authenticated)
-document.addEventListener('DOMContentLoaded', async function() {
+document.addEventListener('DOMContentLoaded', async function () {
     // Wait for Supabase to initialize if needed
     if (window.supabasePromise) {
         await window.supabasePromise;
     }
-    
+
     if (typeof protectPage !== 'undefined') {
         protectPage();
     } else if (typeof isUserAuthenticated !== 'undefined') {
@@ -32,15 +32,15 @@ document.addEventListener('DOMContentLoaded', async function() {
             return;
         }
     }
-    
+
     initializeSidebar();
     updateUserProfile();
-    
+
     // Static sign-out links now handled universally above, skip dynamic nav button
     // if (typeof addLogoutButton !== 'undefined') {
     //     addLogoutButton();
     // }
-    
+
     // Check which page we're on
     if (document.getElementById('lockers-table')) {
         await initializeLockerManagement();
@@ -51,7 +51,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                 console.log('Loading dashboard data from Supabase...');
                 const stats = await getDashboardStats();
                 const lockers = await fetchAllLockers();
-                
+
                 // Update UI with database data
                 const dashboardData = {
                     stats: {
@@ -63,7 +63,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                     recentRentals: (stats && stats.recentRentals) || [],
                     lockers: lockers
                 };
-                
+
                 refreshDashboardFromDatabase(dashboardData);
                 console.log('Dashboard data loaded from database:', dashboardData);
             } catch (error) {
@@ -75,7 +75,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             console.log('Supabase not connected, using sample data');
             initializeLockers();
         }
-        
+
         animateStats();
     }
 });
@@ -145,7 +145,7 @@ function updateLockerStatus(lockerId, newStatus) {
         locker.classList.remove('available', 'occupied', 'payment', 'maintenance');
         locker.classList.add(newStatus);
         locker.setAttribute('data-status', newStatus);
-        
+
         const iconContainer = locker.querySelector('svg');
         if (iconContainer) {
             if (newStatus === 'available') {
@@ -196,10 +196,10 @@ function updateModuleAvailableCount(moduleId, count) {
  */
 function updateRental(rentalData) {
     const rentalsList = document.getElementById('rentals-list');
-    
+
     // Check if rental already exists
     let rentalItem = document.querySelector(`[data-rental-id="${rentalData.id}"]`);
-    
+
     if (!rentalItem) {
         // Create new rental element
         rentalItem = document.createElement('div');
@@ -207,7 +207,7 @@ function updateRental(rentalData) {
         rentalItem.setAttribute('data-rental-id', rentalData.id);
         rentalsList.appendChild(rentalItem);
     }
-    
+
     // Update rental content
     rentalItem.innerHTML = `
         <p class="rental-customer" data-field="customer-name">${rentalData.customerName}</p>
@@ -223,7 +223,7 @@ function updateRental(rentalData) {
 function updateRentalsList(rentalsData) {
     const rentalsList = document.getElementById('rentals-list');
     rentalsList.innerHTML = '';
-    
+
     rentalsData.forEach(rental => {
         updateRental(rental);
     });
@@ -238,17 +238,17 @@ function refreshDashboardFromDatabase(dashboardData) {
     if (dashboardData.stats) {
         updateAllStats(dashboardData.stats);
     }
-    
+
     // Update lockers and modules dynamically
     const modulesContainer = document.getElementById('modules-container');
     if (modulesContainer && dashboardData.lockers) {
         modulesContainer.innerHTML = ''; // Clear loading state
-        
+
         // Group lockers by module
         const grouped = dashboardData.lockers.reduce((acc, locker) => {
             const modId = locker.module_id || (locker.modules ? locker.modules.module_id : 'unknown');
             const modName = (locker.modules && locker.modules.name) || `Module ${modId}`;
-            
+
             if (!acc[modId]) {
                 acc[modId] = {
                     id: modId,
@@ -269,7 +269,7 @@ function refreshDashboardFromDatabase(dashboardData) {
             const moduleEl = document.createElement('div');
             moduleEl.className = 'module';
             moduleEl.setAttribute('data-module-id', mod.id);
-            
+
             moduleEl.innerHTML = `
                 <div class="module-header">
                     <div class="module-badge">${mod.name.substring(0, 2).toUpperCase()}</div>
@@ -278,19 +278,19 @@ function refreshDashboardFromDatabase(dashboardData) {
                 </div>
                 <div class="lockers-grid" data-module="${mod.id}">
                     ${mod.lockers.map(locker => {
-                        const status = locker.status.toLowerCase();
-                        const lockerId = locker.locker_number || locker.code;
-                        const size = locker.size || (locker.size_type_id === 1 ? 'S' : locker.size_type_id === 2 ? 'M' : 'L');
-                        const sizeLabel = locker.size || (locker.size_type_id === 1 ? 'Small' : locker.size_type_id === 2 ? 'Medium' : 'Large');
-                        
-                        let icon = '<path d="M12 2L2 7l10 5 10-5-10-5z"></path><path d="M2 17l10 5 10-5"></path><path d="M2 7v10"></path><path d="M12 12v10"></path><path d="M22 7v10"></path>';
-                        if (status === 'available') {
-                            icon = '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path>';
-                        } else if (status === 'maintenance') {
-                            icon = '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>';
-                        }
+                const status = locker.status.toLowerCase();
+                const lockerId = locker.locker_number || locker.code;
+                const size = locker.size || (locker.size_type_id === 1 ? 'S' : locker.size_type_id === 2 ? 'M' : 'L');
+                const sizeLabel = locker.size || (locker.size_type_id === 1 ? 'Small' : locker.size_type_id === 2 ? 'Medium' : 'Large');
 
-                        return `
+                let icon = '<path d="M12 2L2 7l10 5 10-5-10-5z"></path><path d="M2 17l10 5 10-5"></path><path d="M2 7v10"></path><path d="M12 12v10"></path><path d="M22 7v10"></path>';
+                if (status === 'available') {
+                    icon = '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path>';
+                } else if (status === 'maintenance') {
+                    icon = '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>';
+                }
+
+                return `
                             <div class="locker ${status}" data-locker-id="${lockerId}" data-status="${status}" data-size="${size[0]}">
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     ${icon}
@@ -299,16 +299,16 @@ function refreshDashboardFromDatabase(dashboardData) {
                                 <p class="label">${sizeLabel}</p>
                             </div>
                         `;
-                    }).join('')}
+            }).join('')}
                 </div>
             `;
             modulesContainer.appendChild(moduleEl);
         });
-        
+
         // Re-initialize click handlers for the new locker elements
         initializeLockers();
     }
-    
+
     // Update recent rentals
     if (dashboardData.recentRentals) {
         updateRentalsList(dashboardData.recentRentals);
@@ -322,14 +322,14 @@ function updateUserProfile() {
     try {
         const authData = JSON.parse(localStorage.getItem('coincubby_auth') || '{}');
         const email = authData.email || 'Admin';
-        
+
         // Update user name (now email)
         const userNameElem = document.querySelector('.user-name');
         if (userNameElem) {
             userNameElem.textContent = email;
             userNameElem.title = email; // Show full email on hover
         }
-        
+
         // Update avatar initial
         const avatarElem = document.querySelector('.avatar');
         if (avatarElem) {
@@ -345,17 +345,17 @@ function updateUserProfile() {
 // Sidebar navigation
 function initializeSidebar() {
     const navItems = document.querySelectorAll('.nav-item');
-    
+
     navItems.forEach(item => {
-        item.addEventListener('click', function(e) {
+        item.addEventListener('click', function (e) {
             // Only prevent default if it's an anchor link
             if (this.getAttribute('href') === '#') {
                 e.preventDefault();
             }
-            
+
             // Remove active class from all items
             navItems.forEach(nav => nav.classList.remove('active'));
-            
+
             // Add active class to clicked item
             this.classList.add('active');
         });
@@ -365,11 +365,26 @@ function initializeSidebar() {
 // ==================== LOCKER MANAGEMENT PAGE FUNCTIONS ====================
 
 let lockerRecords = [];
+let moduleRecords = [];
+let currentModuleFilter = 'All';
 
 /**
  * Initialize locker management page functionality
  */
 async function initializeLockerManagement() {
+    // Load modules from database for the tabs
+    if (typeof isSupabaseConnected !== 'undefined' && isSupabaseConnected() && 
+        typeof dbOps !== 'undefined' && dbOps.fetchAllModules) {
+        try {
+            const mods = await dbOps.fetchAllModules();
+            if (mods && Array.isArray(mods)) {
+                moduleRecords = mods;
+            }
+        } catch (err) {
+            console.error('Error loading modules:', err);
+        }
+    }
+
     lockerRecords = await loadLockerRecords();
     renderLockersTable();
     initializeActionButtons();
@@ -412,19 +427,19 @@ async function loadLockerRecords() {
  */
 function initializeActionButtons() {
     const tbody = document.getElementById('lockers-tbody');
-    
+
     if (!tbody) return;
-    
-    tbody.addEventListener('click', function(e) {
+
+    tbody.addEventListener('click', function (e) {
         const btn = e.target.closest('.action-btn');
         if (!btn) return;
-        
+
         const row = btn.closest('tr');
         const lockerId = row.getAttribute('data-locker-row');
         const action = btn.getAttribute('data-action');
         const locker = lockerRecords.find(item => item.code === lockerId);
         if (!locker) return;
-        
+
         if (action === 'occupied') {
             handleOccupiedToggle(locker);
         } else if (action === 'maintenance') {
@@ -445,7 +460,7 @@ function handleOccupiedToggle(locker) {
     locker.status = locker.status === 'occupied' ? 'available' : 'occupied';
     persistLockerStatus(locker);
     renderLockersTable();
-    
+
     if (typeof dbOps !== 'undefined' && dbOps.logConfigChangeEvent) {
         dbOps.logConfigChangeEvent('Locker Status Toggle', `Locker ${locker.code} toggled from ${oldStatus} to ${locker.status}.`, { lockerId: locker.code, oldStatus, newStatus: locker.status });
     }
@@ -459,7 +474,7 @@ function handleMaintenanceToggle(locker) {
     locker.status = locker.status === 'maintenance' ? 'available' : 'maintenance';
     persistLockerStatus(locker);
     renderLockersTable();
-    
+
     if (typeof dbOps !== 'undefined' && dbOps.logConfigChangeEvent) {
         dbOps.logConfigChangeEvent('Maintenance Toggle', `Locker ${locker.code} toggled maintenance mode (from ${oldStatus} to ${locker.status}).`, { lockerId: locker.code, oldStatus, newStatus: locker.status });
     }
@@ -474,7 +489,7 @@ function handleEmergencyUnlock(locker) {
     locker.status = 'available';
     persistLockerStatus(locker);
     renderLockersTable();
-    
+
     if (typeof dbOps !== 'undefined' && dbOps.logConfigChangeEvent) {
         dbOps.logConfigChangeEvent('Emergency Unlock', `Locker ${locker.code} was emergency unlocked (Status: ${oldStatus} -> available).`, { lockerId: locker.code, oldStatus });
     }
@@ -483,13 +498,28 @@ function handleEmergencyUnlock(locker) {
 /**
  * Handle delete button click
  */
-function handleDeleteAction(locker) {
+async function handleDeleteAction(locker) {
     if (!confirm(`Are you sure you want to delete locker ${locker.code}?`)) return;
-    
+
+    if (typeof isSupabaseConnected !== 'undefined' && isSupabaseConnected() &&
+        typeof dbOps !== 'undefined' && dbOps.deleteLocker && locker.dbLockerId) {
+        try {
+            const success = await dbOps.deleteLocker(locker.dbLockerId);
+            if (!success) {
+                alert(`Failed to delete locker ${locker.code} from database.`);
+                return;
+            }
+        } catch (error) {
+            console.error('Error deleting locker:', error);
+            alert(`Error deleting locker ${locker.code}.`);
+            return;
+        }
+    }
+
     if (typeof dbOps !== 'undefined' && dbOps.logConfigChangeEvent) {
         dbOps.logConfigChangeEvent('Locker Deleted', `Locker ${locker.code} was removed from the system.`, { lockerId: locker.code, lastStatus: locker.status });
     }
-    
+
     lockerRecords = lockerRecords.filter(item => item.code !== locker.code);
     renderLockersTable();
 }
@@ -500,14 +530,14 @@ function handleDeleteAction(locker) {
 function initializeAddLockerButton() {
     const addLockerBtn = document.getElementById('add-locker-btn');
     if (addLockerBtn) {
-        addLockerBtn.addEventListener('click', function() {
+        addLockerBtn.addEventListener('click', function () {
             openAddLockerModal();
         });
     }
 
     const addModuleBtn = document.getElementById('add-module-btn');
     if (addModuleBtn) {
-        addModuleBtn.addEventListener('click', function() {
+        addModuleBtn.addEventListener('click', function () {
             addDefaultModule();
         });
     }
@@ -520,33 +550,33 @@ function initializeModal() {
     const modal = document.getElementById('add-locker-modal');
     const closeBtn = document.getElementById('modal-close-btn');
     const form = document.getElementById('add-locker-form');
-    
+
     if (!modal) return;
-    
+
     // Close button click
     if (closeBtn) {
-        closeBtn.addEventListener('click', function() {
+        closeBtn.addEventListener('click', function () {
             closeAddLockerModal();
         });
     }
-    
+
     // Close modal when clicking outside
-    modal.addEventListener('click', function(e) {
+    modal.addEventListener('click', function (e) {
         if (e.target === modal) {
             closeAddLockerModal();
         }
     });
-    
+
     // Form submission
     if (form) {
-        form.addEventListener('submit', function(e) {
+        form.addEventListener('submit', function (e) {
             e.preventDefault();
             handleAddLockerSubmit();
         });
     }
-    
+
     // Close modal with Escape key
-    document.addEventListener('keydown', function(e) {
+    document.addEventListener('keydown', function (e) {
         if (e.key === 'Escape') {
             closeAddLockerModal();
         }
@@ -560,13 +590,17 @@ async function openAddLockerModal() {
     const modal = document.getElementById('add-locker-modal');
     if (modal) {
         modal.classList.add('active');
-        
+
+        // Reset form first, before setting any custom values
+        const form = document.getElementById('add-locker-form');
+        if (form) form.reset();
+
         // Populate modules dropdown
         const moduleSelect = document.getElementById('locker-module');
         if (moduleSelect) {
             moduleSelect.innerHTML = '<option value="">Loading modules...</option>';
             try {
-                if (typeof isSupabaseConnected !== 'undefined' && isSupabaseConnected() && 
+                if (typeof isSupabaseConnected !== 'undefined' && isSupabaseConnected() &&
                     typeof dbOps !== 'undefined' && dbOps.fetchAllModules) {
                     const modules = await dbOps.fetchAllModules();
                     moduleSelect.innerHTML = '<option value="">Select Module</option>';
@@ -576,6 +610,10 @@ async function openAddLockerModal() {
                         option.textContent = mod.name;
                         moduleSelect.appendChild(option);
                     });
+                    
+                    if (currentModuleFilter !== 'All') {
+                        moduleSelect.value = currentModuleFilter;
+                    }
                 } else {
                     moduleSelect.innerHTML = '<option value="1">M1 (Offline)</option>';
                 }
@@ -585,9 +623,6 @@ async function openAddLockerModal() {
             }
         }
 
-        // Reset form
-        const form = document.getElementById('add-locker-form');
-        if (form) form.reset();
         // Focus on first input
         const firstInput = document.getElementById('locker-code');
         if (firstInput) firstInput.focus();
@@ -610,27 +645,33 @@ function closeAddLockerModal() {
 async function handleAddLockerSubmit() {
     const form = document.getElementById('add-locker-form');
     if (!form) return;
-    
-    const formData = new FormData(form);
-    const moduleId = formData.get('module_id');
-    const moduleSelect = document.getElementById('locker-module');
-    const moduleName = moduleSelect.options[moduleSelect.selectedIndex].text;
 
-    const lockerData = {
-        code: formData.get('code'),
-        size: formData.get('size'),
-        module: moduleName,
-        moduleId: moduleId,
-        device: formData.get('device'),
-        status: 'available'
-    };
-    
-    console.log('Adding new locker:', lockerData);
-    
-    // Persist to database if connected
-    if (typeof isSupabaseConnected !== 'undefined' && isSupabaseConnected() && 
-        typeof dbOps !== 'undefined' && dbOps.createLocker) {
-        try {
+    const submitBtn = form.querySelector('button[type="submit"]');
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Adding...';
+    }
+
+    try {
+        const formData = new FormData(form);
+        const moduleId = formData.get('module_id');
+        const moduleSelect = document.getElementById('locker-module');
+        const moduleName = moduleSelect.options[moduleSelect.selectedIndex].text;
+
+        const lockerData = {
+            code: formData.get('code'),
+            size: formData.get('size'),
+            module: moduleName,
+            moduleId: moduleId,
+            device: formData.get('device'),
+            status: 'available'
+        };
+
+        console.log('Adding new locker:', lockerData);
+
+        // Persist to database if connected
+        if (typeof isSupabaseConnected !== 'undefined' && isSupabaseConnected() &&
+            typeof dbOps !== 'undefined' && dbOps.createLocker) {
             const dbPayload = {
                 locker_number: lockerData.code,
                 size_type_id: getSizeTypeIdFromSize(lockerData.size),
@@ -644,21 +685,25 @@ async function handleAddLockerSubmit() {
                 alert('Failed to save locker to database.');
                 return;
             }
-        } catch (error) {
-            console.error('Error saving locker:', error);
-            alert('Error saving locker to database.');
-            return;
+        }
+
+        lockerRecords.push(lockerData);
+        renderLockersTable();
+
+        // Close modal
+        closeAddLockerModal();
+
+        // Optional: Show success message
+        alert(`Locker ${lockerData.code} added successfully!`);
+    } catch (error) {
+        console.error('Error saving locker:', error);
+        alert('Error saving locker to database.');
+    } finally {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Add Locker';
         }
     }
-
-    lockerRecords.push(lockerData);
-    renderLockersTable();
-    
-    // Close modal
-    closeAddLockerModal();
-    
-    // Optional: Show success message
-    alert(`Locker ${lockerData.code} added successfully!`);
 }
 
 function addLockerRow(lockerData) {
@@ -711,23 +756,107 @@ function renderLockersTable() {
     const tbody = document.getElementById('lockers-tbody');
     if (!tbody) return;
 
+    // Build the definitive list of modules
+    let modulesList = [];
+    if (typeof moduleRecords !== 'undefined' && Array.isArray(moduleRecords) && moduleRecords.length > 0) {
+        modulesList = moduleRecords.map(m => ({
+            id: String(m.module_id || m.id),
+            name: m.name || `Module ${m.module_id || m.id}`
+        }));
+    } else {
+        // Fallback: extract unique modules from lockerRecords
+        const fallbackModules = {};
+        (lockerRecords || []).forEach(locker => {
+            const key = locker.moduleId ? String(locker.moduleId) : locker.module;
+            if (!fallbackModules[key]) {
+                fallbackModules[key] = { id: key, name: locker.module };
+            }
+        });
+        modulesList = Object.values(fallbackModules);
+    }
+
+    // Sort modulesList
+    modulesList.sort((a, b) => {
+        const numA = parseInt(a.name.replace('M', ''), 10);
+        const numB = parseInt(b.name.replace('M', ''), 10);
+        if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+        return a.name.localeCompare(b.name);
+    });
+
+    // Render the filter tabs
+    renderModuleTabs(modulesList);
+
     tbody.innerHTML = '';
-    if (!Array.isArray(lockerRecords) || lockerRecords.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#6b7280;">No lockers to display.</td></tr>';
+
+    // Filter modules to render based on current filter
+    const modulesToRender = modulesList.filter(mod => currentModuleFilter === 'All' || mod.id === currentModuleFilter);
+
+    if (modulesToRender.length === 0) {
+        const filterName = modulesList.find(m => m.id === currentModuleFilter)?.name || currentModuleFilter;
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#6b7280;">No lockers to display in ${currentModuleFilter === 'All' ? 'any module' : filterName}.</td></tr>`;
         return;
     }
 
-    const grouped = groupLockersByModule(lockerRecords);
-    Object.keys(grouped)
-        .sort((a, b) => parseInt(a.replace('M', ''), 10) - parseInt(b.replace('M', ''), 10))
-        .forEach(moduleName => {
-            const groupRow = document.createElement('tr');
-            groupRow.className = 'module-group-row';
-            groupRow.innerHTML = `<td colspan="6">${moduleName} • ${grouped[moduleName].length} lockers</td>`;
-            tbody.appendChild(groupRow);
+    let displayedAnyLockers = false;
 
-            grouped[moduleName].forEach(locker => addLockerRow(locker));
+    modulesToRender.forEach(mod => {
+        // Find lockers belonging to this module
+        const moduleLockers = (lockerRecords || []).filter(locker => {
+            if (locker.moduleId) return String(locker.moduleId) === mod.id;
+            return locker.module === mod.id || locker.module === mod.name;
         });
+
+        // If "All Modules" is selected and this module is empty, skip rendering its group row
+        if (currentModuleFilter === 'All' && moduleLockers.length === 0) return;
+
+        displayedAnyLockers = true;
+
+        const groupRow = document.createElement('tr');
+        groupRow.className = 'module-group-row';
+        groupRow.innerHTML = `<td colspan="6">${mod.name} • ${moduleLockers.length} lockers</td>`;
+        tbody.appendChild(groupRow);
+
+        if (moduleLockers.length === 0) {
+            const emptyRow = document.createElement('tr');
+            emptyRow.innerHTML = `<td colspan="6" style="text-align:center; color:#6b7280;">No lockers in this module.</td>`;
+            tbody.appendChild(emptyRow);
+        } else {
+            moduleLockers.forEach(locker => addLockerRow(locker));
+        }
+    });
+
+    if (!displayedAnyLockers && currentModuleFilter === 'All') {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#6b7280;">No lockers currently in the system.</td></tr>`;
+    }
+}
+
+function renderModuleTabs(modulesList) {
+    const filtersContainer = document.getElementById('module-filters');
+    if (!filtersContainer) return;
+    
+    filtersContainer.innerHTML = '';
+    
+    // Add "All" button
+    const allBtn = document.createElement('button');
+    allBtn.className = `module-filter-btn ${currentModuleFilter === 'All' ? 'active' : ''}`;
+    allBtn.textContent = 'All Modules';
+    allBtn.onclick = () => {
+        currentModuleFilter = 'All';
+        renderLockersTable();
+    };
+    filtersContainer.appendChild(allBtn);
+
+    // Add module buttons
+    modulesList.forEach(mod => {
+        const btn = document.createElement('button');
+        btn.className = `module-filter-btn ${currentModuleFilter === mod.id ? 'active' : ''}`;
+        btn.textContent = mod.name;
+        btn.onclick = () => {
+            currentModuleFilter = mod.id;
+            renderLockersTable();
+        };
+        filtersContainer.appendChild(btn);
+    });
 }
 
 /**
@@ -739,16 +868,6 @@ function updateAllLockers(lockersData) {
     renderLockersTable();
 }
 
-function groupLockersByModule(lockersData) {
-    return lockersData.reduce((acc, locker) => {
-        if (!acc[locker.module]) {
-            acc[locker.module] = [];
-        }
-        acc[locker.module].push(locker);
-        return acc;
-    }, {});
-}
-
 async function addDefaultModule() {
     const nextModuleNumber = getNextModuleNumber();
     const moduleName = `M${nextModuleNumber}`;
@@ -758,9 +877,9 @@ async function addDefaultModule() {
     if (!confirm(`Add ${moduleName} with ${template.length} lockers (same setup as existing modules)?`)) return;
 
     let moduleId = null;
-    
+
     // If connected to Supabase, create the module record first
-    if (typeof isSupabaseConnected !== 'undefined' && isSupabaseConnected() && 
+    if (typeof isSupabaseConnected !== 'undefined' && isSupabaseConnected() &&
         typeof dbOps !== 'undefined' && dbOps.createModule) {
         try {
             const moduleResult = await dbOps.createModule({
@@ -844,7 +963,7 @@ function mapDbRowsToLockerRecords(rows) {
 
     return sortedRows.map((row, index) => {
         const number = row.locker_number || row.code || `L${index + 1}`;
-        
+
         // Use joined module name if available, otherwise fallback to old inference
         let moduleName = 'M1';
         if (row.modules && row.modules.name) {
@@ -858,9 +977,9 @@ function mapDbRowsToLockerRecords(rows) {
             }
         }
 
-        const size = row.size || 
+        const size = row.size ||
             (row.size_type_id === 1 ? 'Small' : row.size_type_id === 2 ? 'Medium' : 'Large');
-            
+
         return {
             code: number,
             size: size,
@@ -945,22 +1064,22 @@ async function persistNewModuleLockers(newLockers, moduleId) {
 // Locker interaction
 function initializeLockers() {
     const lockers = document.querySelectorAll('.locker');
-    
+
     lockers.forEach(locker => {
-        locker.addEventListener('click', function() {
+        locker.addEventListener('click', function () {
             const lockerId = this.getAttribute('data-locker-id');
             const status = this.getAttribute('data-status');
             const size = this.getAttribute('data-size');
-            
+
             console.log(`Locker clicked: ID: ${lockerId}, Size: ${size}, Status: ${status}`);
             // You can add modal or detailed view here
         });
-        
-        locker.addEventListener('mouseenter', function() {
+
+        locker.addEventListener('mouseenter', function () {
             this.style.transform = 'translateY(-4px)';
         });
-        
-        locker.addEventListener('mouseleave', function() {
+
+        locker.addEventListener('mouseleave', function () {
             this.style.transform = 'translateY(0)';
         });
     });
@@ -969,37 +1088,37 @@ function initializeLockers() {
 // Animate stats on page load
 function animateStats() {
     const stats = document.querySelectorAll('.stat-value');
-    
+
     stats.forEach(stat => {
         const finalValue = stat.textContent;
         let startValue = 0;
-        
+
         // Extract numeric value from final value
         const numericValue = parseFloat(finalValue.replace(/[^\d.]/g, ''));
-        
+
         if (isNaN(numericValue)) return;
-        
+
         const duration = 1000;
         const startTime = performance.now();
-        
+
         function updateValue(currentTime) {
             const elapsed = currentTime - startTime;
             const progress = Math.min(elapsed / duration, 1);
             const currentValue = Math.floor(numericValue * progress);
-            
+
             if (finalValue.includes('₱')) {
                 stat.textContent = '₱' + (numericValue * progress).toFixed(2);
             } else {
                 stat.textContent = currentValue;
             }
-            
+
             if (progress < 1) {
                 requestAnimationFrame(updateValue);
             } else {
                 stat.textContent = finalValue;
             }
         }
-        
+
         requestAnimationFrame(updateValue);
     });
 }
@@ -1007,18 +1126,18 @@ function animateStats() {
 // Responsive sidebar toggle (for mobile)
 function toggleSidebar() {
     const sidebar = document.querySelector('.sidebar');
-    sidebar.style.transform = sidebar.style.transform === 'translateX(-100%)' 
-        ? 'translateX(0)' 
+    sidebar.style.transform = sidebar.style.transform === 'translateX(-100%)'
+        ? 'translateX(0)'
         : 'translateX(-100%)';
 }
 
 // Add keyboard shortcuts
-document.addEventListener('keydown', function(event) {
+document.addEventListener('keydown', function (event) {
     // Press 'L' to see locker details
     if (event.key === 'l' || event.key === 'L') {
         console.log('Show locker details view');
     }
-    
+
     // Press 'C' to see customer details
     if (event.key === 'c' || event.key === 'C') {
         console.log('Show customer details view');

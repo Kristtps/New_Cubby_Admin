@@ -1357,3 +1357,32 @@ body {
 }
 
 /* ==================== SCROLLBAR ==================== */
+
+/* ==================== MODULE FILTERS ==================== */
+.module-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.module-filter-btn {
+    padding: 8px 20px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    border: none;
+    background-color: #d1fae5;
+    color: #064e3b;
+    transition: all 0.2s ease;
+}
+
+.module-filter-btn:hover {
+    background-color: #a7f3d0;
+}
+
+.module-filter-btn.active {
+    background-color: #1f2937;
+    color: #ffffff;
+}

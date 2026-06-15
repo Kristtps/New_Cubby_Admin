@@ -303,6 +303,33 @@ async function updateLockerStatus(lockerId, status) {
 }
 
 /**
+ * Delete a locker
+ */
+async function deleteLocker(lockerId) {
+    try {
+        const client = getSupabaseClient();
+        if (!client || typeof client.from !== 'function') {
+            throw new Error('Supabase client is not initialized');
+        }
+
+        const { error } = await client
+            .from('lockers')
+            .delete()
+            .eq('locker_id', lockerId);
+
+        if (error) throw error;
+        
+        await logConfigChangeEvent('Locker Deleted', `Locker ID ${lockerId} was deleted from database.`, { lockerId });
+        
+        console.log('✓ Locker deleted:', lockerId);
+        return true;
+    } catch (error) {
+        console.error('Error deleting locker:', error);
+        return false;
+    }
+}
+
+/**
  * Create a single locker
  */
 async function createLocker(lockerData) {
@@ -913,6 +940,7 @@ window.dbOps = {
     createLocker,
     createLockersBatch,
     getLockerCountByStatus,
+    deleteLocker,
 
     // Modules
     fetchAllModules,
