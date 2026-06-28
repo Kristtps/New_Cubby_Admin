@@ -20,6 +20,17 @@ document.addEventListener('DOMContentLoaded', async function() {
                 // Store in global array for filtering/searching
                 transactionData.length = 0; // Clear existing
                 transactions.forEach(tx => {
+                    let totalPaid = 0;
+                    let methods = [];
+                    if (tx.payments && Array.isArray(tx.payments)) {
+                        tx.payments.forEach(p => {
+                            totalPaid += parseFloat(p.amount || 0);
+                            if (p.payment_method && !methods.includes(p.payment_method)) {
+                                methods.push(p.payment_method);
+                            }
+                        });
+                    }
+
                     const mappedTx = {
                         id: tx.transaction_id || tx.id,
                         date: new Date(tx.start_time || tx.created_at).toLocaleString('en-US', {
@@ -31,9 +42,9 @@ document.addEventListener('DOMContentLoaded', async function() {
                         customerName: tx.customers ? tx.customers.full_name : (tx.customer_name || 'Unknown'),
                         customerEmail: tx.customers ? tx.customers.email : (tx.customer_email || '-'),
                         type: tx.status || tx.type || 'Active',
-                        method: tx.qr_token ? 'QR Token' : (tx.payment_method || tx.method || 'Cash'),
+                        method: methods.length > 0 ? methods.join(', ') : (tx.qr_token ? 'QR Token' : (tx.payment_method || 'Unpaid')),
                         locker: tx.lockers ? tx.lockers.locker_number : (tx.locker_id || '-'),
-                        amount: parseFloat(tx.amount || 0),
+                        amount: totalPaid,
                         timestamp: new Date(tx.start_time || tx.created_at).getTime()
                     };
                     transactionData.push(mappedTx);
@@ -108,10 +119,22 @@ function populateTransactionTableFromDatabase(transactions) {
             minute: '2-digit'
         });
         
+        let totalPaid = 0;
+        let methods = [];
+        if (tx.payments && Array.isArray(tx.payments)) {
+            tx.payments.forEach(p => {
+                totalPaid += parseFloat(p.amount || 0);
+                if (p.payment_method && !methods.includes(p.payment_method)) {
+                    methods.push(p.payment_method);
+                }
+            });
+        }
+
         // Use joined data if available
         const customerName = tx.customers ? tx.customers.full_name : (tx.customer_name || 'Unknown');
         const customerEmail = tx.customers ? tx.customers.email : (tx.customer_email || '-');
         const lockerNumber = tx.lockers ? tx.lockers.locker_number : (tx.locker_id || '-');
+        const methodStr = methods.length > 0 ? methods.join(', ') : (tx.qr_token ? 'QR Token: ' + tx.qr_token : (tx.payment_method || '-'));
         
         return `<tr data-transaction-id="${tx.transaction_id || tx.id}">
             <td class="date-cell">${date}</td>
@@ -122,9 +145,9 @@ function populateTransactionTableFromDatabase(transactions) {
                 </div>
             </td>
             <td class="type-cell">${tx.status || tx.type || 'Active'}</td>
-            <td class="method-cell">${tx.qr_token ? 'QR Token: ' + tx.qr_token : (tx.payment_method || tx.method || '-')}</td>
+            <td class="method-cell">${methodStr}</td>
             <td class="locker-cell">${lockerNumber}</td>
-            <td class="amount-cell">₱${tx.amount ? parseFloat(tx.amount).toFixed(2) : '0.00'}</td>
+            <td class="amount-cell">₱${totalPaid.toFixed(2)}</td>
         </tr>`;
     }).join('');
 }

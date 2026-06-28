@@ -45,22 +45,44 @@ async function loadCustomersFromSupabase() {
 
         const { data: customers, error } = await client
             .from('customers')
-            .select('*');
+            .select(`
+                *,
+                transactions (
+                    transaction_id,
+                    payments ( amount )
+                )
+            `);
 
         if (error) throw error;
 
         // Map Supabase data to the format expected by refreshCustomersFromDatabase
         // Columns match THE ACTUAL database schema from your screenshot
-        const mapped = (customers || []).map(c => ({
-            id:      c.customer_id,
-            name:    c.full_name || 'N/A',
-            email:   c.email || 'N/A',
-            role:    'customer',
-            wallet:  0, // Dropped from DB, defaulting to 0
-            rentals: 0, // Dropped from DB, defaulting to 0
-            spent:   0, // Dropped from DB, defaulting to 0
-            joined:  'N/A' // Dropped from DB, defaulting to N/A
-        }));
+        const mapped = (customers || []).map(c => {
+            let totalSpent = 0;
+            let rentalsCount = 0;
+
+            if (c.transactions && Array.isArray(c.transactions)) {
+                rentalsCount = c.transactions.length;
+                c.transactions.forEach(tx => {
+                    if (tx.payments && Array.isArray(tx.payments)) {
+                        tx.payments.forEach(p => {
+                            totalSpent += parseFloat(p.amount || 0);
+                        });
+                    }
+                });
+            }
+
+            return {
+                id:      c.customer_id,
+                name:    c.full_name || 'N/A',
+                email:   c.email || 'N/A',
+                role:    'Customer',
+                wallet:  0, 
+                rentals: rentalsCount,
+                spent:   totalSpent,
+                joined:  c.created_at ? new Date(c.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'
+            };
+        });
 
         if (mapped.length === 0) {
             const tbody = document.getElementById('customers-tbody');

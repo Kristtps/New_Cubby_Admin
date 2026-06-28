@@ -24,14 +24,14 @@ const reportData = {
 };
 
 // Initialize on page load
-document.addEventListener('DOMContentLoaded', async function() {
+document.addEventListener('DOMContentLoaded', async function () {
     // Check authentication
     if (typeof isUserAuthenticated !== 'undefined' && !isUserAuthenticated()) {
         console.log('User not authenticated, redirecting to login...');
         window.location.href = 'login.html';
         return;
     }
-    
+
     initializeReports();
 });
 
@@ -39,28 +39,78 @@ document.addEventListener('DOMContentLoaded', async function() {
  * Initialize reports page
  */
 async function initializeReports() {
+    // Default load: last 14 days (matches the active pill)
     await loadReportData();
+    initializeCharts();
+}
+
+/* ── Filter handlers ───────────────────────── */
+
+/**
+ * Main dispatcher — called when the range <select> changes
+ */
+async function handleRangeSelect(value) {
+    const customRange = document.getElementById('customRange');
+    customRange.classList.remove('visible');
+
+    if (value === 'month') {
+        const now = new Date();
+        const from = new Date(now.getFullYear(), now.getMonth(), 1);
+        const to = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+        await loadReportData(from, to);
+        updateChartTitle('This Month');
+    } else if (value === 'custom') {
+        customRange.classList.add('visible');
+        return; // wait for the user to pick dates
+    } else {
+        const days = parseInt(value, 10);
+        const to = new Date();
+        const from = new Date();
+        from.setDate(from.getDate() - (days - 1));
+        from.setHours(0, 0, 0, 0);
+        await loadReportData(from, to);
+        updateChartTitle(`Last ${days} Days`);
+    }
+
+    initializeCharts();
+}
+
+/**
+ * Update the chart card title to reflect selected range
+ */
+function updateChartTitle(label) {
+    const el = document.getElementById('revenueChartTitle');
+    if (el) el.textContent = `Revenue & Rentals \u2014 ${label}`;
+}
+
+/**
+ * Apply whatever dates are set in the custom pickers
+ */
+async function applyCustomFilter() {
+    const fromVal = document.getElementById('dateFrom').value;
+    const toVal = document.getElementById('dateTo').value;
+    if (!fromVal || !toVal) return;
+
+    const from = new Date(fromVal);
+    const to = new Date(toVal);
+    to.setHours(23, 59, 59, 999);
+
+    await loadReportData(from, to);
     initializeCharts();
 }
 
 /**
  * Load report data from database or localStorage
+ * @param {Date} [dateFrom]  - Start of range (default: 14 days ago)
+ * @param {Date} [dateTo]    - End of range   (default: now)
  */
-async function loadReportData() {
+async function loadReportData(dateFrom, dateTo) {
     try {
         if (typeof isSupabaseConnected !== 'undefined' && isSupabaseConnected() && typeof dbOps !== 'undefined') {
-            // Load dashboard stats
-            const stats = await dbOps.getDashboardStats();
-            if (stats) {
-                reportData.totalRevenue = stats.todayRevenue || 0;
-                reportData.totalRentals = stats.activeRentals || 0;
-                reportData.avgRentalValue = reportData.totalRentals > 0 ? reportData.totalRevenue / reportData.totalRentals : 0;
-            }
-
-            // Load historical data for charts
+            // Load historical data for charts + derive stat-card totals from it
             if (dbOps.getReportData) {
-                const rawData = await dbOps.getReportData();
-                if (rawData && rawData.length > 0) {
+                const rawData = await dbOps.getReportData(dateFrom, dateTo);
+                if (rawData && (rawData.payments || rawData.transactions || rawData.length > 0)) {
                     processHistoricalData(rawData);
                     console.log('✓ Historical report data loaded from database');
                     updateStatCards();
@@ -68,7 +118,7 @@ async function loadReportData() {
                 }
             }
         }
-        
+
         // Fall back to localStorage
         const savedReport = localStorage.getItem('coincubby_report_data');
         if (savedReport) {
@@ -90,26 +140,76 @@ function processHistoricalData(data) {
     const dailyData = {};
     const sizeData = [0, 0, 0]; // Small, Medium, Large
 
-    data.forEach(tx => {
-        // Daily revenue aggregation
-        const date = new Date(tx.start_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        if (!dailyData[date]) dailyData[date] = { revenue: 0, rentals: 0 };
-        dailyData[date].revenue += (tx.amount || 0);
-        dailyData[date].rentals += 1;
+    let totalRev = 0;
+    let totalRent = 0;
 
-        // Size distribution
-        // size_type_id mapping: 1=Small, 2=Medium, 3=Large
-        if (tx.lockers) {
-            const sizeIdx = (tx.lockers.size_type_id || 1) - 1;
-            if (sizeIdx >= 0 && sizeIdx < 3) sizeData[sizeIdx]++;
-        }
-    });
+    // Pre-fill the last 14 days so the chart always looks continuous
+    for (let i = 13; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        dailyData[dateStr] = { revenue: 0, rentals: 0 };
+    }
+
+    // Process Payments for Revenue
+    if (data.payments && Array.isArray(data.payments)) {
+        data.payments.forEach(p => {
+            const date = new Date(p.payment_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            const amount = parseFloat(p.amount || 0);
+            if (dailyData[date]) {
+                dailyData[date].revenue += amount;
+            }
+            totalRev += amount;
+        });
+    }
+
+    // Process Transactions for Rentals and Sizes
+    if (data.transactions && Array.isArray(data.transactions)) {
+        data.transactions.forEach(tx => {
+            const date = new Date(tx.start_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            if (dailyData[date]) {
+                dailyData[date].rentals += 1;
+            }
+            totalRent += 1;
+
+            // Size distribution
+            // size_type_id mapping: 1=Small, 2=Medium, 3=Large
+            if (tx.lockers) {
+                const sizeIdx = (tx.lockers.size_type_id || 1) - 1;
+                if (sizeIdx >= 0 && sizeIdx < 3) sizeData[sizeIdx]++;
+            }
+        });
+    }
+
+    // Fallback for old single-array data just in case
+    if (Array.isArray(data)) {
+        data.forEach(tx => {
+            const date = new Date(tx.start_time || tx.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            const amount = parseFloat(tx.amount || 0);
+            if (!dailyData[date]) dailyData[date] = { revenue: 0, rentals: 0 };
+            dailyData[date].revenue += amount;
+            dailyData[date].rentals += 1;
+
+            totalRev += amount;
+            totalRent += 1;
+
+            if (tx.lockers) {
+                const sizeIdx = (tx.lockers.size_type_id || 1) - 1;
+                if (sizeIdx >= 0 && sizeIdx < 3) sizeData[sizeIdx]++;
+            }
+        });
+    }
 
     // Update reportData object
     reportData.revenueAndRentals.labels = Object.keys(dailyData);
     reportData.revenueAndRentals.revenue = Object.values(dailyData).map(d => d.revenue);
     reportData.revenueAndRentals.rentals = Object.values(dailyData).map(d => d.rentals);
     reportData.rentalsBySize.data = sizeData;
+
+    // Update the stat cards to show the 14-day totals instead of just today
+    reportData.totalRevenue = totalRev;
+    reportData.totalRentals = totalRent;
+    reportData.avgRentalValue = totalRent > 0 ? totalRev / totalRent : 0;
 }
 
 /**

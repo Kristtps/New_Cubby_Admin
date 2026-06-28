@@ -61,6 +61,7 @@ document.addEventListener('DOMContentLoaded', async function () {
                         'today-revenue': ((stats && stats.todayRevenue) || 0).toFixed(2)
                     },
                     recentRentals: (stats && stats.recentRentals) || [],
+                    last7DaysSales: (stats && stats.last7DaysSales) || [],
                     lockers: lockers
                 };
 
@@ -247,7 +248,11 @@ function refreshDashboardFromDatabase(dashboardData) {
         // Group lockers by module
         const grouped = dashboardData.lockers.reduce((acc, locker) => {
             const modId = locker.module_id || (locker.modules ? locker.modules.module_id : 'unknown');
-            const modName = (locker.modules && locker.modules.name) || `Module ${modId}`;
+            const modName = (() => {
+                const raw = locker.modules && locker.modules.name != null ? locker.modules.name : null;
+                if (raw != null) return String(raw).startsWith('M') ? String(raw) : `M${raw}`;
+                return `M${modId}`;
+            })();
 
             if (!acc[modId]) {
                 acc[modId] = {
@@ -313,6 +318,99 @@ function refreshDashboardFromDatabase(dashboardData) {
     if (dashboardData.recentRentals) {
         updateRentalsList(dashboardData.recentRentals);
     }
+
+    // Update sales chart
+    if (dashboardData.last7DaysSales) {
+        updateSalesChart(dashboardData.last7DaysSales);
+    }
+}
+
+/**
+ * Update the sales chart SVG with dynamic database values
+ * @param {array} salesData - Array of sales items { dateString, dayName, amount }
+ */
+function updateSalesChart(salesData) {
+    const svg = document.getElementById('sales-chart-svg');
+    if (!svg) return;
+
+    // Find max value and calculate scale
+    let maxAmt = Math.max(...salesData.map(d => d.amount), 0);
+    if (maxAmt === 0) maxAmt = 100;
+    
+    // Choose a nice clean multiple for scale
+    const roundFactor = maxAmt > 500 ? 100 : (maxAmt > 100 ? 50 : 20);
+    const maxScale = Math.ceil(maxAmt / roundFactor) * roundFactor;
+
+    // Calculate Y-axis tick values
+    const yTicks = [
+        0,
+        Math.round(maxScale * 0.25),
+        Math.round(maxScale * 0.5),
+        Math.round(maxScale * 0.75),
+        maxScale
+    ];
+
+    // Build the grid lines
+    let svgContent = `
+        <!-- Grid lines -->
+        <line x1="50" y1="250" x2="850" y2="250" stroke="#f3f4f6" stroke-width="1" />
+        <line x1="50" y1="200" x2="850" y2="200" stroke="#f3f4f6" stroke-width="1" />
+        <line x1="50" y1="150" x2="850" y2="150" stroke="#f3f4f6" stroke-width="1" />
+        <line x1="50" y1="100" x2="850" y2="100" stroke="#f3f4f6" stroke-width="1" />
+        <line x1="50" y1="50" x2="850" y2="50" stroke="#f3f4f6" stroke-width="1" />
+
+        <!-- Axes -->
+        <line x1="50" y1="250" x2="850" y2="250" stroke="#e5e7eb" stroke-width="2" />
+        <line x1="50" y1="50" x2="50" y2="250" stroke="#e5e7eb" stroke-width="2" />
+    `;
+
+    // Add Y-axis labels
+    yTicks.forEach((val, idx) => {
+        const yPos = 250 - (idx * 50);
+        svgContent += `
+            <text x="40" y="${yPos + 4}" text-anchor="end" font-size="12" font-family="Inter, system-ui, sans-serif" font-weight="500" fill="#9ca3af">${val}</text>
+        `;
+    });
+
+    // Add Bars & X-axis labels
+    const barWidth = 46;
+    const spacing = 110;
+    const startX = 100;
+
+    salesData.forEach((day, idx) => {
+        const center = startX + (idx * spacing);
+        const rectX = center - (barWidth / 2);
+        
+        // Calculate height
+        const pct = day.amount / maxScale;
+        const height = pct * 200; // max Y height is 200px
+        const rectY = 250 - height;
+
+        // Use a nice premium gradient feel or pure primary color
+        const hasSales = day.amount > 0;
+        const barFill = hasSales ? '#3B82F6' : '#e5e7eb';
+        
+        svgContent += `
+            <!-- Bar -->
+            <rect x="${rectX}" y="${rectY}" width="${barWidth}" height="${height}" rx="6" ry="6" fill="${barFill}" style="transition: all 0.3s ease;">
+                <title>${day.dayName}: ₱${day.amount.toFixed(2)}</title>
+            </rect>
+        `;
+
+        // If sales exist, show value text above bar
+        if (hasSales) {
+            svgContent += `
+                <text x="${center}" y="${rectY - 8}" text-anchor="middle" font-size="11" font-family="Inter, system-ui, sans-serif" font-weight="600" fill="#3B82F6">₱${Math.round(day.amount)}</text>
+            `;
+        }
+
+        // X-axis day name
+        svgContent += `
+            <text x="${center}" y="275" text-anchor="middle" font-size="12" font-family="Inter, system-ui, sans-serif" font-weight="600" fill="#6b7280">${day.dayName}</text>
+        `;
+    });
+
+    svg.innerHTML = svgContent;
 }
 
 /**
@@ -397,23 +495,19 @@ async function loadLockerRecords() {
         if (typeof isSupabaseConnected !== 'undefined' && isSupabaseConnected() &&
             typeof dbOps !== 'undefined' && dbOps.fetchAllLockers) {
             const dbRows = await dbOps.fetchAllLockers();
-            if (dbRows === null) {
-                alert('Supabase lockers connection failed. Showing local sample data.');
+            if (!dbRows) {
+                console.warn('Supabase lockers connection failed.');
                 return getDefaultLockerData();
             }
             if (!Array.isArray(dbRows)) {
-                alert('Unexpected lockers response from Supabase. Showing local sample data.');
+                console.warn('Unexpected lockers response from Supabase.');
                 return getDefaultLockerData();
             }
             if (dbRows.length === 0) {
-                alert('No lockers found from Supabase. Showing local sample data.');
-                return getDefaultLockerData();
+                // No lockers yet — that's fine, table will show empty
+                return [];
             }
-            const mapped = mapDbRowsToLockerRecords(dbRows || []);
-            if (mapped.length === 0) {
-                alert('Could not map Supabase lockers data. Showing local sample data.');
-                return getDefaultLockerData();
-            }
+            const mapped = mapDbRowsToLockerRecords(dbRows);
             return mapped;
         }
     } catch (error) {
@@ -759,10 +853,12 @@ function renderLockersTable() {
     // Build the definitive list of modules
     let modulesList = [];
     if (typeof moduleRecords !== 'undefined' && Array.isArray(moduleRecords) && moduleRecords.length > 0) {
-        modulesList = moduleRecords.map(m => ({
-            id: String(m.module_id || m.id),
-            name: m.name || `Module ${m.module_id || m.id}`
-        }));
+        modulesList = moduleRecords.map(m => {
+            // modules.name is a smallint in the DB — format as "M1", "M2" etc.
+            const raw = m.name != null ? m.name : (m.module_id || m.id);
+            const label = String(raw).startsWith('M') ? String(raw) : `M${raw}`;
+            return { id: String(m.module_id || m.id), name: label };
+        });
     } else {
         // Fallback: extract unique modules from lockerRecords
         const fallbackModules = {};
@@ -883,7 +979,8 @@ async function addDefaultModule() {
         typeof dbOps !== 'undefined' && dbOps.createModule) {
         try {
             const moduleResult = await dbOps.createModule({
-                name: moduleName,
+                // modules.name is a smallint column — send the integer, not a string
+                name: nextModuleNumber,
                 status: 'Active'
             });
             if (moduleResult && moduleResult[0]) {
@@ -916,9 +1013,17 @@ async function addDefaultModule() {
 }
 
 function getNextModuleNumber() {
-    const modules = lockerRecords.map(locker => parseInt(locker.module.replace('M', ''), 10));
-    const maxModule = modules.length ? Math.max(...modules) : 0;
-    return maxModule + 1;
+    // Prefer the moduleRecords loaded from the DB (most accurate)
+    if (Array.isArray(moduleRecords) && moduleRecords.length > 0) {
+        const nums = moduleRecords.map(m => {
+            const raw = m.name != null ? m.name : (m.module_id || m.id);
+            return parseInt(String(raw).replace('M', ''), 10);
+        }).filter(n => !isNaN(n));
+        return nums.length ? Math.max(...nums) + 1 : 1;
+    }
+    // Fallback: infer from loaded lockerRecords
+    const modules = (lockerRecords || []).map(l => parseInt((l.module || '').replace('M', ''), 10)).filter(n => !isNaN(n));
+    return modules.length ? Math.max(...modules) + 1 : 1;
 }
 
 function getModuleTemplate() {
@@ -964,10 +1069,12 @@ function mapDbRowsToLockerRecords(rows) {
     return sortedRows.map((row, index) => {
         const number = row.locker_number || row.code || `L${index + 1}`;
 
-        // Use joined module name if available, otherwise fallback to old inference
+        // Use joined module name. modules.name is a smallint in the DB (e.g. 1, 2)
+        // so format it as "M1", "M2" etc.
         let moduleName = 'M1';
-        if (row.modules && row.modules.name) {
-            moduleName = row.modules.name;
+        if (row.modules && row.modules.name != null) {
+            const n = row.modules.name;
+            moduleName = String(n).startsWith('M') ? String(n) : `M${n}`;
         } else {
             const moduleVal = row.module_number || row.module || row.module_id;
             if (moduleVal) {
