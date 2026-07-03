@@ -985,14 +985,26 @@ async function addDefaultModule() {
             });
             if (moduleResult && moduleResult[0]) {
                 moduleId = moduleResult[0].module_id;
+                console.log('✓ Module created in database:', moduleId);
+                
+                // Add to moduleRecords for future reference
+                if (Array.isArray(moduleRecords)) {
+                    moduleRecords.push(moduleResult[0]);
+                }
+            } else {
+                throw new Error('No module ID returned from database');
             }
         } catch (error) {
             console.error('Error creating module in DB:', error);
-            alert('Failed to create module record in database.');
+            alert('Failed to create module record in database: ' + error.message);
             return;
         }
+    } else {
+        alert('Supabase connection not available. Cannot add module.');
+        return;
     }
 
+    // Create locker records for this module
     const moduleLockers = template.map(locker => {
         const code = getNextLockerCode(locker.prefix);
         return {
@@ -1006,10 +1018,19 @@ async function addDefaultModule() {
     });
 
     lockerRecords.push(...moduleLockers);
-    await persistNewModuleLockers(moduleLockers, moduleId);
+    
+    // Persist lockers to database
+    try {
+        await persistNewModuleLockers(moduleLockers, moduleId);
+        console.log('✓ Module lockers persisted to database');
+    } catch (error) {
+        console.error('Error persisting module lockers:', error);
+        alert('Failed to save module lockers to database.');
+        return;
+    }
 
     renderLockersTable();
-    alert(`${moduleName} added successfully.`);
+    alert(`✓ ${moduleName} added successfully with ${template.length} lockers!`);
 }
 
 function getNextModuleNumber() {
@@ -1140,21 +1161,26 @@ async function persistLockerStatus(locker) {
 async function persistNewModuleLockers(newLockers, moduleId) {
     if (!(typeof isSupabaseConnected !== 'undefined' && isSupabaseConnected() &&
         typeof dbOps !== 'undefined' && dbOps.createLockersBatch)) {
+        console.warn('Supabase not connected or createLockersBatch not available');
         return;
+    }
+
+    if (!moduleId) {
+        throw new Error('Module ID is required to persist lockers');
     }
 
     const dbPayload = newLockers.map(locker => ({
         locker_number: locker.code,
         size_type_id: getSizeTypeIdFromSize(locker.size),
         status: formatStatusForDb(locker.status),
-        module_id: moduleId || locker.moduleId
+        module_id: moduleId,
+        device_id: 1
     }));
 
     try {
         const inserted = await dbOps.createLockersBatch(dbPayload);
         if (!inserted) {
-            alert('Failed to save new module lockers to Supabase.');
-            return;
+            throw new Error('Failed to insert lockers - no data returned');
         }
         if (Array.isArray(inserted)) {
             inserted.forEach((row, index) => {
@@ -1162,9 +1188,11 @@ async function persistNewModuleLockers(newLockers, moduleId) {
                     newLockers[index].dbLockerId = row.locker_id || row.id || null;
                 }
             });
+            console.log(`✓ ${inserted.length} lockers created in database`);
         }
     } catch (error) {
         console.error('Error saving new module lockers:', error);
+        throw error;
     }
 }
 

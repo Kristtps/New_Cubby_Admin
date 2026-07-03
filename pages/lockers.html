@@ -113,15 +113,7 @@
                         </svg>
                         Delete Module
                     </button>
-                    <button class="btn-secondary" id="fix-locker-numbers-btn" onclick="fixLockerNumbersClick()" title="Fix sequential locker numbers">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path>
-                            <path d="M21 3v5h-5"></path>
-                            <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path>
-                            <path d="M3 21v-5h5"></path>
-                        </svg>
-                        Fix Numbers
-                    </button>
+
                 </div>
             </div>
 
@@ -344,13 +336,20 @@
             try {
                 const client = window.supabaseClient || window.supabase;
 
-                // 1. Delete lockers belonging to this module first
+                if (!client || typeof client.from !== 'function') {
+                    throw new Error('Supabase client is not initialized');
+                }
+
+                // 1. Delete lockers belonging to this module first (due to foreign key constraint)
                 const { error: lockersErr } = await client
                     .from('lockers')
                     .delete()
                     .eq('module_id', moduleId);
 
-                if (lockersErr) throw lockersErr;
+                if (lockersErr) {
+                    console.error('Error deleting lockers:', lockersErr);
+                    throw new Error(`Failed to delete lockers: ${lockersErr.message}`);
+                }
                 console.log('✓ Lockers deleted from DB for module', moduleId);
 
                 // 2. Delete the module itself
@@ -359,10 +358,18 @@
                     .delete()
                     .eq('module_id', moduleId);
 
-                if (modErr) throw modErr;
+                if (modErr) {
+                    console.error('Error deleting module:', modErr);
+                    throw new Error(`Failed to delete module: ${modErr.message}`);
+                }
                 console.log('✓ Module deleted from DB:', moduleId);
 
-                // 3. Remove rows from UI table
+                // 3. Log the configuration change
+                if (typeof logConfigChangeEvent !== 'undefined') {
+                    await logConfigChangeEvent('Module Deleted', `Module "${moduleName}" and all associated lockers have been deleted from the system.`, { moduleId, moduleName });
+                }
+
+                // 4. Remove rows from UI table
                 document.querySelectorAll('#lockers-tbody tr').forEach(row => {
                     const modCell = row.querySelector('[data-field="module"]');
                     if (modCell && modCell.dataset.moduleId === String(moduleId)) {
@@ -370,13 +377,13 @@
                     }
                 });
 
-                // 4. Remove from local lockerRecords
+                // 5. Remove from local lockerRecords
                 if (typeof lockerRecords !== 'undefined') {
-                    lockerRecords = lockerRecords.filter(l => String(l.moduleId) !== String(moduleId));
+                    lockerRecords = lockerRecords.filter(l => String(l.module_id) !== String(moduleId));
                 }
 
                 closeDeleteModuleModal();
-                alert(`✓ "${moduleName}" and all its lockers have been deleted!`);
+                alert(`✓ "${moduleName}" and all its lockers have been deleted successfully!`);
             } catch (err) {
                 console.error('Error deleting module:', err);
                 alert('Error deleting module: ' + err.message);
@@ -388,27 +395,7 @@
             if (e.target === this) closeDeleteModuleModal();
         });
 
-        // ── Fix Locker Numbers ────────────────────────────────────────────
-        async function fixLockerNumbersClick() {
-            if (!confirm('This will fix all locker numbers to be sequential (S1, S2, S3...) per module and size. Continue?')) return;
 
-            try {
-                if (typeof dbOps !== 'undefined' && dbOps.fixLockerNumbersPerModule) {
-                    const result = await dbOps.fixLockerNumbersPerModule();
-                    if (result) {
-                        alert('✓ Locker numbers fixed successfully!');
-                        location.reload();
-                    } else {
-                        alert('Failed to fix locker numbers. Check console for errors.');
-                    }
-                } else {
-                    alert('fixLockerNumbersPerModule is not available.');
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                alert('Error: ' + error.message);
-            }
-        }
     </script>
     <script src="../js/script.js"></script>
 
