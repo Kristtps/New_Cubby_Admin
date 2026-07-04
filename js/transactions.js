@@ -33,12 +33,13 @@ document.addEventListener('DOMContentLoaded', async function() {
 
                     const mappedTx = {
                         id: tx.transaction_id || tx.id,
-                        date: new Date(tx.start_time || tx.created_at).toLocaleString('en-US', {
+                        date: new Intl.DateTimeFormat('en-US', {
+                            timeZone: 'Asia/Manila',
                             month: 'short',
                             day: 'numeric',
                             hour: '2-digit',
                             minute: '2-digit'
-                        }),
+                        }).format(new Date(tx.start_time || tx.created_at)),
                         customerName: tx.customers ? tx.customers.full_name : (tx.customer_name || 'Unknown'),
                         customerEmail: tx.customers ? tx.customers.email : (tx.customer_email || '-'),
                         type: tx.status || tx.type || 'Active',
@@ -111,13 +112,14 @@ function populateTransactionTableFromDatabase(transactions) {
     }
     
     tableBody.innerHTML = transactions.map(tx => {
-        // Use start_time for the date display
-        const date = new Date(tx.start_time || tx.created_at).toLocaleString('en-US', {
+        // Use start_time for the date display in Philippine timezone
+        const date = new Intl.DateTimeFormat('en-US', {
+            timeZone: 'Asia/Manila',
             month: 'short',
             day: 'numeric',
             hour: '2-digit',
             minute: '2-digit'
-        });
+        }).format(new Date(tx.start_time || tx.created_at));
         
         let totalPaid = 0;
         let methods = [];

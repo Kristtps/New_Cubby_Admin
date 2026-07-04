@@ -29,6 +29,109 @@ async function initializeCustomersPage() {
             // Implement navigation or detail view logic here
         }
     });
+
+    // Initialize search functionality
+    initializeCustomerSearch();
+    
+    // Initialize sort functionality
+    initializeCustomerSort();
+}
+
+/**
+ * Store current sort state
+ */
+let customerSortNewest = true;
+
+/**
+ * Initialize customer sort functionality
+ */
+function initializeCustomerSort() {
+    const sortBtn = document.getElementById('sort-customers-btn');
+    if (!sortBtn) return;
+
+    sortBtn.addEventListener('click', function () {
+        customerSortNewest = !customerSortNewest;
+        
+        // Update button label
+        const sortLabel = document.getElementById('sort-label');
+        if (sortLabel) {
+            sortLabel.textContent = customerSortNewest ? 'Newest' : 'Oldest';
+        }
+        
+        // Sort the table
+        sortCustomersTable();
+    });
+}
+
+/**
+ * Sort customers table by join date
+ */
+function sortCustomersTable() {
+    const tbody = document.getElementById('customers-tbody');
+    if (!tbody) return;
+
+    const rows = Array.from(tbody.querySelectorAll('tr:not(#no-search-results)'));
+    
+    rows.sort((a, b) => {
+        // Get joined dates from the rows
+        const joinedA = a.querySelector('[data-field="joined"]')?.textContent || '';
+        const joinedB = b.querySelector('[data-field="joined"]')?.textContent || '';
+        
+        // Convert to Date objects for comparison
+        const dateA = new Date(joinedA);
+        const dateB = new Date(joinedB);
+        
+        // Sort based on current sort direction
+        if (customerSortNewest) {
+            return dateB - dateA; // Newest first
+        } else {
+            return dateA - dateB; // Oldest first
+        }
+    });
+
+    // Re-append sorted rows
+    rows.forEach(row => {
+        tbody.appendChild(row);
+    });
+}
+
+/**
+ * Initialize customer search functionality
+ */
+function initializeCustomerSearch() {
+    const searchInput = document.getElementById('customer-search');
+    if (!searchInput) return;
+
+    searchInput.addEventListener('input', function (e) {
+        const searchTerm = e.target.value.toLowerCase().trim();
+        const tbody = document.getElementById('customers-tbody');
+        const rows = tbody.querySelectorAll('tr');
+
+        rows.forEach(row => {
+            const name = row.querySelector('[data-field="name"]')?.textContent.toLowerCase() || '';
+            const email = row.querySelector('[data-field="email"]')?.textContent.toLowerCase() || '';
+            const userId = row.querySelector('[data-field="user-id"]')?.textContent.toLowerCase() || '';
+
+            const matches = name.includes(searchTerm) || 
+                           email.includes(searchTerm) || 
+                           userId.includes(searchTerm);
+
+            row.style.display = matches || searchTerm === '' ? '' : 'none';
+        });
+
+        // Show "no results" message if all rows are hidden
+        const visibleRows = tbody.querySelectorAll('tr:not([style*="display: none"])');
+        if (visibleRows.length === 0 && searchTerm !== '') {
+            if (!document.getElementById('no-search-results')) {
+                const noResultsRow = document.createElement('tr');
+                noResultsRow.id = 'no-search-results';
+                noResultsRow.innerHTML = `<td colspan="8" style="text-align: center; color: var(--text-muted); padding: 2rem;">No customers found matching "${searchTerm}"</td>`;
+                tbody.appendChild(noResultsRow);
+            }
+        } else if (document.getElementById('no-search-results')) {
+            document.getElementById('no-search-results').remove();
+        }
+    });
 }
 
 /**
@@ -76,18 +179,24 @@ async function loadCustomersFromSupabase() {
                 id:      c.customer_id,
                 name:    c.full_name || 'N/A',
                 email:   c.email || 'N/A',
+                userId:  c.user_id || 'N/A',
                 role:    'Customer',
                 wallet:  0, 
                 rentals: rentalsCount,
                 spent:   totalSpent,
-                joined:  c.created_at ? new Date(c.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'
+                joined:  c.created_at ? new Intl.DateTimeFormat('en-US', {
+                    timeZone: 'Asia/Manila',
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric'
+                }).format(new Date(c.created_at)) : 'N/A'
             };
         });
 
         if (mapped.length === 0) {
             const tbody = document.getElementById('customers-tbody');
             if (tbody) {
-                tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 3rem;">No customers found in the database.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 3rem;">No customers found in the database.</td></tr>`;
             }
         } else {
             refreshCustomersFromDatabase(mapped);
@@ -97,7 +206,7 @@ async function loadCustomersFromSupabase() {
         console.error('Failed to load customers:', err.message);
         const tbody = document.getElementById('customers-tbody');
         if (tbody) {
-            tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--danger); padding: 1rem;">Failed to load customers: ${err.message}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--danger); padding: 1rem;">Failed to load customers: ${err.message}</td></tr>`;
         }
     }
 }
@@ -182,7 +291,7 @@ function addCustomerRow(customerData) {
     newRow.innerHTML = `
         <td class="name-cell"><span data-field="name">${customerData.name}</span></td>
         <td class="email-cell"><span data-field="email">${customerData.email}</span></td>
-        <td class="role-cell"><span class="role-badge ${customerData.role}" data-field="role">${customerData.role}</span></td>
+        <td class="user-id-cell"><span data-field="user-id">${customerData.userId}</span></td>
         <td class="wallet-cell"><span data-field="wallet" data-currency="₱">${parseFloat(customerData.wallet).toFixed(2)}</span></td>
         <td class="rentals-cell"><span data-field="rentals">${customerData.rentals}</span></td>
         <td class="spent-cell"><span data-field="spent" data-currency="₱">${parseFloat(customerData.spent).toFixed(2)}</span></td>
@@ -230,11 +339,109 @@ function refreshCustomersFromDatabase(customersData) {
     const tbody = document.getElementById('customers-tbody');
     if (!tbody) return;
 
+    // Store all customers for lazy loading
+    allCustomersData = customersData;
+    
     // Clear current rows
     tbody.innerHTML = '';
 
-    // Add updated rows
-    customersData.forEach(customer => {
+    // Initially load only first ITEMS_PER_LOAD items, or all if less
+    const initialBatch = customersData.slice(0, Math.max(ITEMS_PER_LOAD, customersData.length));
+    initialBatch.forEach(customer => {
         addCustomerRow(customer);
     });
+
+    console.log(`✓ Loaded ${initialBatch.length} customers (${customersData.length} total)`);
+}
+
+// ==================== AJAX FUNCTIONALITY ====================
+
+/**
+ * Store current sort state and all customers data
+ */
+let customerSortNewest = true;
+let allCustomersData = []; // Store all customers for filtering
+let autoRefreshInterval = null;
+let isLoadingMore = false;
+let displayedCount = 0;
+const ITEMS_PER_LOAD = 20;
+
+/**
+ * Initialize auto-refresh for real-time updates (every 30 seconds)
+ */
+function initializeAutoRefresh() {
+    // Auto-refresh customer data every 30 seconds
+    autoRefreshInterval = setInterval(async function() {
+        try {
+            await loadCustomersFromSupabase();
+            console.log('✓ Customer data auto-refreshed');
+        } catch (error) {
+            console.error('Auto-refresh error:', error);
+        }
+    }, 30000); // 30 seconds
+}
+
+/**
+ * Stop auto-refresh
+ */
+function stopAutoRefresh() {
+    if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+        autoRefreshInterval = null;
+    }
+}
+
+/**
+ * Initialize infinite scroll / lazy load functionality
+ */
+function initializeInfiniteScroll() {
+    const tbody = document.getElementById('customers-tbody');
+    if (!tbody) return;
+
+    const container = tbody.closest('.customers-table-wrapper') || tbody.parentElement;
+    
+    container.addEventListener('scroll', function() {
+        // Check if user scrolled near the bottom
+        if (container.scrollTop + container.clientHeight >= container.scrollHeight - 100) {
+            loadMoreCustomers();
+        }
+    });
+}
+
+/**
+ * Load more customers for infinite scroll
+ */
+function loadMoreCustomers() {
+    if (isLoadingMore) return;
+    
+    isLoadingMore = true;
+    const tbody = document.getElementById('customers-tbody');
+    
+    if (!tbody) return;
+
+    const allRows = tbody.querySelectorAll('tr:not(#no-search-results)');
+    const currentCount = allRows.length;
+
+    // If we've already loaded all customers, don't load more
+    if (currentCount >= allCustomersData.length) {
+        isLoadingMore = false;
+        return;
+    }
+
+    // Simulate loading delay for better UX
+    setTimeout(() => {
+        const nextBatch = allCustomersData.slice(currentCount, currentCount + ITEMS_PER_LOAD);
+        nextBatch.forEach(customer => {
+            addCustomerRow(customer);
+        });
+        isLoadingMore = false;
+        console.log(`✓ Loaded ${nextBatch.length} more customers`);
+    }, 300);
+}
+
+/**
+ * Store all customers for lazy loading
+ */
+function storeAllCustomersData(customersData) {
+    allCustomersData = customersData;
 }

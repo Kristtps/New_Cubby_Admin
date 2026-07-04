@@ -126,18 +126,65 @@ async function fetchCustomerById(customerId) {
 }
 
 /**
+ * Generate a unique 6-character user ID
+ * Format: Alphanumeric (A-Z, 0-9)
+ */
+async function generateUniqueUserId() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let attempts = 0;
+    const maxAttempts = 10;
+
+    while (attempts < maxAttempts) {
+        let userId = '';
+        for (let i = 0; i < 6; i++) {
+            userId += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+
+        // Check if this user_id already exists
+        try {
+            const client = getSupabaseClient();
+            const { data, error } = await client
+                .from('customers')
+                .select('user_id')
+                .eq('user_id', userId)
+                .single();
+
+            if (error && error.code === 'PGRST116') {
+                // PGRST116 means no rows returned, which is good - ID is unique
+                return userId;
+            }
+            if (error && error.code !== 'PGRST116') {
+                console.error('Error checking user_id uniqueness:', error);
+            }
+        } catch (err) {
+            console.error('Error in generateUniqueUserId:', err);
+        }
+
+        attempts++;
+    }
+
+    throw new Error('Failed to generate unique user ID after 10 attempts');
+}
+
+/**
  * Create a new customer
  */
 async function createCustomer(customerData) {
     try {
-        const { data, error } = await supabase
+        // Generate user_id if not provided
+        if (!customerData.user_id) {
+            customerData.user_id = await generateUniqueUserId();
+        }
+
+        const client = getSupabaseClient();
+        const { data, error } = await client
             .from('customers')
             .insert([customerData])
             .select();
 
         if (error) throw error;
         
-        await logConfigChangeEvent('Customer Created', `New customer profile created: ${customerData.full_name || 'Unnamed'}.`, customerData);
+        await logConfigChangeEvent('Customer Created', `New customer profile created: ${customerData.full_name || 'Unnamed'} (ID: ${customerData.user_id}).`, customerData);
         
         console.log('✓ Customer created:', data);
         return data;
@@ -748,10 +795,17 @@ async function getDashboardStats() {
         if (results[4].status === 'fulfilled' && results[4].value.data) {
             stats.recentRentals = results[4].value.data.map(tx => {
                 const totalPaid = tx.payments && Array.isArray(tx.payments) ? tx.payments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0) : 0;
+                const lockerDate = new Intl.DateTimeFormat('en-US', {
+                    timeZone: 'Asia/Manila',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                }).format(new Date(tx.start_time));
                 return {
                     id: tx.transaction_id,
                     customerName: tx.customers ? tx.customers.full_name : 'Unknown',
-                    lockerInfo: `${tx.lockers ? tx.lockers.locker_number : 'Locker'} • ${new Date(tx.start_time).toLocaleString()}`,
+                    lockerInfo: `${tx.lockers ? tx.lockers.locker_number : 'Locker'} • ${lockerDate}`,
                     amount: `₱${totalPaid.toFixed(2)}`
                 };
             });

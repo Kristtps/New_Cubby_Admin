@@ -147,14 +147,22 @@ function processHistoricalData(data) {
     for (let i = 13; i >= 0; i--) {
         const d = new Date();
         d.setDate(d.getDate() - i);
-        const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        const dateStr = new Intl.DateTimeFormat('en-US', { 
+            timeZone: 'Asia/Manila',
+            month: 'short', 
+            day: 'numeric' 
+        }).format(d);
         dailyData[dateStr] = { revenue: 0, rentals: 0 };
     }
 
     // Process Payments for Revenue
     if (data.payments && Array.isArray(data.payments)) {
         data.payments.forEach(p => {
-            const date = new Date(p.payment_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            const date = new Intl.DateTimeFormat('en-US', { 
+                timeZone: 'Asia/Manila',
+                month: 'short', 
+                day: 'numeric' 
+            }).format(new Date(p.payment_date));
             const amount = parseFloat(p.amount || 0);
             if (dailyData[date]) {
                 dailyData[date].revenue += amount;
@@ -166,7 +174,11 @@ function processHistoricalData(data) {
     // Process Transactions for Rentals and Sizes
     if (data.transactions && Array.isArray(data.transactions)) {
         data.transactions.forEach(tx => {
-            const date = new Date(tx.start_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            const date = new Intl.DateTimeFormat('en-US', { 
+                timeZone: 'Asia/Manila',
+                month: 'short', 
+                day: 'numeric' 
+            }).format(new Date(tx.start_time));
             if (dailyData[date]) {
                 dailyData[date].rentals += 1;
             }
@@ -184,7 +196,11 @@ function processHistoricalData(data) {
     // Fallback for old single-array data just in case
     if (Array.isArray(data)) {
         data.forEach(tx => {
-            const date = new Date(tx.start_time || tx.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            const date = new Intl.DateTimeFormat('en-US', { 
+                timeZone: 'Asia/Manila',
+                month: 'short', 
+                day: 'numeric' 
+            }).format(new Date(tx.start_time || tx.created_at));
             const amount = parseFloat(tx.amount || 0);
             if (!dailyData[date]) dailyData[date] = { revenue: 0, rentals: 0 };
             dailyData[date].revenue += amount;

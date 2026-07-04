@@ -1,3 +1,85 @@
+// ==================== PHILIPPINE TIMEZONE UTILITY ====================
+/**
+ * Format date to Philippine Time (PHT/Asia/Manila)
+ * Ensures proper timezone conversion from UTC/server time to Philippine time
+ * @param {Date|string|number} date - Date to format (can be ISO string, timestamp, or Date object)
+ * @param {object} options - Intl.DateTimeFormat options (optional)
+ * @returns {string} Formatted date in Philippine timezone
+ */
+function formatPHTime(date, options = {}) {
+    // Ensure we have a Date object
+    let dateObj;
+    if (typeof date === 'string') {
+        // If it's an ISO string, parse it directly
+        dateObj = new Date(date);
+    } else if (typeof date === 'number') {
+        // If it's a timestamp
+        dateObj = new Date(date);
+    } else if (date instanceof Date) {
+        dateObj = date;
+    } else {
+        dateObj = new Date();
+    }
+
+    const defaultOptions = {
+        timeZone: 'Asia/Manila',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true,
+        ...options
+    };
+    
+    return new Intl.DateTimeFormat('en-US', defaultOptions).format(dateObj);
+}
+
+/**
+ * Diagnostic function to check timezone discrepancies
+ */
+function checkTimezoneIssue() {
+    const now = new Date();
+    const isoString = now.toISOString();
+    
+    // Current time in different formats
+    const diagnostics = {
+        'Client Local Time': now.toString(),
+        'ISO String (UTC)': isoString,
+        'Client Timezone Offset (minutes)': now.getTimezoneOffset(),
+        'Formatted for Manila': new Intl.DateTimeFormat('en-US', {
+            timeZone: 'Asia/Manila',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: true
+        }).format(now),
+        'Formatted for UTC': new Intl.DateTimeFormat('en-US', {
+            timeZone: 'UTC',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: true
+        }).format(now)
+    };
+    
+    console.table(diagnostics);
+    return diagnostics;
+}
+
+// Run diagnostic on page load
+window.addEventListener('load', function() {
+    console.log('🔍 Timezone Diagnostic:');
+    checkTimezoneIssue();
+});
+
 // Add interactive features and database integration support
 // Sign Out Button Handler - Makes all .sign-out links functional
 

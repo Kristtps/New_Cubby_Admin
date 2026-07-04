@@ -305,7 +305,15 @@ function logRatesSaved(rates) {
             'Rate per hour': `₱${rates.large.rate.toFixed(2)}`,
             'Minimum charge': `₱${rates.large.minimum.toFixed(2)}`
         },
-        'Saved at': new Date(rates.savedAt).toLocaleString()
+        'Saved at': new Intl.DateTimeFormat('en-US', {
+            timeZone: 'Asia/Manila',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+        }).format(new Date(rates.savedAt))
     };
     
     console.table(table);

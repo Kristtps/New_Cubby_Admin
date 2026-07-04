@@ -23,6 +23,70 @@ document.addEventListener('DOMContentLoaded', async function() {
 async function initializeAuditLog() {
     await loadAuditLogEntries();
     displayAuditLog();
+    initializeAuditLogSearch();
+}
+
+/**
+ * Format timestamp to readable format with Philippine time (PHT/UTC+8)
+ * Properly handles server timestamps in UTC and converts to Philippine timezone
+ */
+function formatTimestamp(timestamp) {
+    let dateObj;
+    
+    // Handle different timestamp formats
+    if (typeof timestamp === 'string') {
+        // ISO string from database
+        dateObj = new Date(timestamp);
+    } else if (typeof timestamp === 'number') {
+        // Unix timestamp
+        dateObj = new Date(timestamp);
+    } else if (timestamp instanceof Date) {
+        dateObj = timestamp;
+    } else {
+        dateObj = new Date();
+    }
+
+    // If the Date is invalid, return a fallback
+    if (isNaN(dateObj.getTime())) {
+        return 'Invalid date';
+    }
+    
+    // Create options for formatting in Philippine timezone
+    const options = {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true,
+        timeZone: 'Asia/Manila' // Philippine Standard Time (PHT, UTC+8)
+    };
+    
+    // Format the date using Intl API with Manila timezone
+    const formatter = new Intl.DateTimeFormat('en-US', options);
+    const formatted = formatter.format(dateObj);
+    
+    // Append timezone indicator
+    return `${formatted} PHT`;
+}
+
+/**
+ * Initialize audit log search functionality
+ */
+function initializeAuditLogSearch() {
+    const searchInput = document.getElementById('auditlog-search');
+    if (!searchInput) return;
+
+    searchInput.addEventListener('input', function (e) {
+        const searchTerm = e.target.value.toLowerCase().trim();
+        
+        if (searchTerm === '') {
+            displayAuditLog();
+        } else {
+            searchAuditLog(searchTerm);
+        }
+    });
 }
 
 /**
@@ -47,7 +111,7 @@ async function loadAuditLogEntries() {
                                 badgeType: details.badgeType || 'secondary',
                                 description: details.description || '',
                                 user: entry.user_id || 'system',
-                                timestamp: new Date(entry.timestamp).toLocaleString(),
+                                timestamp: formatTimestamp(entry.timestamp),
                                 icon: details.icon || 'info',
                                 type: details.type || 'system'
                             });
@@ -156,7 +220,7 @@ async function addAuditLogEntry(entry) {
 
         const uiEntry = {
             id: Date.now(),
-            timestamp: new Date().toLocaleString(),
+            timestamp: formatTimestamp(new Date()),
             ...entry
         };
 
@@ -369,3 +433,171 @@ window.logRentalEvent = logRentalEvent;
 window.logSystemEvent = logSystemEvent;
 window.logMaintenanceEvent = logMaintenanceEvent;
 window.logCashCollectionEvent = logCashCollectionEvent;
+
+
+// ==================== AJAX FUNCTIONALITY ====================
+
+/**
+ * Store current state for AJAX operations
+ */
+let autoRefreshAuditInterval = null;
+let allAuditLogsData = [];
+let displayedAuditCount = 0;
+const AUDIT_ITEMS_PER_LOAD = 30;
+let isLoadingMoreAudit = false;
+
+/**
+ * Initialize auto-refresh for real-time audit log updates (every 15 seconds)
+ */
+function initializeAuditAutoRefresh() {
+    autoRefreshAuditInterval = setInterval(async function() {
+        try {
+            await loadAuditLogEntries();
+            console.log('✓ Audit log auto-refreshed');
+        } catch (error) {
+            console.error('Audit log auto-refresh error:', error);
+        }
+    }, 15000); // 15 seconds
+}
+
+/**
+ * Stop audit log auto-refresh
+ */
+function stopAuditAutoRefresh() {
+    if (autoRefreshAuditInterval) {
+        clearInterval(autoRefreshAuditInterval);
+        autoRefreshAuditInterval = null;
+    }
+}
+
+/**
+ * Initialize infinite scroll for audit log
+ */
+function initializeAuditInfiniteScroll() {
+    const container = document.querySelector('.auditlog-container');
+    if (!container) return;
+
+    container.addEventListener('scroll', function() {
+        if (container.scrollTop + container.clientHeight >= container.scrollHeight - 100) {
+            loadMoreAuditLogs();
+        }
+    });
+}
+
+/**
+ * Load more audit log entries
+ */
+function loadMoreAuditLogs() {
+    if (isLoadingMoreAudit) return;
+    
+    isLoadingMoreAudit = true;
+    const auditLogList = document.getElementById('auditLogList');
+    
+    if (!auditLogList) return;
+
+    const currentCount = auditLogList.querySelectorAll('.auditlog-entry').length;
+
+    // If we've already loaded all entries, don't load more
+    if (currentCount >= auditLogEntries.length) {
+        isLoadingMoreAudit = false;
+        return;
+    }
+
+    // Simulate loading delay for better UX
+    setTimeout(() => {
+        const nextBatch = auditLogEntries.slice(currentCount, currentCount + AUDIT_ITEMS_PER_LOAD);
+        const nextBatchHTML = nextBatch.map(entry => `
+            <div class="auditlog-entry">
+                <div class="auditlog-icon ${entry.icon}">
+                    ${getIconSVG(entry.icon)}
+                </div>
+                <div class="auditlog-content">
+                    <div class="auditlog-header">
+                        <span class="auditlog-action">${entry.action}</span>
+                        <span class="auditlog-badge badge-${entry.badgeType || 'secondary'}">${entry.badge}</span>
+                    </div>
+                    <p class="auditlog-description">${entry.description}</p>
+                    <div class="auditlog-meta">
+                        <span class="auditlog-user">${entry.user}</span>
+                        <span class="auditlog-timestamp">${entry.timestamp}</span>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+        
+        auditLogList.innerHTML += nextBatchHTML;
+        isLoadingMoreAudit = false;
+        console.log(`✓ Loaded ${nextBatch.length} more audit entries`);
+    }, 300);
+}
+
+/**
+ * Store all audit logs for lazy loading
+ */
+function storeAllAuditLogsData() {
+    allAuditLogsData = [...auditLogEntries];
+}
+
+/**
+ * Update displayAuditLog to support lazy loading
+ */
+const originalDisplayAuditLog = displayAuditLog;
+function displayAuditLog(entries = auditLogEntries) {
+    const auditLogList = document.getElementById('auditLogList');
+    
+    if (!auditLogList) {
+        console.error('Audit log list container not found');
+        return;
+    }
+
+    if (entries.length === 0) {
+        auditLogList.innerHTML = `
+            <div class="auditlog-empty">
+                <div class="auditlog-empty-icon">📋</div>
+                <div class="auditlog-empty-title">No audit entries</div>
+                <div class="auditlog-empty-message">No actions have been logged yet</div>
+            </div>
+        `;
+        return;
+    }
+
+    storeAllAuditLogsData();
+
+    // Initially load only first AUDIT_ITEMS_PER_LOAD items
+    const initialBatch = entries.slice(0, AUDIT_ITEMS_PER_LOAD);
+    
+    auditLogList.innerHTML = initialBatch.map(entry => `
+        <div class="auditlog-entry">
+            <div class="auditlog-icon ${entry.icon}">
+                ${getIconSVG(entry.icon)}
+            </div>
+            <div class="auditlog-content">
+                <div class="auditlog-header">
+                    <span class="auditlog-action">${entry.action}</span>
+                    <span class="auditlog-badge badge-${entry.badgeType || 'secondary'}">${entry.badge}</span>
+                </div>
+                <p class="auditlog-description">${entry.description}</p>
+                <div class="auditlog-meta">
+                    <span class="auditlog-user">${entry.user}</span>
+                    <span class="auditlog-timestamp">${entry.timestamp}</span>
+                </div>
+            </div>
+        </div>
+    `).join('');
+
+    console.log(`✓ Displayed ${initialBatch.length} audit entries (${entries.length} total)`);
+}
+
+/**
+ * Enhanced initialize audit log with AJAX features
+ */
+const originalInitializeAuditLog = initializeAuditLog;
+async function initializeAuditLog() {
+    await loadAuditLogEntries();
+    displayAuditLog();
+    initializeAuditLogSearch();
+    
+    // Initialize AJAX features
+    initializeAuditAutoRefresh();
+    initializeAuditInfiniteScroll();
+}
