@@ -56,17 +56,14 @@ function populateRatesFromDatabase(rates) {
     try {
         if (rates.small) {
             document.getElementById('smallRate').value = rates.small.rate || 10;
-            document.getElementById('smallMinimum').value = rates.small.minimum || 10;
         }
         
         if (rates.medium) {
             document.getElementById('mediumRate').value = rates.medium.rate || 20;
-            document.getElementById('mediumMinimum').value = rates.medium.minimum || 20;
         }
         
         if (rates.large) {
             document.getElementById('largeRate').value = rates.large.rate || 35;
-            document.getElementById('largeMinimum').value = rates.large.minimum || 35;
         }
     } catch (error) {
         console.error('Error populating rates from database:', error);
@@ -86,17 +83,14 @@ function loadSavedRates() {
             // Populate form fields with saved values
             if (rates.small) {
                 document.getElementById('smallRate').value = rates.small.rate;
-                document.getElementById('smallMinimum').value = rates.small.minimum;
             }
             
             if (rates.medium) {
                 document.getElementById('mediumRate').value = rates.medium.rate;
-                document.getElementById('mediumMinimum').value = rates.medium.minimum;
             }
             
             if (rates.large) {
                 document.getElementById('largeRate').value = rates.large.rate;
-                document.getElementById('largeMinimum').value = rates.large.minimum;
             }
             
             console.log('✓ Rates loaded from localStorage', rates);
@@ -146,15 +140,15 @@ function saveRates(isAutoSave = false) {
         const rates = {
             small: {
                 rate: parseFloat(document.getElementById('smallRate').value) || 0,
-                minimum: parseFloat(document.getElementById('smallMinimum').value) || 0
+                minimum: parseFloat(document.getElementById('smallRate').value) || 0
             },
             medium: {
                 rate: parseFloat(document.getElementById('mediumRate').value) || 0,
-                minimum: parseFloat(document.getElementById('mediumMinimum').value) || 0
+                minimum: parseFloat(document.getElementById('mediumRate').value) || 0
             },
             large: {
                 rate: parseFloat(document.getElementById('largeRate').value) || 0,
-                minimum: parseFloat(document.getElementById('largeMinimum').value) || 0
+                minimum: parseFloat(document.getElementById('largeRate').value) || 0
             },
             savedAt: new Date().toISOString()
         };
@@ -189,16 +183,12 @@ function validateRates(rates) {
     const { small, medium, large } = rates;
 
     // Check if all values are valid numbers
-    if (isNaN(small.rate) || isNaN(small.minimum) ||
-        isNaN(medium.rate) || isNaN(medium.minimum) ||
-        isNaN(large.rate) || isNaN(large.minimum)) {
+    if (isNaN(small.rate) || isNaN(medium.rate) || isNaN(large.rate)) {
         return false;
     }
 
     // Check if rates are positive
-    if (small.rate < 0 || small.minimum < 0 ||
-        medium.rate < 0 || medium.minimum < 0 ||
-        large.rate < 0 || large.minimum < 0) {
+    if (small.rate < 0 || medium.rate < 0 || large.rate < 0) {
         return false;
     }
 
@@ -294,16 +284,13 @@ function removeExistingMessages() {
 function logRatesSaved(rates) {
     const table = {
         'Small Locker': {
-            'Rate per hour': `₱${rates.small.rate.toFixed(2)}`,
-            'Minimum charge': `₱${rates.small.minimum.toFixed(2)}`
+            'Rate per hour': `₱${rates.small.rate.toFixed(2)}`
         },
         'Medium Locker': {
-            'Rate per hour': `₱${rates.medium.rate.toFixed(2)}`,
-            'Minimum charge': `₱${rates.medium.minimum.toFixed(2)}`
+            'Rate per hour': `₱${rates.medium.rate.toFixed(2)}`
         },
         'Large Locker': {
-            'Rate per hour': `₱${rates.large.rate.toFixed(2)}`,
-            'Minimum charge': `₱${rates.large.minimum.toFixed(2)}`
+            'Rate per hour': `₱${rates.large.rate.toFixed(2)}`
         },
         'Saved at': new Intl.DateTimeFormat('en-US', {
             timeZone: 'Asia/Manila',
@@ -348,13 +335,8 @@ function exportRates() {
 function resetRatesToDefault() {
     if (confirm('Are you sure you want to reset all rates to defaults?')) {
         document.getElementById('smallRate').value = 10;
-        document.getElementById('smallMinimum').value = 10;
-        
         document.getElementById('mediumRate').value = 20;
-        document.getElementById('mediumMinimum').value = 20;
-        
         document.getElementById('largeRate').value = 35;
-        document.getElementById('largeMinimum').value = 35;
         
         saveRates();
         console.log('✓ Rates reset to defaults');

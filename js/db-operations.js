@@ -707,8 +707,10 @@ async function fetchRates() {
         const rates = { small: null, medium: null, large: null };
 
         data.forEach(row => {
-            const hourlyRate = (row.price_per_minute * 60).toFixed(2);
-            const minPrice = (row.price_per_minute * row.min_charge_minutes).toFixed(2);
+            // Handle new schema containing price_per_hour, fallback to old schema containing price_per_minute
+            const hourlyRate = parseFloat(row.price_per_hour !== undefined ? row.price_per_hour : (row.price_per_minute ? row.price_per_minute * 60 : 0)).toFixed(2);
+            // Default minimum rate to the hourly rate since min_charge_minutes is no longer in the schema
+            const minPrice = parseFloat(row.price_per_hour !== undefined ? row.price_per_hour : (row.price_per_minute ? row.price_per_minute * row.min_charge_minutes : 0)).toFixed(2);
 
             const rateObj = { rate: hourlyRate, minimum: minPrice };
 
@@ -734,8 +736,7 @@ async function updateRates(ratesData) {
                 name: 'small',
                 data: {
                     size_type_id: 1,
-                    price_per_minute: ratesData.small.rate / 60,
-                    min_charge_minutes: Math.round((ratesData.small.minimum / ratesData.small.rate) * 60)
+                    price_per_hour: ratesData.small.rate
                 }
             },
             {
@@ -743,8 +744,7 @@ async function updateRates(ratesData) {
                 name: 'medium',
                 data: {
                     size_type_id: 2,
-                    price_per_minute: ratesData.medium.rate / 60,
-                    min_charge_minutes: Math.round((ratesData.medium.minimum / ratesData.medium.rate) * 60)
+                    price_per_hour: ratesData.medium.rate
                 }
             },
             {
@@ -752,8 +752,7 @@ async function updateRates(ratesData) {
                 name: 'large',
                 data: {
                     size_type_id: 3,
-                    price_per_minute: ratesData.large.rate / 60,
-                    min_charge_minutes: Math.round((ratesData.large.minimum / ratesData.large.rate) * 60)
+                    price_per_hour: ratesData.large.rate
                 }
             }
         ];

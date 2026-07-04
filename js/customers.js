@@ -187,33 +187,49 @@ async function loadCustomersFromSupabase() {
             throw new Error('Supabase client not properly initialized. Check supabase-client.js');
         }
 
-        console.log('📡 Attempting to load customers with transactions relationship...');
+        console.log('📡 Attempting to load customers with transactions and wallets relationship...');
 
-        // First, try to load customers with transactions relationship
+        // First, try to load customers with transactions and wallets relationship
         let { data: customers, error } = await client
             .from('customers')
             .select(`
                 *,
+                wallets ( balance ),
                 transactions (
                     transaction_id,
                     payments ( amount )
                 )
             `);
 
-        // If relationship query fails, fall back to just customers
+        // If relationship query fails, fall back to just transactions or simple query
         if (error) {
-            console.warn('⚠️ Transactions relationship query failed:', error.message, 'Code:', error.code);
-            if (error.code === 'PGRST204' || error.message.includes('relation')) {
-                console.log('📡 Falling back to simple customers query without relationships...');
-                const { data: customersData, error: customerError } = await client
-                    .from('customers')
-                    .select('*')
-                    .order('created_at', { ascending: false });
-                
-                if (customerError) throw customerError;
-                customers = customersData;
+            console.warn('⚠️ Primary query failed, attempting transactions-only query:', error.message);
+            const { data: customersData, error: txError } = await client
+                .from('customers')
+                .select(`
+                    *,
+                    transactions (
+                        transaction_id,
+                        payments ( amount )
+                    )
+                `);
+
+            if (txError) {
+                console.warn('⚠️ Transactions relationship query failed:', txError.message, 'Code:', txError.code);
+                if (txError.code === 'PGRST204' || txError.message.includes('relation')) {
+                    console.log('📡 Falling back to simple customers query without relationships...');
+                    const { data: simpleData, error: customerError } = await client
+                        .from('customers')
+                        .select('*')
+                        .order('created_at', { ascending: false });
+                    
+                    if (customerError) throw customerError;
+                    customers = simpleData;
+                } else {
+                    throw txError;
+                }
             } else {
-                throw error;
+                customers = customersData;
             }
         }
 
@@ -236,13 +252,25 @@ async function loadCustomersFromSupabase() {
                 });
             }
 
+            // Extract wallet balance from wallets relationship
+            let walletBalance = 50.00; // Default wallet balance in DB is 50.00
+            if (c.wallets) {
+                if (Array.isArray(c.wallets)) {
+                    if (c.wallets.length > 0) {
+                        walletBalance = parseFloat(c.wallets[0].balance !== undefined ? c.wallets[0].balance : 50.00);
+                    }
+                } else {
+                    walletBalance = parseFloat(c.wallets.balance !== undefined ? c.wallets.balance : 50.00);
+                }
+            }
+
             return {
                 id:      c.customer_id,
                 name:    c.full_name || 'N/A',
                 email:   c.email || 'N/A',
                 userId:  c.user_id || 'N/A',
                 role:    'Customer',
-                wallet:  0, 
+                wallet:  walletBalance, 
                 rentals: rentalsCount,
                 spent:   totalSpent,
                 // FORMAT FOR DISPLAY: Use formatForDisplay for consistency
@@ -422,7 +450,6 @@ function refreshCustomersFromDatabase(customersData) {
 /**
  * Store current sort state and all customers data
  */
-let customerSortNewest = true;
 let allCustomersData = []; // Store all customers for filtering
 let autoRefreshInterval = null;
 let isLoadingMore = false;

@@ -2,6 +2,14 @@
    AUDIT LOG PAGE - SPECIFIC STYLES
    ======================================== */
 
+/* Override main content to prevent page scrolling */
+.main-content {
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
 /* Audit Log Container */
 .auditlog-container {
     background: white;
@@ -10,6 +18,12 @@
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
     border: 1px solid #e5e7eb;
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    
+    /* Make container flex to fill available space */
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 
 .auditlog-container:hover {
@@ -22,6 +36,10 @@
     display: flex;
     flex-direction: column;
     gap: 1px;
+    /* Make list scrollable */
+    flex: 1;
+    overflow-y: auto;
+    padding-right: 8px; /* space for scrollbar */
 }
 
 /* Audit Log Entry */

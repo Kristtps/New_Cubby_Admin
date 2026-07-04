@@ -104,59 +104,51 @@
             <!-- Rates Form Container -->
             <div class="rates-container">
                 <form id="ratesForm" class="rates-form">
-                    <!-- Small Locker Rate -->
-                    <div class="rate-section">
-                        <div class="rate-title-section">
-                            <h3 class="rate-title">Small</h3>
-                            <p class="rate-description">shoes / small pack</p>
-                        </div>
-                        <div class="rate-inputs">
-                            <div class="input-group">
-                                <label for="smallRate">Rate per hour (₱)</label>
-                                <input type="number" id="smallRate" name="smallRate" class="form-input" value="10" min="0" step="0.01">
+                    <!-- Rates Grid: Small / Medium / Large side by side -->
+                    <div class="rates-grid">
+                        <!-- Small Locker Rate -->
+                        <div class="rate-section">
+                            <div class="rate-title-section">
+                                <h3 class="rate-title">Small</h3>
+                                <p class="rate-description">shoes / small pack</p>
                             </div>
-                            <div class="input-group">
-                                <label for="smallMinimum">Minimum charge (₱)</label>
-                                <input type="number" id="smallMinimum" name="smallMinimum" class="form-input" value="10" min="0" step="0.01">
+                            <div class="rate-inputs">
+                                <div class="input-group">
+                                    <label for="smallRate">Rate per hour (₱)</label>
+                                    <input type="number" id="smallRate" name="smallRate" class="form-input" value="10" min="0" step="0.01">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Medium Locker Rate -->
+                        <div class="rate-section">
+                            <div class="rate-title-section">
+                                <h3 class="rate-title">Medium</h3>
+                                <p class="rate-description">helmet / backpack</p>
+                            </div>
+                            <div class="rate-inputs">
+                                <div class="input-group">
+                                    <label for="mediumRate">Rate per hour (₱)</label>
+                                    <input type="number" id="mediumRate" name="mediumRate" class="form-input" value="20" min="0" step="0.01">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Large Locker Rate -->
+                        <div class="rate-section">
+                            <div class="rate-title-section">
+                                <h3 class="rate-title">Large</h3>
+                                <p class="rate-description">blue jug / luggage</p>
+                            </div>
+                            <div class="rate-inputs">
+                                <div class="input-group">
+                                    <label for="largeRate">Rate per hour (₱)</label>
+                                    <input type="number" id="largeRate" name="largeRate" class="form-input" value="35" min="0" step="0.01">
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Medium Locker Rate -->
-                    <div class="rate-section">
-                        <div class="rate-title-section">
-                            <h3 class="rate-title">Medium</h3>
-                            <p class="rate-description">helmet / backpack</p>
-                        </div>
-                        <div class="rate-inputs">
-                            <div class="input-group">
-                                <label for="mediumRate">Rate per hour (₱)</label>
-                                <input type="number" id="mediumRate" name="mediumRate" class="form-input" value="20" min="0" step="0.01">
-                            </div>
-                            <div class="input-group">
-                                <label for="mediumMinimum">Minimum charge (₱)</label>
-                                <input type="number" id="mediumMinimum" name="mediumMinimum" class="form-input" value="20" min="0" step="0.01">
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Large Locker Rate -->
-                    <div class="rate-section">
-                        <div class="rate-title-section">
-                            <h3 class="rate-title">Large</h3>
-                            <p class="rate-description">blue jug / luggage</p>
-                        </div>
-                        <div class="rate-inputs">
-                            <div class="input-group">
-                                <label for="largeRate">Rate per hour (₱)</label>
-                                <input type="number" id="largeRate" name="largeRate" class="form-input" value="35" min="0" step="0.01">
-                            </div>
-                            <div class="input-group">
-                                <label for="largeMinimum">Minimum charge (₱)</label>
-                                <input type="number" id="largeMinimum" name="largeMinimum" class="form-input" value="35" min="0" step="0.01">
-                            </div>
-                        </div>
-                    </div>
 
                     <!-- Save Button -->
                     <button type="submit" class="btn-save-rates">

@@ -1,6 +1,20 @@
 // Transaction data (initially empty)
 const transactionData = [];
 
+/**
+ * Returns a colored badge HTML string for a transaction type/status
+ */
+function typeBadgeHtml(typeStr) {
+    const t = (typeStr || 'Active').toLowerCase();
+    let cls = 'type-other';
+    if (t === 'active')       cls = 'type-active';
+    else if (t === 'completed') cls = 'type-completed';
+    else if (t === 'payment')   cls = 'type-payment';
+    else if (t.includes('wallet')) cls = 'type-wallet';
+    else if (t.includes('cash') || t.includes('collection')) cls = 'type-cash';
+    return `<span class="type-badge ${cls}">${typeStr || 'Active'}</span>`;
+}
+
 // Initialize the page
 document.addEventListener('DOMContentLoaded', async function() {
     // Check authentication
@@ -15,6 +29,17 @@ document.addEventListener('DOMContentLoaded', async function() {
     initializeTransactionFilter();
     
     // Try to load transactions from database
+    await loadTransactions();
+    
+    // Initialize AJAX features (auto-refresh and infinite scroll)
+    initializeAutoRefresh();
+    initializeInfiniteScroll();
+});
+
+/**
+ * Load transactions from Supabase or fallback to sample data
+ */
+async function loadTransactions() {
     if (typeof isSupabaseConnected !== 'undefined' && isSupabaseConnected()) {
         try {
             console.log('Loading transactions from Supabase...');
@@ -56,7 +81,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                     transactionData.push(mappedTx);
                 });
 
-                populateTransactionTableFromDatabase(transactions);
+                refreshTransactionTable(transactionData);
                 updateSummaryStats();
                 console.log('Transactions loaded from database and stats updated');
             } else {
@@ -65,13 +90,30 @@ document.addEventListener('DOMContentLoaded', async function() {
         } catch (error) {
             console.error('Error loading transactions from database:', error);
             console.log('Falling back to sample data...');
-            populateTransactionTable();
+            loadFallbackData();
         }
     } else {
         console.log('Supabase not connected, using sample data');
-        populateTransactionTable();
+        loadFallbackData();
     }
-});
+}
+
+/**
+ * Load fallback/sample data
+ */
+function loadFallbackData() {
+    // Generate sample transaction data if empty
+    if (transactionData.length === 0) {
+        const sampleData = [
+            { id: 1, date: 'Oct 24, 08:32 AM', customerName: 'Juan Dela Cruz', customerEmail: 'juan@example.com', userId: 'A1B2C3D4', type: 'Completed', method: 'Cash', locker: 'S1', amount: 20.00, timestamp: Date.now() },
+            { id: 2, date: 'Oct 24, 09:15 AM', customerName: 'Maria Santos', customerEmail: 'maria@example.com', userId: 'E5F6G7H8', type: 'Active', method: 'G-Cash', locker: 'M1', amount: 40.00, timestamp: Date.now() },
+            { id: 3, date: 'Oct 24, 10:05 AM', customerName: 'Pedro Penduko', customerEmail: 'pedro@example.com', userId: 'I9J0K1L2', type: 'Completed', method: 'PayMaya', locker: 'L1', amount: 60.00, timestamp: Date.now() }
+        ];
+        transactionData.push(...sampleData);
+    }
+    refreshTransactionTable(transactionData);
+    updateSummaryStats();
+}
 
 /**
  * Update summary stats cards from transactionData
@@ -96,8 +138,7 @@ function updateSummaryStats() {
     
     if (todayTotalElem) todayTotalElem.textContent = `₱${todayTotal.toFixed(2)}`;
 
-    // 3. Coins vs Bills (Heuristic based on amount for demo, or method if available)
-    // For this demonstration, let's assume amounts <= 20 are coins, > 20 are bills
+    // 3. Coins vs Bills (Heuristic based on amount for demo)
     const coinsTotal = transactionData.reduce((sum, tx) => sum + (tx.amount <= 20 ? tx.amount : 0), 0);
     const billsTotal = transactionData.reduce((sum, tx) => sum + (tx.amount > 20 ? tx.amount : 0), 0);
 
@@ -106,70 +147,22 @@ function updateSummaryStats() {
 }
 
 /**
- * Populate transaction table from database data
+ * Refresh transaction table with data (clears and loads initial batch)
  */
-function populateTransactionTableFromDatabase(transactions) {
+function refreshTransactionTable(data) {
     const tableBody = document.getElementById('transactionTableBody');
-    
-    if (!tableBody || !transactions || transactions.length === 0) {
-        populateTransactionTable(); // Fall back to sample data
-        return;
-    }
-    
-    tableBody.innerHTML = transactions.map(tx => {
-        // Use start_time for the date display in Philippine timezone
-        const date = new Intl.DateTimeFormat('en-US', {
-            timeZone: 'Asia/Manila',
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        }).format(new Date(tx.start_time || tx.created_at));
-        
-        let totalPaid = 0;
-        let methods = [];
-        if (tx.payments && Array.isArray(tx.payments)) {
-            tx.payments.forEach(p => {
-                totalPaid += parseFloat(p.amount || 0);
-                if (p.payment_method && !methods.includes(p.payment_method)) {
-                    methods.push(p.payment_method);
-                }
-            });
-        }
-
-        // Use joined data if available
-        const customerName = tx.customers ? tx.customers.full_name : (tx.customer_name || 'Unknown');
-        const customerEmail = tx.customers ? tx.customers.email : (tx.customer_email || '-');
-        const userId = tx.customer_id ? tx.customer_id.substring(0, 8).toUpperCase() : '-';
-        const lockerNumber = tx.lockers ? tx.lockers.locker_number : (tx.locker_id || '-');
-        const methodStr = methods.length > 0 ? methods.join(', ') : (tx.qr_token ? 'QR Token: ' + tx.qr_token : (tx.payment_method || '-'));
-        
-        return `<tr data-transaction-id="${tx.transaction_id || tx.id}">
-            <td class="date-cell">${date}</td>
-            <td class="customer-cell">
-                <div class="customer-info">
-                    <div class="customer-name">${customerName}</div>
-                    <div class="customer-email">${customerEmail}</div>
-                </div>
-            </td>
-            <td class="userid-cell">${userId}</td>
-            <td class="type-cell">${tx.status || tx.type || 'Active'}</td>
-            <td class="method-cell">${methodStr}</td>
-            <td class="locker-cell">${lockerNumber}</td>
-            <td class="amount-cell">₱${totalPaid.toFixed(2)}</td>
-        </tr>`;
-    }).join('');
-}
-
-/**
- * Populate the transaction table with data
- */
-function populateTransactionTable() {
-    const tableBody = document.getElementById('transactionTableBody');
-    
     if (!tableBody) return;
 
-    tableBody.innerHTML = transactionData.map(transaction => `
+    tableBody.innerHTML = '';
+    
+    // Load initial batch
+    const initialBatch = data.slice(0, Math.min(ITEMS_PER_LOAD, data.length));
+    if (initialBatch.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 20px; color: #9ca3af;">No transactions found</td></tr>`;
+        return;
+    }
+
+    tableBody.innerHTML = initialBatch.map(transaction => `
         <tr>
             <td class="date-cell">${transaction.date}</td>
             <td class="customer-cell">
@@ -179,147 +172,12 @@ function populateTransactionTable() {
                 </div>
             </td>
             <td class="userid-cell">${transaction.userId}</td>
-            <td class="type-cell">${transaction.type}</td>
+            <td class="type-cell">${typeBadgeHtml(transaction.type)}</td>
             <td class="method-cell">${transaction.method}</td>
             <td class="locker-cell">${transaction.locker}</td>
             <td class="amount-cell">₱${transaction.amount.toFixed(2)}</td>
         </tr>
     `).join('');
-}
-
-/**
- * Add a new transaction to the table
- * @param {Object} transaction - Transaction object
- */
-function addTransaction(transaction) {
-    transactionData.unshift(transaction);
-    populateTransactionTable();
-}
-
-/**
- * Filter transactions by type
- * @param {string} type - Transaction type to filter
- */
-function filterTransactionsByType(type) {
-    const tableBody = document.getElementById('transactionTableBody');
-    
-    const filtered = transactionData.filter(t => t.type === type);
-    
-    tableBody.innerHTML = filtered.map(transaction => `
-        <tr>
-            <td class="date-cell">${transaction.date}</td>
-            <td class="customer-cell">
-                <div class="customer-info">
-                    <div class="customer-name">${transaction.customerName}</div>
-                    <div class="customer-email">${transaction.customerEmail}</div>
-                </div>
-            </td>
-            <td class="userid-cell">${transaction.userId}</td>
-            <td class="type-cell">${transaction.type}</td>
-            <td class="method-cell">${transaction.method}</td>
-            <td class="locker-cell">${transaction.locker}</td>
-            <td class="amount-cell">₱${transaction.amount.toFixed(2)}</td>
-        </tr>
-    `).join('');
-}
-
-/**
- * Filter transactions by customer
- * @param {string} customerName - Customer name to search
- */
-function filterTransactionsByCustomer(customerName) {
-    const tableBody = document.getElementById('transactionTableBody');
-    
-    const filtered = transactionData.filter(t => 
-        t.customerName.toLowerCase().includes(customerName.toLowerCase())
-    );
-    
-    tableBody.innerHTML = filtered.map(transaction => `
-        <tr>
-            <td class="date-cell">${transaction.date}</td>
-            <td class="customer-cell">
-                <div class="customer-info">
-                    <div class="customer-name">${transaction.customerName}</div>
-                    <div class="customer-email">${transaction.customerEmail}</div>
-                </div>
-            </td>
-            <td class="userid-cell">${transaction.userId}</td>
-            <td class="type-cell">${transaction.type}</td>
-            <td class="method-cell">${transaction.method}</td>
-            <td class="locker-cell">${transaction.locker}</td>
-            <td class="amount-cell">₱${transaction.amount.toFixed(2)}</td>
-        </tr>
-    `).join('');
-}
-
-/**
- * Search transactions by date
- * @param {string} date - Date to search (format: 'Apr 17')
- */
-function searchTransactionByDate(date) {
-    const tableBody = document.getElementById('transactionTableBody');
-    
-    const filtered = transactionData.filter(t => t.date.includes(date));
-    
-    tableBody.innerHTML = filtered.map(transaction => `
-        <tr>
-            <td class="date-cell">${transaction.date}</td>
-            <td class="customer-cell">
-                <div class="customer-info">
-                    <div class="customer-name">${transaction.customerName}</div>
-                    <div class="customer-email">${transaction.customerEmail}</div>
-                </div>
-            </td>
-            <td class="userid-cell">${transaction.userId}</td>
-            <td class="type-cell">${transaction.type}</td>
-            <td class="method-cell">${transaction.method}</td>
-            <td class="locker-cell">${transaction.locker}</td>
-            <td class="amount-cell">₱${transaction.amount.toFixed(2)}</td>
-        </tr>
-    `).join('');
-}
-
-/**
- * Get total amount from all transactions
- * @returns {number} Total amount
- */
-function getTotalTransactionAmount() {
-    return transactionData.reduce((sum, transaction) => sum + transaction.amount, 0);
-}
-
-/**
- * Get transaction count
- * @returns {number} Total number of transactions
- */
-function getTransactionCount() {
-    return transactionData.length;
-}
-
-/**
- * Export transactions as CSV
- */
-function exportTransactionsAsCSV() {
-    const headers = ['Date', 'Customer Name', 'Email', 'Type', 'Method', 'Locker', 'Amount'];
-    const rows = transactionData.map(t => [
-        t.date,
-        t.customerName,
-        t.customerEmail,
-        t.type,
-        t.method,
-        t.locker,
-        `₱${t.amount.toFixed(2)}`
-    ]);
-    
-    const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
-    
-    // Create blob and download
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `transactions_${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    window.URL.revokeObjectURL(url);
 }
 
 /**
@@ -370,7 +228,6 @@ function applySearchAndFilter(searchTerm, filterType) {
         // Apply filter by type
         let passesFilter = true;
         if (filterType !== 'all') {
-            // Map filter values to transaction type/status
             const typeMap = {
                 'payment': ['Payment', 'Active', 'Completed'],
                 'wallet-load': ['Wallet Load', 'Wallet'],
@@ -398,26 +255,115 @@ function applySearchAndFilter(searchTerm, filterType) {
         return passesFilter && passesSearch;
     });
     
-    // Render filtered results
-    if (filtered.length === 0) {
-        tableBody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 20px; color: #9ca3af;">No transactions found</td></tr>`;
+    refreshTransactionTable(filtered);
+}
+
+// ==================== AJAX FUNCTIONALITY ====================
+
+let autoRefreshInterval = null;
+let isLoadingMore = false;
+const ITEMS_PER_LOAD = 20;
+
+/**
+ * Initialize auto-refresh for real-time updates (every 30 seconds)
+ */
+function initializeAutoRefresh() {
+    autoRefreshInterval = setInterval(async function() {
+        try {
+            await loadTransactions();
+            console.log('✓ Transaction data auto-refreshed via AJAX polling');
+        } catch (error) {
+            console.error('Auto-refresh error:', error);
+        }
+    }, 30000); // 30 seconds
+}
+
+/**
+ * Initialize infinite scroll / lazy load functionality
+ */
+function initializeInfiniteScroll() {
+    const tbody = document.getElementById('transactionTableBody');
+    if (!tbody) return;
+
+    const container = tbody.closest('.transactions-table-wrapper') || tbody.parentElement;
+    
+    container.addEventListener('scroll', function() {
+        if (container.scrollTop + container.clientHeight >= container.scrollHeight - 100) {
+            loadMoreTransactions();
+        }
+    });
+}
+
+/**
+ * Load more transactions for infinite scroll
+ */
+function loadMoreTransactions() {
+    if (isLoadingMore) return;
+    
+    isLoadingMore = true;
+    const tbody = document.getElementById('transactionTableBody');
+    if (!tbody) return;
+
+    const currentCount = tbody.querySelectorAll('tr').length;
+
+    // Filter search/filter states to see actual filtered data subset
+    const searchInput = document.getElementById('transaction-search');
+    const filterSelect = document.getElementById('transaction-filter');
+    const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
+    const filterType = filterSelect ? filterSelect.value : 'all';
+
+    let filtered = transactionData.filter(tx => {
+        let passesFilter = true;
+        if (filterType !== 'all') {
+            const typeMap = {
+                'payment': ['Payment', 'Active', 'Completed'],
+                'wallet-load': ['Wallet Load', 'Wallet'],
+                'cash-collection': ['Cash Collection', 'Collection']
+            };
+            const acceptedTypes = typeMap[filterType] || [];
+            passesFilter = acceptedTypes.some(type => 
+                tx.type && tx.type.toLowerCase().includes(type.toLowerCase())
+            ) || acceptedTypes.some(type =>
+                tx.method && tx.method.toLowerCase().includes(type.toLowerCase())
+            );
+        }
+        let passesSearch = true;
+        if (searchTerm) {
+            passesSearch = 
+                (tx.customerName && tx.customerName.toLowerCase().includes(searchTerm)) ||
+                (tx.locker && String(tx.locker).toLowerCase().includes(searchTerm)) ||
+                (tx.type && tx.type.toLowerCase().includes(searchTerm)) ||
+                (tx.method && tx.method.toLowerCase().includes(searchTerm));
+        }
+        return passesFilter && passesSearch;
+    });
+
+    if (currentCount >= filtered.length) {
+        isLoadingMore = false;
         return;
     }
-    
-    tableBody.innerHTML = filtered.map(transaction => `
-        <tr>
-            <td class="date-cell">${transaction.date}</td>
-            <td class="customer-cell">
-                <div class="customer-info">
-                    <div class="customer-name">${transaction.customerName}</div>
-                    <div class="customer-email">${transaction.customerEmail}</div>
-                </div>
-            </td>
-            <td class="userid-cell">${transaction.userId}</td>
-            <td class="type-cell">${transaction.type}</td>
-            <td class="method-cell">${transaction.method}</td>
-            <td class="locker-cell">${transaction.locker}</td>
-            <td class="amount-cell">₱${transaction.amount.toFixed(2)}</td>
-        </tr>
-    `).join('');
+
+    setTimeout(() => {
+        const nextBatch = filtered.slice(currentCount, currentCount + ITEMS_PER_LOAD);
+        const rowsHtml = nextBatch.map(transaction => `
+            <tr>
+                <td class="date-cell">${transaction.date}</td>
+                <td class="customer-cell">
+                    <div class="customer-info">
+                        <div class="customer-name">${transaction.customerName}</div>
+                        <div class="customer-email">${transaction.customerEmail}</div>
+                    </div>
+                </td>
+                <td class="userid-cell">${transaction.userId}</td>
+                <td class="type-cell">${typeBadgeHtml(transaction.type)}</td>
+                <td class="method-cell">${transaction.method}</td>
+                <td class="locker-cell">${transaction.locker}</td>
+                <td class="amount-cell">₱${transaction.amount.toFixed(2)}</td>
+            </tr>
+        `).join('');
+        
+        tbody.insertAdjacentHTML('beforeend', rowsHtml);
+        isLoadingMore = false;
+        console.log(`✓ Loaded ${nextBatch.length} more transactions via infinite scroll`);
+    }, 300);
 }

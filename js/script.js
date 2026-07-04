@@ -200,7 +200,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     // Check which page we're on
     if (document.getElementById('lockers-table')) {
         await initializeLockerManagement();
-    } else {
+    } else if (document.getElementById('modules-container')) {
         // Try to load data from database first
         if (typeof isSupabaseConnected !== 'undefined' && isSupabaseConnected()) {
             try {

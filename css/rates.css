@@ -8,7 +8,7 @@
     border-radius: 12px;
     padding: 32px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    max-width: 800px;
+    max-width: 1050px; /* Widened from 800px / 900px */
     margin: 0 auto;
     border: 1px solid #e5e7eb;
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
@@ -23,56 +23,73 @@
 .rates-form {
     display: flex;
     flex-direction: column;
-    gap: 32px;
+    gap: 28px;
 }
 
-/* Individual Rate Section */
+/* Grid of rate cards — all three side by side */
+.rates-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px; /* Increased gap */
+}
+
+/* Individual Rate Card */
 .rate-section {
-    border-bottom: 1px solid #f0f0f0;
-    padding-bottom: 32px;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.rate-section:last-of-type {
-    border-bottom: none;
-    padding-bottom: 0;
+.rate-section:hover {
+    border-color: var(--color-primary);
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
 }
 
 /* Rate Title Section */
 .rate-title-section {
-    margin-bottom: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    border-bottom: 1px solid #e5e7eb;
+    padding-bottom: 14px;
 }
 
 .rate-title {
-    font-size: 18px;
-    font-weight: 600;
+    font-size: 17px;
+    font-weight: 700;
     color: #1f2937;
-    margin: 0 0 4px 0;
+    margin: 0;
     padding: 0;
 }
 
 .rate-description {
-    font-size: 13px;
+    font-size: 12px;
     color: #9ca3af;
     margin: 0;
     padding: 0;
 }
 
-/* Rate Inputs Grid */
+/* Rate Inputs */
 .rate-inputs {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
 }
 
 /* Input Group */
 .input-group {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
 }
 
 .input-group label {
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 600;
     color: #6b7280;
     text-transform: uppercase;
@@ -81,10 +98,12 @@
 
 /* Form Input */
 .form-input {
-    padding: 12px 16px;
+    width: 100%;
+    padding: 10px 14px;
     border: 1px solid #e5e7eb;
     border-radius: 8px;
-    font-size: 14px;
+    font-size: 15px;
+    font-weight: 600;
     font-family: inherit;
     color: #1f2937;
     background-color: #ffffff;
@@ -122,7 +141,6 @@
     align-items: center;
     justify-content: center;
     gap: 10px;
-    margin-top: 16px;
 }
 
 .btn-save-rates:hover {
@@ -193,54 +211,16 @@
 /* Responsive Design */
 @media (max-width: 768px) {
     .rates-container {
-        padding: 24px;
+        padding: 20px;
     }
 
-    .rate-inputs {
+    .rates-grid {
         grid-template-columns: 1fr;
         gap: 16px;
-    }
-
-    .rate-section {
-        padding-bottom: 24px;
     }
 
     .btn-save-rates {
         padding: 12px 20px;
         font-size: 14px;
-    }
-}
-
-@media (max-width: 480px) {
-    .rates-container {
-        padding: 16px;
-    }
-
-    .rate-title {
-        font-size: 16px;
-    }
-
-    .rate-description {
-        font-size: 12px;
-    }
-
-    .form-input {
-        padding: 10px 12px;
-        font-size: 14px;
-    }
-
-    .input-group label {
-        font-size: 11px;
-    }
-
-    .btn-save-rates {
-        padding: 10px 16px;
-        font-size: 13px;
-        gap: 8px;
-    }
-
-    .btn-save-rates svg {
-        width: 16px;
-        height: 16px;
     }
 }

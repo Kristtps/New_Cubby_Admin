@@ -89,6 +89,11 @@ body {
     font-size: 14px;
 }
 
+.sidebar .nav-item:hover {
+    background-color: var(--color-primary);
+    color: white;
+}
+
 .nav-item.active {
     background-color: var(--color-primary);
     color: white;
@@ -730,6 +735,8 @@ body {
     border-radius: 8px;
     overflow: hidden;
     overflow-x: auto;
+    max-height: 500px; /* Adjust as needed */
+    overflow-y: auto;
 }
 
 .customers-table {
@@ -1290,9 +1297,25 @@ body {
 /* ==================== MODULE FILTERS ==================== */
 .module-filters {
     display: flex;
-    flex-wrap: wrap;
+    overflow-x: auto;
+    white-space: nowrap;
     gap: 12px;
     margin-bottom: 24px;
+    padding-bottom: 8px; /* space for scrollbar */
+    scrollbar-width: thin; /* Firefox */
+}
+
+.module-filters::-webkit-scrollbar {
+    height: 6px;
+}
+
+.module-filters::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.module-filters::-webkit-scrollbar-thumb {
+    background-color: rgba(156, 163, 175, 0.3);
+    border-radius: 10px;
 }
 
 .module-filter-btn {
@@ -1305,9 +1328,81 @@ body {
     background-color: #d1fae5;
     color: #064e3b;
     transition: all 0.2s ease;
+    flex-shrink: 0; /* prevent squishing in horizontal scroll */
 }
 
 .module-filter-btn.active {
     background-color: #1f2937;
     color: #ffffff;
 }
+
+/* ==================== SCROLL LAYOUTS ==================== */
+.page-scroll-locked {
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.page-scroll-locked .table-container {
+    flex: 1;
+    overflow-y: auto;
+    scrollbar-width: thin;
+}
+
+
+/* ==================== TRANSACTION TYPE BADGES ==================== */
+.type-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: capitalize;
+    white-space: nowrap;
+}
+
+.type-active {
+    background-color: rgba(245, 158, 11, 0.12);
+    color: #b45309;
+    border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.type-completed {
+    background-color: rgba(16, 185, 129, 0.12);
+    color: #047857;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.type-payment {
+    background-color: rgba(59, 130, 246, 0.12);
+    color: #1d4ed8;
+    border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.type-wallet {
+    background-color: rgba(139, 92, 246, 0.12);
+    color: #6d28d9;
+    border: 1px solid rgba(139, 92, 246, 0.3);
+}
+
+.type-cash {
+    background-color: rgba(236, 72, 153, 0.12);
+    color: #be185d;
+    border: 1px solid rgba(236, 72, 153, 0.3);
+}
+
+.type-other {
+    background-color: rgba(107, 114, 128, 0.12);
+    color: #374151;
+    border: 1px solid rgba(107, 114, 128, 0.3);
+}
+
+/* ==================== TRANSACTION TABLE CELLS ==================== */
+.userid-cell, .user-id-cell {
+    font-weight: 700;
+    color: var(--color-dark);
+    letter-spacing: 0.03em;
+    font-size: 13px;
+}
+
