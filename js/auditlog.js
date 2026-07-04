@@ -6,14 +6,14 @@
 const auditLogEntries = [];
 
 // Initialize on page load
-document.addEventListener('DOMContentLoaded', async function() {
+document.addEventListener('DOMContentLoaded', async function () {
     // Check authentication
     if (typeof isUserAuthenticated !== 'undefined' && !isUserAuthenticated()) {
         console.log('User not authenticated, redirecting to login...');
         window.location.href = 'login.html';
         return;
     }
-    
+
     initializeAuditLog();
 });
 
@@ -37,7 +37,7 @@ function formatTimestamp(timestamp) {
     // Use the centralized formatForDisplay function for consistency
     // This automatically converts to Manila timezone (UTC+8)
     if (!timestamp) return 'N/A';
-    
+
     const formatted = formatForDisplay(timestamp, {
         year: 'numeric',
         month: '2-digit',
@@ -47,8 +47,8 @@ function formatTimestamp(timestamp) {
         second: '2-digit',
         hour12: true
     });
-    
-    return formatted + ' PHT';
+
+    return formatted;
 }
 
 /**
@@ -60,7 +60,7 @@ function initializeAuditLogSearch() {
 
     searchInput.addEventListener('input', function (e) {
         const searchTerm = e.target.value.toLowerCase().trim();
-        
+
         if (searchTerm === '') {
             displayAuditLog();
         } else {
@@ -104,7 +104,7 @@ async function loadAuditLogEntries() {
                 }
             }
         }
-        
+
         // Fall back to localStorage
         const savedEntries = localStorage.getItem('coincubby_audit_log');
         if (savedEntries) {
@@ -122,7 +122,7 @@ async function loadAuditLogEntries() {
  */
 function displayAuditLog(entries = auditLogEntries) {
     const auditLogList = document.getElementById('auditLogList');
-    
+
     if (!auditLogList) {
         console.error('Audit log list container not found');
         return;
@@ -169,7 +169,7 @@ function getIconSVG(iconType) {
         success: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>',
         error: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>'
     };
-    
+
     return icons[iconType] || icons.info;
 }
 
@@ -180,7 +180,7 @@ async function addAuditLogEntry(entry) {
     try {
         // Use convertToSGT to ensure proper timezone conversion when saving
         const timestamp = convertToSGT(new Date()).toISOString();
-        
+
         const dbEntry = {
             action: entry.action,
             user_id: entry.user_id || null,
@@ -210,7 +210,7 @@ async function addAuditLogEntry(entry) {
         auditLogEntries.unshift(uiEntry);
         saveToLocalStorage();
         displayAuditLog();
-        
+
         console.log('✓ Audit log entry added:', uiEntry);
         return uiEntry;
     } catch (error) {
@@ -233,10 +233,10 @@ function saveToLocalStorage() {
  * Filter audit log by type
  */
 function filterAuditLogByType(type) {
-    const filtered = type === 'all' 
-        ? auditLogEntries 
+    const filtered = type === 'all'
+        ? auditLogEntries
         : auditLogEntries.filter(entry => entry.type === type);
-    
+
     displayAuditLog(filtered);
 }
 
@@ -245,13 +245,13 @@ function filterAuditLogByType(type) {
  */
 function searchAuditLog(searchTerm) {
     const term = searchTerm.toLowerCase();
-    const filtered = auditLogEntries.filter(entry => 
+    const filtered = auditLogEntries.filter(entry =>
         (entry.action && entry.action.toLowerCase().includes(term)) ||
         (entry.description && entry.description.toLowerCase().includes(term)) ||
         (entry.user && entry.user.toLowerCase().includes(term)) ||
         (entry.badge && entry.badge.toLowerCase().includes(term))
     );
-    
+
     displayAuditLog(filtered);
 }
 
@@ -283,7 +283,7 @@ function exportAuditLogAsCSV() {
             entry.type
         ]);
 
-        const csv = [headers, ...rows].map(row => 
+        const csv = [headers, ...rows].map(row =>
             row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')
         ).join('\n');
 
@@ -433,7 +433,7 @@ let isLoadingMoreAudit = false;
  * Initialize auto-refresh for real-time audit log updates (every 15 seconds)
  */
 function initializeAuditAutoRefresh() {
-    autoRefreshAuditInterval = setInterval(async function() {
+    autoRefreshAuditInterval = setInterval(async function () {
         try {
             await loadAuditLogEntries();
             console.log('✓ Audit log auto-refreshed');
@@ -460,7 +460,7 @@ function initializeAuditInfiniteScroll() {
     const container = document.querySelector('.auditlog-container');
     if (!container) return;
 
-    container.addEventListener('scroll', function() {
+    container.addEventListener('scroll', function () {
         if (container.scrollTop + container.clientHeight >= container.scrollHeight - 100) {
             loadMoreAuditLogs();
         }
@@ -472,10 +472,10 @@ function initializeAuditInfiniteScroll() {
  */
 function loadMoreAuditLogs() {
     if (isLoadingMoreAudit) return;
-    
+
     isLoadingMoreAudit = true;
     const auditLogList = document.getElementById('auditLogList');
-    
+
     if (!auditLogList) return;
 
     const currentCount = auditLogList.querySelectorAll('.auditlog-entry').length;
@@ -507,7 +507,7 @@ function loadMoreAuditLogs() {
                 </div>
             </div>
         `).join('');
-        
+
         auditLogList.innerHTML += nextBatchHTML;
         isLoadingMoreAudit = false;
         console.log(`✓ Loaded ${nextBatch.length} more audit entries`);
@@ -527,7 +527,7 @@ function storeAllAuditLogsData() {
 const originalDisplayAuditLog = displayAuditLog;
 function displayAuditLog(entries = auditLogEntries) {
     const auditLogList = document.getElementById('auditLogList');
-    
+
     if (!auditLogList) {
         console.error('Audit log list container not found');
         return;
@@ -548,7 +548,7 @@ function displayAuditLog(entries = auditLogEntries) {
 
     // Initially load only first AUDIT_ITEMS_PER_LOAD items
     const initialBatch = entries.slice(0, AUDIT_ITEMS_PER_LOAD);
-    
+
     auditLogList.innerHTML = initialBatch.map(entry => `
         <div class="auditlog-entry">
             <div class="auditlog-icon ${entry.icon}">
@@ -579,7 +579,7 @@ async function initializeAuditLog() {
     await loadAuditLogEntries();
     displayAuditLog();
     initializeAuditLogSearch();
-    
+
     // Initialize AJAX features
     initializeAuditAutoRefresh();
     initializeAuditInfiniteScroll();

@@ -174,7 +174,7 @@ function processHistoricalData(data) {
             totalRev += amount;
 
             // Track payment methods
-            const method = p.payment_method || 'Unpaid';
+            const method = p.payment_method || '-';
             paymentMethods[method] = (paymentMethods[method] || 0) + 1;
         });
     }
@@ -231,23 +231,30 @@ function processHistoricalData(data) {
         });
     }
 
-    // Find most used locker
-    let mostUsedLockerName = '-';
-    let maxLockerUses = 0;
-    for (const [locker, count] of Object.entries(lockerUsage)) {
-        if (count > maxLockerUses) {
-            maxLockerUses = count;
-            mostUsedLockerName = locker;
-        }
+    // Find most used lockers sorted by usage
+    const sortedLockers = Object.entries(lockerUsage)
+        .filter(([locker]) => locker !== 'Unknown' && locker !== '-')
+        .sort((a, b) => b[1] - a[1]);
+    
+    let mostUsedLockerStr = '-';
+    if (sortedLockers.length > 0) {
+        const topLocker = sortedLockers[0];
+        mostUsedLockerStr = `
+            <div class="top-locker-val" style="font-size: 24px; font-weight: 700; color: #1f2937; line-height: 1.2;">Locker ${topLocker[0]}</div>
+            <div style="font-size: 13px; font-weight: 500; color: #6b7280; margin-top: 4px;">${topLocker[1]} rented</div>
+        `;
     }
 
     // Find most used payment method
-    let mostUsedPaymentMethod = '-';
+    let mostUsedPaymentMethodStr = '-';
     let maxPaymentUses = 0;
     for (const [method, count] of Object.entries(paymentMethods)) {
         if (count > maxPaymentUses) {
             maxPaymentUses = count;
-            mostUsedPaymentMethod = method;
+            mostUsedPaymentMethodStr = `
+                <div class="top-payment-val" style="font-size: 24px; font-weight: 700; color: #1f2937; line-height: 1.2;">${method}</div>
+                <div style="font-size: 13px; font-weight: 500; color: #6b7280; margin-top: 4px;">${count} used</div>
+            `;
         }
     }
 
@@ -261,8 +268,8 @@ function processHistoricalData(data) {
     reportData.totalRevenue = totalRev;
     reportData.totalRentals = totalRent;
     reportData.avgRentalValue = totalRent > 0 ? totalRev / totalRent : 0;
-    reportData.mostUsedLocker = mostUsedLockerName;
-    reportData.mostUsedPayment = mostUsedPaymentMethod;
+    reportData.mostUsedLocker = mostUsedLockerStr;
+    reportData.mostUsedPayment = mostUsedPaymentMethodStr;
 }
 
 /**
@@ -271,12 +278,11 @@ function processHistoricalData(data) {
 function updateStatCards() {
     // Update visible stat card values
     const statCards = document.querySelectorAll('.reports-stats .stat-card');
-    if (statCards.length >= 5) {
+    if (statCards.length >= 4) {
         statCards[0].querySelector('.stat-value').textContent = `₱${reportData.totalRevenue.toFixed(2)}`;
         statCards[1].querySelector('.stat-value').textContent = reportData.totalRentals;
-        statCards[2].querySelector('.stat-value').textContent = `₱${reportData.avgRentalValue.toFixed(2)}`;
-        statCards[3].querySelector('.stat-value').textContent = reportData.mostUsedLocker;
-        statCards[4].querySelector('.stat-value').textContent = reportData.mostUsedPayment;
+        statCards[2].querySelector('.stat-value').innerHTML = reportData.mostUsedLocker;
+        statCards[3].querySelector('.stat-value').innerHTML = reportData.mostUsedPayment;
     }
 }
 

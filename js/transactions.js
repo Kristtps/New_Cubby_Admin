@@ -73,7 +73,7 @@ async function loadTransactions() {
                         customerEmail: tx.customers ? tx.customers.email : (tx.customer_email || '-'),
                         userId: tx.customer_id ? tx.customer_id.substring(0, 8).toUpperCase() : '-',
                         type: tx.status || tx.type || 'Active',
-                        method: methods.length > 0 ? methods.join(', ') : (tx.qr_token ? 'QR Token' : (tx.payment_method || 'Unpaid')),
+                        method: methods.length > 0 ? methods.join(', ') : (tx.qr_token ? 'QR Token' : (tx.payment_method || '-')),
                         locker: tx.lockers ? tx.lockers.locker_number : (tx.locker_id || '-'),
                         amount: totalPaid,
                         timestamp: new Date(tx.start_time || tx.created_at).getTime()
@@ -122,7 +122,6 @@ function updateSummaryStats() {
     const todayTotalElem = document.getElementById('today-total');
     const allCountElem = document.getElementById('all-transactions-count');
     const coinsOnHandElem = document.getElementById('coins-on-hand');
-    const billsOnHandElem = document.getElementById('bills-on-hand');
 
     if (!transactionData || transactionData.length === 0) return;
 
@@ -138,12 +137,10 @@ function updateSummaryStats() {
     
     if (todayTotalElem) todayTotalElem.textContent = `₱${todayTotal.toFixed(2)}`;
 
-    // 3. Coins vs Bills (Heuristic based on amount for demo)
+    // 3. Coins on Hand (Heuristic based on amount for demo)
     const coinsTotal = transactionData.reduce((sum, tx) => sum + (tx.amount <= 20 ? tx.amount : 0), 0);
-    const billsTotal = transactionData.reduce((sum, tx) => sum + (tx.amount > 20 ? tx.amount : 0), 0);
 
     if (coinsOnHandElem) coinsOnHandElem.textContent = `₱${coinsTotal.toFixed(2)}`;
-    if (billsOnHandElem) billsOnHandElem.textContent = `₱${billsTotal.toFixed(2)}`;
 }
 
 /**

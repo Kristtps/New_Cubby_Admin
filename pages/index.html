@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CoinCubby - Admin Panel</title>
     <link rel="stylesheet" href="../css/styles.css">
+    <link rel="stylesheet" href="../css/reports.css">
 </head>
 
 <body>
@@ -113,10 +114,40 @@
         <!-- Main Content -->
         <main class="main-content">
             <!-- Header -->
-            <header class="header">
-                <h1>Admin Overview</h1>
-                <p class="subtitle">Real-time status of your CoinCubby network.</p>
-            </header>
+            <div class="header">
+                <div class="header-content">
+                    <h1>Admin Overview</h1>
+                    <p class="subtitle">Real-time status of your CoinCubby network.</p>
+                </div>
+                <div class="header-actions">
+                    <!-- Range Selector (right-aligned, inside header) -->
+                    <div class="filter-combo">
+                        <svg class="filter-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="16" y1="2" x2="16" y2="6"></line>
+                            <line x1="8" y1="2" x2="8" y2="6"></line>
+                            <line x1="3" y1="10" x2="21" y2="10"></line>
+                        </svg>
+                        <select id="rangeSelect" onchange="handleRangeSelect(this.value)">
+                            <option value="7">Last 7 Days</option>
+                            <option value="14" selected>Last 14 Days</option>
+                            <option value="30">Last 30 Days</option>
+                            <option value="month">This Month</option>
+                            <option value="custom">Custom Range</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Custom date range (shown only when Custom is selected) -->
+            <div class="custom-range" id="customRange">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:#6b7280">
+                    <rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+                <label>From <input type="date" id="dateFrom" onchange="applyCustomFilter()"></label>
+                <span class="range-sep">—</span>
+                <label>To <input type="date" id="dateTo" onchange="applyCustomFilter()"></label>
+            </div>
 
             <!-- Stats Cards -->
             <div class="stats-grid" id="stats-container">
@@ -166,7 +197,7 @@
 
                 <div class="stat-card" data-stat="today-revenue">
                     <div class="stat-header">
-                        <p class="stat-label">TODAY'S REVENUE</p>
+                        <p class="stat-label">TOTAL REVENUE</p>
                         <div class="stat-icon stat-icon-yellow">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                 stroke-width="2">

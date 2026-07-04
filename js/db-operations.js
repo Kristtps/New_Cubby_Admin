@@ -879,7 +879,7 @@ async function getTodayRevenue() {
  * STATISTICS & ANALYTICS
  */
 
-async function getDashboardStats() {
+async function getDashboardStats(dateFrom, dateTo) {
     const stats = {
         totalLockers: 0,
         totalCustomers: 0,
@@ -897,6 +897,31 @@ async function getDashboardStats() {
             .order('start_time', { ascending: false })
             .limit(5);
 
+        // Date range calculation (default: 14 days ago to now)
+        const toDate = dateTo instanceof Date ? dateTo : new Date();
+        const fromDate = dateFrom instanceof Date ? dateFrom : (() => {
+            const d = new Date();
+            d.setDate(d.getDate() - 14);
+            d.setHours(0, 0, 0, 0);
+            return d;
+        })();
+
+        // Get revenue within custom/filtered date range instead of just today
+        const rangeRevenuePromise = (async () => {
+            try {
+                const { data, error } = await supabase
+                    .from('payments')
+                    .select('amount')
+                    .gte('payment_date', fromDate.toISOString())
+                    .lte('payment_date', toDate.toISOString());
+                if (error) throw error;
+                return data.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+            } catch (err) {
+                console.error('Error getting range revenue:', err);
+                return 0;
+            }
+        })();
+
         const sevenDaysAgo = new Date();
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
         sevenDaysAgo.setHours(0, 0, 0, 0);
@@ -911,7 +936,7 @@ async function getDashboardStats() {
         const results = await Promise.allSettled([
             getLockersTotalCount(),
             getCustomersTotalCount(),
-            getTodayRevenue(),
+            rangeRevenuePromise,
             getActiveRentalsCount(),
             recentRentalsPromise,
             paymentsPromise
@@ -1052,7 +1077,7 @@ async function getReportData(dateFrom, dateTo) {
                 .lte('payment_date', toDate.toISOString()),
             supabase
                 .from('transactions')
-                .select('start_time, locker_id, lockers(size_type_id)')
+                .select('start_time, locker_id, lockers(locker_number, size_type_id)')
                 .gte('start_time', fromDate.toISOString())
                 .lte('start_time', toDate.toISOString())
         ]);

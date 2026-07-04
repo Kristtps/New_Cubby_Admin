@@ -175,8 +175,6 @@
 }
 
 .reports-stats .stat-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
     border-color: #3B82F6;
 }
 
@@ -214,8 +212,6 @@
 }
 
 .chart-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
     border-color: #3B82F6;
 }
 

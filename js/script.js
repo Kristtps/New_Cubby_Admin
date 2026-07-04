@@ -192,50 +192,69 @@ document.addEventListener('DOMContentLoaded', async function () {
     initializeSidebar();
     updateUserProfile();
 
-    // Static sign-out links now handled universally above, skip dynamic nav button
-    // if (typeof addLogoutButton !== 'undefined') {
-    //     addLogoutButton();
-    // }
-
     // Check which page we're on
     if (document.getElementById('lockers-table')) {
         await initializeLockerManagement();
-    } else if (document.getElementById('modules-container')) {
-        // Try to load data from database first
-        if (typeof isSupabaseConnected !== 'undefined' && isSupabaseConnected()) {
+        // Start AJAX Auto-Refresh for Lockers (every 30 seconds)
+        setInterval(async function() {
             try {
-                console.log('Loading dashboard data from Supabase...');
-                const stats = await getDashboardStats();
-                const lockers = await fetchAllLockers();
-
-                // Update UI with database data
-                const dashboardData = {
-                    stats: {
-                        'total-lockers': (lockers && lockers.length) || 0,
-                        'active-rentals': (stats && stats.activeRentals) || 0,
-                        'total-customers': (stats && stats.totalCustomers) || 0,
-                        'today-revenue': ((stats && stats.todayRevenue) || 0).toFixed(2)
-                    },
-                    recentRentals: (stats && stats.recentRentals) || [],
-                    last7DaysSales: (stats && stats.last7DaysSales) || [],
-                    lockers: lockers
-                };
-
-                refreshDashboardFromDatabase(dashboardData);
-                console.log('Dashboard data loaded from database:', dashboardData);
-            } catch (error) {
-                console.error('Error loading dashboard data from database:', error);
-                console.log('Falling back to sample data...');
-                initializeLockers();
+                lockerRecords = await loadLockerRecords();
+                renderLockersTable();
+                console.log('✓ Locker data auto-refreshed via AJAX');
+            } catch (err) {
+                console.error('Locker auto-refresh error:', err);
             }
-        } else {
-            console.log('Supabase not connected, using sample data');
-            initializeLockers();
-        }
+        }, 30000);
+    } else if (document.getElementById('modules-container')) {
+        await loadDashboardData();
+        // Start AJAX Auto-Refresh for Dashboard (every 30 seconds)
+        setInterval(async function() {
+            try {
+                await loadDashboardData();
+                console.log('✓ Dashboard data auto-refreshed via AJAX');
+            } catch (err) {
+                console.error('Dashboard auto-refresh error:', err);
+            }
+        }, 30000);
 
         animateStats();
     }
 });
+
+/**
+ * Load dashboard data from Supabase or fallback
+ */
+async function loadDashboardData(dateFrom, dateTo) {
+    if (typeof isSupabaseConnected !== 'undefined' && isSupabaseConnected()) {
+        try {
+            console.log('Loading dashboard data from Supabase...');
+            const stats = await getDashboardStats(dateFrom, dateTo);
+            const lockers = await fetchAllLockers();
+
+            const dashboardData = {
+                stats: {
+                    'total-lockers': (lockers && lockers.length) || 0,
+                    'active-rentals': (stats && stats.activeRentals) || 0,
+                    'total-customers': (stats && stats.totalCustomers) || 0,
+                    'today-revenue': ((stats && stats.todayRevenue) || 0).toFixed(2)
+                },
+                recentRentals: (stats && stats.recentRentals) || [],
+                last7DaysSales: (stats && stats.last7DaysSales) || [],
+                lockers: lockers
+            };
+
+            refreshDashboardFromDatabase(dashboardData);
+        } catch (error) {
+            console.error('Error loading dashboard data from database:', error);
+            console.log('Falling back to sample data...');
+            initializeLockers();
+        }
+    } else {
+        console.log('Supabase not connected, using sample data');
+        initializeLockers();
+    }
+}
+
 
 // ==================== DATABASE HELPER FUNCTIONS ====================
 
@@ -243,9 +262,9 @@ document.addEventListener('DOMContentLoaded', async function () {
  * Get dashboard statistics from database
  * This will be called by db-operations.js and exposed globally
  */
-async function getDashboardStats() {
+async function getDashboardStats(dateFrom, dateTo) {
     if (typeof dbOps !== 'undefined' && dbOps.getDashboardStats) {
-        return await dbOps.getDashboardStats();
+        return await dbOps.getDashboardStats(dateFrom, dateTo);
     }
     return null;
 }
@@ -258,6 +277,48 @@ async function fetchAllLockers() {
         return await dbOps.fetchAllLockers();
     }
     return [];
+}
+
+/* ── Filter handlers for Overview page ───────────────────────── */
+
+/**
+ * Main dispatcher — called when the range <select> changes on Overview
+ */
+async function handleRangeSelect(value) {
+    const customRange = document.getElementById('customRange');
+    if (customRange) customRange.classList.remove('visible');
+
+    if (value === 'month') {
+        const now = new Date();
+        const from = new Date(now.getFullYear(), now.getMonth(), 1);
+        const to = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+        await loadDashboardData(from, to);
+    } else if (value === 'custom') {
+        if (customRange) customRange.classList.add('visible');
+        return; // wait for the user to pick dates
+    } else {
+        const days = parseInt(value, 10);
+        const to = new Date();
+        const from = new Date();
+        from.setDate(from.getDate() - (days - 1));
+        from.setHours(0, 0, 0, 0);
+        await loadDashboardData(from, to);
+    }
+}
+
+/**
+ * Apply whatever dates are set in the custom pickers on Overview
+ */
+async function applyCustomFilter() {
+    const fromVal = document.getElementById('dateFrom').value;
+    const toVal = document.getElementById('dateTo').value;
+    if (!fromVal || !toVal) return;
+
+    const from = new Date(fromVal);
+    const to = new Date(toVal);
+    to.setHours(23, 59, 59, 999);
+
+    await loadDashboardData(from, to);
 }
 
 // ==================== DATABASE INTEGRATION FUNCTIONS ====================

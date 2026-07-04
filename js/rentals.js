@@ -210,6 +210,8 @@ function startCountdown(rentalId, endTime, durationMinutes) {
         const durationElement = document.querySelector(`[data-duration-id="${rentalId}"]`);
         if (!durationElement) return;
 
+        const row = durationElement.closest('tr');
+
         if (diff <= 0) {
             // Overtime - show count-up from the reserved duration
             const overtime = Math.abs(diff);
@@ -221,8 +223,9 @@ function startCountdown(rentalId, endTime, durationMinutes) {
             // Format as +HH:MM:SS
             const overtimeString = `+${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(overtimeSeconds).padStart(2, '0')}`;
             durationElement.textContent = overtimeString;
-            durationElement.style.color = '#ef4444'; // Red for overtime
+            durationElement.style.color = '#7f1d1d'; // Dark red for overtime
             durationElement.style.fontWeight = 'bold';
+            if (row) row.style.backgroundColor = 'rgba(127, 29, 29, 0.06)';
 
             // Continue counting up
             return;
@@ -242,12 +245,15 @@ function startCountdown(rentalId, endTime, durationMinutes) {
         if (diff <= 1800000) { // 30 minutes or less
             durationElement.style.color = '#ef4444'; // Red urgent
             durationElement.style.fontWeight = 'bold';
+            if (row) row.style.backgroundColor = 'rgba(239, 68, 68, 0.06)';
         } else if (diff <= 3600000) { // 1 hour or less
             durationElement.style.color = '#f59e0b'; // Orange warning
-            durationElement.style.fontWeight = 'normal';
-        } else {
-            durationElement.style.color = 'inherit'; // Normal
             durationElement.style.fontWeight = '600';
+            if (row) row.style.backgroundColor = 'rgba(245, 158, 11, 0.06)';
+        } else {
+            durationElement.style.color = '#10b981'; // Green plenty of time
+            durationElement.style.fontWeight = '600';
+            if (row) row.style.backgroundColor = 'rgba(16, 185, 129, 0.04)';
         }
     };
 
