@@ -78,20 +78,49 @@ async function createRental(rentalData) {
 /**
  * Update rental status
  */
-async function updateRentalStatus(rentalId, status) {
+async function updateRentalStatus(transactionId, status) {
     try {
         const supabase = getSupabaseClient();
+        const updatePayload = { status: status };
+        if (status === 'Completed') {
+            updatePayload.end_time = new Date().toISOString();
+        }
         const { data, error } = await supabase
-            .from('rentals')
-            .update({ status: status, updated_at: new Date() })
-            .eq('id', rentalId)
+            .from('transactions')
+            .update(updatePayload)
+            .eq('transaction_id', transactionId)
             .select();
 
         if (error) throw error;
-        console.log('✓ Rental updated:', data);
+        console.log('✓ Transaction status updated:', data);
         return data;
     } catch (error) {
-        console.error('Error updating rental:', error);
+        console.error('Error updating transaction status:', error);
+        return null;
+    }
+}
+
+/**
+ * Find and complete any active transaction for a specific locker
+ */
+async function completeActiveTransactionForLocker(lockerId) {
+    try {
+        const supabase = getSupabaseClient();
+        const { data, error } = await supabase
+            .from('transactions')
+            .update({
+                status: 'Completed',
+                end_time: new Date().toISOString()
+            })
+            .eq('locker_id', lockerId)
+            .eq('status', 'Active')
+            .select();
+
+        if (error) throw error;
+        console.log('✓ Active transaction completed for locker ID:', lockerId, data);
+        return data;
+    } catch (error) {
+        console.error('Error completing active transaction for locker:', error);
         return null;
     }
 }
@@ -198,9 +227,9 @@ async function createCustomer(customerData) {
             .select();
 
         if (error) throw error;
-        
+
         await logConfigChangeEvent('Customer Created', `New customer profile created: ${customerData.full_name || 'Unnamed'} (ID: ${customerData.user_id}).`, customerData);
-        
+
         console.log('✓ Customer created:', data);
         return data;
     } catch (error) {
@@ -249,9 +278,9 @@ async function createModule(moduleData) {
             .select();
 
         if (error) throw error;
-        
+
         await logConfigChangeEvent('Module Created', `New module created: ${moduleData.name || 'Unnamed'}.`, moduleData);
-        
+
         console.log('✓ Module created:', data);
         return data;
     } catch (error) {
@@ -350,17 +379,94 @@ async function updateLockerStatus(lockerId, status) {
             .select();
 
         if (error) throw error;
-        
+
         // Internal logging for system admin tracking
         if (data && data.length > 0) {
             await logConfigChangeEvent('Locker Update', `Locker ID ${lockerId} status updated to ${status}.`, { lockerId, status });
         }
-        
+
         console.log('✓ Locker status updated:', data);
         return data;
     } catch (error) {
         console.error('Error updating locker status:', error);
         return null;
+    }
+}
+
+/**
+ * Synchronize locker status with active rentals
+ * This ensures locker status accurately reflects whether it's currently rented
+ */
+async function syncLockerStatusWithActiveRentals() {
+    try {
+        const client = getSupabaseClient();
+        if (!client || typeof client.from !== 'function') {
+            throw new Error('Supabase client is not initialized');
+        }
+
+        console.log('Syncing locker status with active rentals...');
+
+        // 1. Get all active rentals
+        const { data: activeRentals, error: rentalsError } = await client
+            .from('transactions')
+            .select('locker_id, status')
+            .eq('status', 'Active');
+
+        if (rentalsError) throw rentalsError;
+
+        // 2. Get all lockers
+        const { data: allLockers, error: lockersError } = await client
+            .from('lockers')
+            .select('locker_id, status');
+
+        if (lockersError) throw lockersError;
+
+        // 3. Get lockers in maintenance (don't change these)
+        const maintenanceLockerIds = allLockers
+            .filter(l => l.status === 'Maintenance')
+            .map(l => l.locker_id);
+
+        // 4. Get locker IDs that have active rentals
+        const rentedLockerIds = activeRentals
+            .filter(r => r.status === 'Active')
+            .map(r => r.locker_id);
+
+        console.log('Active rentals:', rentedLockerIds.length, 'Maintenance lockers:', maintenanceLockerIds.length);
+
+        // 5. Update rented lockers to "Occupied"
+        for (const lockerId of rentedLockerIds) {
+            if (!maintenanceLockerIds.includes(lockerId)) {
+                await client
+                    .from('lockers')
+                    .update({ status: 'Occupied' })
+                    .eq('locker_id', lockerId);
+            }
+        }
+
+        // 6. Update available lockers to "Available" (those not rented and not in maintenance)
+        const availableLockerIds = allLockers
+            .filter(l => !rentedLockerIds.includes(l.locker_id) &&
+                !maintenanceLockerIds.includes(l.locker_id) &&
+                l.status !== 'Available')
+            .map(l => l.locker_id);
+
+        for (const lockerId of availableLockerIds) {
+            await client
+                .from('lockers')
+                .update({ status: 'Available' })
+                .eq('locker_id', lockerId);
+        }
+
+        console.log('✓ Locker status synchronized:', {
+            occupiedCount: rentedLockerIds.length,
+            availableCount: availableLockerIds.length,
+            maintenanceCount: maintenanceLockerIds.length
+        });
+
+        return true;
+    } catch (error) {
+        console.error('Error syncing locker status:', error);
+        return false;
     }
 }
 
@@ -380,9 +486,9 @@ async function deleteLocker(lockerId) {
             .eq('locker_id', lockerId);
 
         if (error) throw error;
-        
+
         await logConfigChangeEvent('Locker Deleted', `Locker ID ${lockerId} was deleted from database.`, { lockerId });
-        
+
         console.log('✓ Locker deleted:', lockerId);
         return true;
     } catch (error) {
@@ -431,10 +537,10 @@ async function createLockersBatch(lockersData) {
             .select();
 
         if (error) throw error;
-        
+
         // Log the system expansion
         await logConfigChangeEvent('Module Added', `New locker module added with ${lockersData.length} lockers.`, { count: lockersData.length });
-        
+
         console.log('✓ Lockers batch created:', data);
         return data;
     } catch (error) {
@@ -596,16 +702,16 @@ async function fetchRates() {
             .select('*');
 
         if (error) throw error;
-        
+
         // Map the rows back to the object structure the UI expects
         const rates = { small: null, medium: null, large: null };
-        
+
         data.forEach(row => {
             const hourlyRate = (row.price_per_minute * 60).toFixed(2);
             const minPrice = (row.price_per_minute * row.min_charge_minutes).toFixed(2);
-            
+
             const rateObj = { rate: hourlyRate, minimum: minPrice };
-            
+
             if (row.size_type_id === 1) rates.small = rateObj;
             else if (row.size_type_id === 2) rates.medium = rateObj;
             else if (row.size_type_id === 3) rates.large = rateObj;
@@ -623,30 +729,30 @@ async function updateRates(ratesData) {
     try {
         const supabase = getSupabaseClient();
         const sizes = [
-            { 
-                id: 1, 
+            {
+                id: 1,
                 name: 'small',
-                data: { 
-                    size_type_id: 1, 
-                    price_per_minute: ratesData.small.rate / 60, 
+                data: {
+                    size_type_id: 1,
+                    price_per_minute: ratesData.small.rate / 60,
                     min_charge_minutes: Math.round((ratesData.small.minimum / ratesData.small.rate) * 60)
                 }
             },
-            { 
-                id: 2, 
+            {
+                id: 2,
                 name: 'medium',
-                data: { 
-                    size_type_id: 2, 
-                    price_per_minute: ratesData.medium.rate / 60, 
+                data: {
+                    size_type_id: 2,
+                    price_per_minute: ratesData.medium.rate / 60,
                     min_charge_minutes: Math.round((ratesData.medium.minimum / ratesData.medium.rate) * 60)
                 }
             },
-            { 
-                id: 3, 
+            {
+                id: 3,
                 name: 'large',
-                data: { 
-                    size_type_id: 3, 
-                    price_per_minute: ratesData.large.rate / 60, 
+                data: {
+                    size_type_id: 3,
+                    price_per_minute: ratesData.large.rate / 60,
                     min_charge_minutes: Math.round((ratesData.large.minimum / ratesData.large.rate) * 60)
                 }
             }
@@ -670,14 +776,14 @@ async function updateRates(ratesData) {
                     .from('rates')
                     .insert([size.data])
                     .select();
-                
+
                 if (insertError) throw insertError;
                 results.push(newData[0]);
             } else {
                 results.push(data[0]);
             }
         }
-        
+
         await logConfigChangeEvent('Rates Updated', 'System rates updated in place.', ratesData);
         console.log('✓ Rates updated successfully (IDs retained):', results);
         return results;
@@ -754,14 +860,14 @@ async function getTodayRevenue() {
         const supabase = getSupabaseClient();
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        
+
         const { data, error } = await supabase
             .from('payments')
             .select('amount')
             .gte('payment_date', today.toISOString());
 
         if (error) throw error;
-        
+
         const total = data.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
         return total;
     } catch (error) {
@@ -816,7 +922,7 @@ async function getDashboardStats() {
         if (results[1].status === 'fulfilled') stats.totalCustomers = results[1].value || 0;
         if (results[2].status === 'fulfilled') stats.todayRevenue = results[2].value || 0;
         if (results[3].status === 'fulfilled') stats.activeRentals = results[3].value || 0;
-        
+
         if (results[4].status === 'fulfilled' && results[4].value.data) {
             stats.recentRentals = results[4].value.data.map(tx => {
                 const totalPaid = tx.payments && Array.isArray(tx.payments) ? tx.payments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0) : 0;
@@ -932,7 +1038,7 @@ async function getReportData(dateFrom, dateTo) {
     try {
         const supabase = getSupabaseClient();
         // Resolve date range – default to last 14 days
-        const toDate   = dateTo   instanceof Date ? dateTo   : new Date();
+        const toDate = dateTo instanceof Date ? dateTo : new Date();
         const fromDate = dateFrom instanceof Date ? dateFrom : (() => {
             const d = new Date();
             d.setDate(d.getDate() - 14);
@@ -1057,10 +1163,10 @@ async function createPayment(paymentData) {
             .select();
 
         if (error) throw error;
-        
+
         // Log the payment
         await logConfigChangeEvent('Payment Received', `Payment of ₱${paymentData.amount} received via ${paymentData.payment_method}.`, { transactionId: paymentData.transaction_id });
-        
+
         console.log('✓ Payment recorded:', data);
         return data;
     } catch (error) {
@@ -1076,6 +1182,7 @@ window.dbOps = {
     fetchActiveRentals,
     createRental,
     updateRentalStatus,
+    completeActiveTransactionForLocker,
 
     // Customers
     fetchAllCustomers,
@@ -1116,7 +1223,7 @@ window.dbOps = {
     getCustomersTotalCount,
     getActiveRentalsCount,
     getReportData,
-    
+
     // Payments
     fetchAllPayments,
     fetchPaymentsByTransaction,
@@ -1147,7 +1254,7 @@ async function fixLockerNumbersPerModule() {
             .from('lockers')
             .select('locker_id, locker_number, module_id, size_type_id')
             .order('module_id', { ascending: true })
-            .order('locker_id',  { ascending: true });
+            .order('locker_id', { ascending: true });
 
         if (error) throw error;
         if (!lockers || lockers.length === 0) return true;

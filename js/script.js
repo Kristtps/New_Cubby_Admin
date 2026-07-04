@@ -776,7 +776,8 @@ async function handleEmergencyUnlock(locker) {
     console.log('Emergency unlocking:', { code: lockerId, oldStatus, newStatus });
 
     // Immediately update the UI for instant feedback
-    const statusCell = document.querySelector(`tr[data-locker-row="${lockerId}"] .status-badge`);
+    const lockerIdentifier = locker.dbLockerId ? locker.dbLockerId : `${locker.moduleId || locker.module}-${locker.code}`;
+    const statusCell = document.querySelector(`tr[data-locker-row="${lockerIdentifier}"] .status-badge`);
     if (statusCell) {
         statusCell.classList.remove(oldStatus);
         statusCell.classList.add(newStatus);
@@ -798,6 +799,17 @@ async function handleEmergencyUnlock(locker) {
             statusCell.textContent = oldStatus;
         }
         return;
+    }
+
+    // Complete any active transactions for this locker
+    if (typeof isSupabaseConnected !== 'undefined' && isSupabaseConnected() &&
+        typeof dbOps !== 'undefined' && dbOps.completeActiveTransactionForLocker && locker.dbLockerId) {
+        try {
+            await dbOps.completeActiveTransactionForLocker(locker.dbLockerId);
+            console.log('✓ Completed active transaction in database for locker:', locker.code);
+        } catch (error) {
+            console.error('Error completing active transaction:', error);
+        }
     }
 
     console.log('Emergency unlock completed:', { code: lockerId, newStatus });
