@@ -27,48 +27,28 @@ async function initializeAuditLog() {
 }
 
 /**
- * Format timestamp to readable format with Philippine time (PHT/UTC+8)
- * Properly handles server timestamps in UTC and converts to Philippine timezone
+ * Format timestamp to readable format with Manila/Singapore timezone (UTC+8)
+ * Properly handles server timestamps from Supabase ap-southeast-1 region
+ * 
+ * Since database stores timestamps without timezone info and assumes UTC+8,
+ * we format them directly for display using formatForDisplay with Manila timezone
  */
 function formatTimestamp(timestamp) {
-    let dateObj;
+    // Use the centralized formatForDisplay function for consistency
+    // This automatically converts to Manila timezone (UTC+8)
+    if (!timestamp) return 'N/A';
     
-    // Handle different timestamp formats
-    if (typeof timestamp === 'string') {
-        // ISO string from database
-        dateObj = new Date(timestamp);
-    } else if (typeof timestamp === 'number') {
-        // Unix timestamp
-        dateObj = new Date(timestamp);
-    } else if (timestamp instanceof Date) {
-        dateObj = timestamp;
-    } else {
-        dateObj = new Date();
-    }
-
-    // If the Date is invalid, return a fallback
-    if (isNaN(dateObj.getTime())) {
-        return 'Invalid date';
-    }
-    
-    // Create options for formatting in Philippine timezone
-    const options = {
+    const formatted = formatForDisplay(timestamp, {
         year: 'numeric',
         month: '2-digit',
         day: '2-digit',
         hour: '2-digit',
         minute: '2-digit',
         second: '2-digit',
-        hour12: true,
-        timeZone: 'Asia/Manila' // Philippine Standard Time (PHT, UTC+8)
-    };
+        hour12: true
+    });
     
-    // Format the date using Intl API with Manila timezone
-    const formatter = new Intl.DateTimeFormat('en-US', options);
-    const formatted = formatter.format(dateObj);
-    
-    // Append timezone indicator
-    return `${formatted} PHT`;
+    return formatted + ' PHT';
 }
 
 /**
@@ -198,6 +178,9 @@ function getIconSVG(iconType) {
  */
 async function addAuditLogEntry(entry) {
     try {
+        // Use convertToSGT to ensure proper timezone conversion when saving
+        const timestamp = convertToSGT(new Date()).toISOString();
+        
         const dbEntry = {
             action: entry.action,
             user_id: entry.user_id || null,
@@ -208,7 +191,7 @@ async function addAuditLogEntry(entry) {
                 icon: entry.icon,
                 type: entry.type
             },
-            timestamp: new Date().toISOString()
+            timestamp: timestamp
         };
 
         // Persist to Supabase if connected

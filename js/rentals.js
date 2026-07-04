@@ -60,18 +60,28 @@ async function loadRentalsFromSupabase() {
             `)
             .eq('status', 'Active')
             .order('start_time', { ascending: false });
+        
+        // Filter to show only active transactions (locked lockers currently in use)
+        const activeTransactions = transactions.filter(tx => tx.status === 'Active');
 
         if (error) throw error;
 
         // Map Supabase data to rental format
-        const mapped = (transactions || []).map(tx => {
+        const mapped = (activeTransactions || []).map(tx => {
             const startDate = new Date(tx.start_time);
             const endDate = tx.end_time ? new Date(tx.end_time) : null;
             
+            // Calculate duration in minutes if we have both start and end times
+            let durationMinutes = tx.duration_minutes || 0;
+            if (endDate && startDate) {
+                durationMinutes = Math.round((endDate - startDate) / (1000 * 60));
+            }
+            
             let duration = 'Active';
             if (endDate) {
-                const hours = Math.round((endDate - startDate) / (1000 * 60 * 60));
-                duration = `${hours}h`;
+                const hours = Math.floor(durationMinutes / 60);
+                const mins = durationMinutes % 60;
+                duration = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
             }
 
             let totalAmount = 0;
@@ -85,23 +95,23 @@ async function loadRentalsFromSupabase() {
                 id: tx.transaction_id,
                 customer: tx.customers ? tx.customers.full_name : 'Unknown',
                 locker: tx.lockers ? tx.lockers.locker_number : 'N/A',
-                startDate: new Intl.DateTimeFormat('en-US', { 
-                    timeZone: 'Asia/Manila',
+                // FORMAT FOR DISPLAY: Use formatForDisplay since data is already in SGT from database
+                startDate: formatForDisplay(startDate, { 
                     month: 'short', 
                     day: 'numeric', 
                     year: 'numeric',
                     hour: '2-digit',
                     minute: '2-digit'
-                }).format(startDate),
-                endDate: endDate ? new Intl.DateTimeFormat('en-US', { 
-                    timeZone: 'Asia/Manila',
+                }),
+                endDate: endDate ? formatForDisplay(endDate, { 
                     month: 'short', 
                     day: 'numeric', 
                     year: 'numeric',
                     hour: '2-digit',
                     minute: '2-digit'
-                }).format(endDate) : 'Ongoing',
+                }) : 'Ongoing',
                 endTime: tx.end_time, // Keep raw end time for countdown
+                durationMinutes: durationMinutes, // Store duration in minutes
                 duration: duration,
                 status: tx.status || 'Active',
                 amount: totalAmount
@@ -178,14 +188,15 @@ function addRentalRow(rentalData) {
 
     // Always start countdown for active rentals with end time
     if (rentalData.status === 'Active' && rentalData.endTime) {
-        startCountdown(rentalData.id, rentalData.endTime);
+        startCountdown(rentalData.id, rentalData.endTime, rentalData.durationMinutes);
     }
 }
 
 /**
  * Start countdown timer for a rental
+ * Uses end_time to calculate remaining time for active rentals
  */
-function startCountdown(rentalId, endTime) {
+function startCountdown(rentalId, endTime, durationMinutes) {
     // Clear existing countdown if any
     if (countdownIntervals[rentalId]) {
         clearInterval(countdownIntervals[rentalId]);
@@ -200,14 +211,15 @@ function startCountdown(rentalId, endTime) {
         if (!durationElement) return;
 
         if (diff <= 0) {
-            // Overtime - show count-up
+            // Overtime - show count-up from the reserved duration
             const overtime = Math.abs(diff);
-            const hours = Math.floor(overtime / (1000 * 60 * 60));
-            const minutes = Math.floor((overtime % (1000 * 60 * 60)) / (1000 * 60));
-            const seconds = Math.floor((overtime % (1000 * 60)) / 1000);
+            const overtimeMinutes = Math.floor(overtime / (1000 * 60));
+            const overtimeSeconds = Math.floor((overtime % (1000 * 60)) / 1000);
+            const hours = Math.floor(overtimeMinutes / 60);
+            const mins = overtimeMinutes % 60;
 
             // Format as +HH:MM:SS
-            const overtimeString = `+${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            const overtimeString = `+${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(overtimeSeconds).padStart(2, '0')}`;
             durationElement.textContent = overtimeString;
             durationElement.style.color = '#ef4444'; // Red for overtime
             durationElement.style.fontWeight = 'bold';
@@ -216,13 +228,14 @@ function startCountdown(rentalId, endTime) {
             return;
         }
 
-        // Calculate time remaining (countdown)
-        const hours = Math.floor(diff / (1000 * 60 * 60));
-        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+        // Calculate time remaining (countdown from end time)
+        const remainingMinutes = Math.floor(diff / (1000 * 60));
+        const remainingSeconds = Math.floor((diff % (1000 * 60)) / 1000);
+        const hours = Math.floor(remainingMinutes / 60);
+        const mins = remainingMinutes % 60;
 
         // Format as HH:MM:SS
-        const timeString = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        const timeString = `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
         durationElement.textContent = timeString;
 
         // Change color based on time remaining

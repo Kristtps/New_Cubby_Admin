@@ -10,6 +10,10 @@ document.addEventListener('DOMContentLoaded', async function() {
         return;
     }
     
+    // Initialize search and filter
+    initializeTransactionSearch();
+    initializeTransactionFilter();
+    
     // Try to load transactions from database
     if (typeof isSupabaseConnected !== 'undefined' && isSupabaseConnected()) {
         try {
@@ -42,6 +46,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                         }).format(new Date(tx.start_time || tx.created_at)),
                         customerName: tx.customers ? tx.customers.full_name : (tx.customer_name || 'Unknown'),
                         customerEmail: tx.customers ? tx.customers.email : (tx.customer_email || '-'),
+                        userId: tx.customer_id ? tx.customer_id.substring(0, 8).toUpperCase() : '-',
                         type: tx.status || tx.type || 'Active',
                         method: methods.length > 0 ? methods.join(', ') : (tx.qr_token ? 'QR Token' : (tx.payment_method || 'Unpaid')),
                         locker: tx.lockers ? tx.lockers.locker_number : (tx.locker_id || '-'),
@@ -135,6 +140,7 @@ function populateTransactionTableFromDatabase(transactions) {
         // Use joined data if available
         const customerName = tx.customers ? tx.customers.full_name : (tx.customer_name || 'Unknown');
         const customerEmail = tx.customers ? tx.customers.email : (tx.customer_email || '-');
+        const userId = tx.customer_id ? tx.customer_id.substring(0, 8).toUpperCase() : '-';
         const lockerNumber = tx.lockers ? tx.lockers.locker_number : (tx.locker_id || '-');
         const methodStr = methods.length > 0 ? methods.join(', ') : (tx.qr_token ? 'QR Token: ' + tx.qr_token : (tx.payment_method || '-'));
         
@@ -146,6 +152,7 @@ function populateTransactionTableFromDatabase(transactions) {
                     <div class="customer-email">${customerEmail}</div>
                 </div>
             </td>
+            <td class="userid-cell">${userId}</td>
             <td class="type-cell">${tx.status || tx.type || 'Active'}</td>
             <td class="method-cell">${methodStr}</td>
             <td class="locker-cell">${lockerNumber}</td>
@@ -171,6 +178,7 @@ function populateTransactionTable() {
                     <div class="customer-email">${transaction.customerEmail}</div>
                 </div>
             </td>
+            <td class="userid-cell">${transaction.userId}</td>
             <td class="type-cell">${transaction.type}</td>
             <td class="method-cell">${transaction.method}</td>
             <td class="locker-cell">${transaction.locker}</td>
@@ -206,6 +214,7 @@ function filterTransactionsByType(type) {
                     <div class="customer-email">${transaction.customerEmail}</div>
                 </div>
             </td>
+            <td class="userid-cell">${transaction.userId}</td>
             <td class="type-cell">${transaction.type}</td>
             <td class="method-cell">${transaction.method}</td>
             <td class="locker-cell">${transaction.locker}</td>
@@ -234,6 +243,7 @@ function filterTransactionsByCustomer(customerName) {
                     <div class="customer-email">${transaction.customerEmail}</div>
                 </div>
             </td>
+            <td class="userid-cell">${transaction.userId}</td>
             <td class="type-cell">${transaction.type}</td>
             <td class="method-cell">${transaction.method}</td>
             <td class="locker-cell">${transaction.locker}</td>
@@ -260,6 +270,7 @@ function searchTransactionByDate(date) {
                     <div class="customer-email">${transaction.customerEmail}</div>
                 </div>
             </td>
+            <td class="userid-cell">${transaction.userId}</td>
             <td class="type-cell">${transaction.type}</td>
             <td class="method-cell">${transaction.method}</td>
             <td class="locker-cell">${transaction.locker}</td>
@@ -309,4 +320,104 @@ function exportTransactionsAsCSV() {
     a.download = `transactions_${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
+}
+
+/**
+ * Initialize transaction search functionality
+ */
+function initializeTransactionSearch() {
+    const searchInput = document.getElementById('transaction-search');
+    if (!searchInput) return;
+    
+    searchInput.addEventListener('input', function(e) {
+        const searchTerm = e.target.value.toLowerCase().trim();
+        applySearchAndFilter(searchTerm, null);
+    });
+}
+
+/**
+ * Initialize transaction filter functionality
+ */
+function initializeTransactionFilter() {
+    const filterSelect = document.getElementById('transaction-filter');
+    if (!filterSelect) return;
+    
+    filterSelect.addEventListener('change', function(e) {
+        const filterValue = e.target.value;
+        const searchInput = document.getElementById('transaction-search');
+        const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
+        applySearchAndFilter(searchTerm, filterValue);
+    });
+}
+
+/**
+ * Apply both search and filter to transactions
+ * @param {string} searchTerm - Search term to match against customer, locker, or type
+ * @param {string|null} filterType - Filter type (all, payment, wallet-load, cash-collection)
+ */
+function applySearchAndFilter(searchTerm, filterType) {
+    const tableBody = document.getElementById('transactionTableBody');
+    if (!tableBody) return;
+    
+    // Get current filter value if not provided
+    if (filterType === null) {
+        const filterSelect = document.getElementById('transaction-filter');
+        filterType = filterSelect ? filterSelect.value : 'all';
+    }
+    
+    // Filter transactions based on both search and filter
+    let filtered = transactionData.filter(tx => {
+        // Apply filter by type
+        let passesFilter = true;
+        if (filterType !== 'all') {
+            // Map filter values to transaction type/status
+            const typeMap = {
+                'payment': ['Payment', 'Active', 'Completed'],
+                'wallet-load': ['Wallet Load', 'Wallet'],
+                'cash-collection': ['Cash Collection', 'Collection']
+            };
+            
+            const acceptedTypes = typeMap[filterType] || [];
+            passesFilter = acceptedTypes.some(type => 
+                tx.type && tx.type.toLowerCase().includes(type.toLowerCase())
+            ) || acceptedTypes.some(type =>
+                tx.method && tx.method.toLowerCase().includes(type.toLowerCase())
+            );
+        }
+        
+        // Apply search term
+        let passesSearch = true;
+        if (searchTerm) {
+            passesSearch = 
+                (tx.customerName && tx.customerName.toLowerCase().includes(searchTerm)) ||
+                (tx.locker && String(tx.locker).toLowerCase().includes(searchTerm)) ||
+                (tx.type && tx.type.toLowerCase().includes(searchTerm)) ||
+                (tx.method && tx.method.toLowerCase().includes(searchTerm));
+        }
+        
+        return passesFilter && passesSearch;
+    });
+    
+    // Render filtered results
+    if (filtered.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 20px; color: #9ca3af;">No transactions found</td></tr>`;
+        return;
+    }
+    
+    tableBody.innerHTML = filtered.map(transaction => `
+        <tr>
+            <td class="date-cell">${transaction.date}</td>
+            <td class="customer-cell">
+                <div class="customer-info">
+                    <div class="customer-name">${transaction.customerName}</div>
+                    <div class="customer-email">${transaction.customerEmail}</div>
+                </div>
+            </td>
+            <td class="userid-cell">${transaction.userId}</td>
+            <td class="type-cell">${transaction.type}</td>
+            <td class="method-cell">${transaction.method}</td>
+            <td class="locker-cell">${transaction.locker}</td>
+            <td class="amount-cell">₱${transaction.amount.toFixed(2)}</td>
+        </tr>
+    `).join('');
 }

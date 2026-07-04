@@ -1,19 +1,37 @@
-// ==================== PHILIPPINE TIMEZONE UTILITY ====================
 /**
- * Format date to Philippine Time (PHT/Asia/Manila)
- * Ensures proper timezone conversion from UTC/server time to Philippine time
- * @param {Date|string|number} date - Date to format (can be ISO string, timestamp, or Date object)
- * @param {object} options - Intl.DateTimeFormat options (optional)
- * @returns {string} Formatted date in Philippine timezone
+ * FORMAT TIMESTAMPS FOR DISPLAY
+ * 
+ * TIMEZONE EXPLANATION:
+ * - Supabase Server: Singapore (ap-southeast-1) = UTC+8
+ * - Admin Display: Manila (PHT) = UTC+8
+ * - Database: Stores timestamps WITHOUT timezone info (assumes UTC+8 from server)
+ * 
+ * CONVERSION STRATEGY:
+ * 1. When READING from database: Timestamps come without timezone marker
+ *    → Treat them as if they're already in UTC+8 (Singapore/Manila time)
+ *    → Just format for display
+ * 
+ * 2. When WRITING to database: Convert client time to UTC+8 before storing
+ *    → Calculate offset difference: clientOffset - SGT_offset (-480)
+ *    → Adjust timestamp to UTC+8
+ *    → Store in database
+ * 
+ * 3. When DISPLAYING: Format for Manila timezone
  */
-function formatPHTime(date, options = {}) {
-    // Ensure we have a Date object
+
+/**
+ * Convert a timestamp FROM client timezone TO Singapore/Manila timezone (UTC+8)
+ * Use this when WRITING data to Supabase
+ * 
+ * @param {Date|string|number} date - Date to convert
+ * @returns {Date} Date adjusted to UTC+8 (Singapore/Manila time)
+ */
+function convertToSGT(date) {
     let dateObj;
+
     if (typeof date === 'string') {
-        // If it's an ISO string, parse it directly
         dateObj = new Date(date);
     } else if (typeof date === 'number') {
-        // If it's a timestamp
         dateObj = new Date(date);
     } else if (date instanceof Date) {
         dateObj = date;
@@ -21,8 +39,54 @@ function formatPHTime(date, options = {}) {
         dateObj = new Date();
     }
 
+    if (isNaN(dateObj.getTime())) {
+        return new Date(); // Return current time if invalid
+    }
+
+    // Singapore/Manila is UTC+8 = -480 minutes offset
+    const sgtOffsetMinutes = -480;
+
+    // Get client's timezone offset
+    const clientOffsetMinutes = new Date().getTimezoneOffset();
+
+    // Calculate difference: how many minutes to adjust
+    const totalOffsetMinutes = clientOffsetMinutes - sgtOffsetMinutes;
+
+    // Create new date adjusted to SGT
+    const adjustedTime = new Date(dateObj.getTime() + (totalOffsetMinutes * 60 * 1000));
+
+    return adjustedTime;
+}
+
+/**
+ * Format a timestamp for display in Manila/Singapore timezone
+ * Use this when READING/DISPLAYING data from Supabase
+ * 
+ * @param {Date|string|number} date - Date to format
+ * @param {object} options - Intl.DateTimeFormat options (optional)
+ * @returns {string} Formatted date in Manila timezone
+ */
+function formatForDisplay(date, options = {}) {
+    let dateObj;
+
+    if (typeof date === 'string') {
+        dateObj = new Date(date);
+    } else if (typeof date === 'number') {
+        dateObj = new Date(date);
+    } else if (date instanceof Date) {
+        dateObj = date;
+    } else {
+        dateObj = new Date();
+    }
+
+    if (isNaN(dateObj.getTime())) {
+        return 'Invalid date';
+    }
+
+    // Since database stores times without timezone info and assumes UTC+8,
+    // we just need to format directly without adjustment
     const defaultOptions = {
-        timeZone: 'Asia/Manila',
+        timeZone: 'Asia/Manila', // or 'Asia/Singapore' - both are UTC+8
         year: 'numeric',
         month: '2-digit',
         day: '2-digit',
@@ -32,23 +96,41 @@ function formatPHTime(date, options = {}) {
         hour12: true,
         ...options
     };
-    
+
     return new Intl.DateTimeFormat('en-US', defaultOptions).format(dateObj);
 }
 
 /**
- * Diagnostic function to check timezone discrepancies
+ * LEGACY: formatPHTime is now an alias to formatForDisplay
+ * Kept for backward compatibility
+ */
+function formatPHTime(date, options = {}) {
+    return formatForDisplay(date, options);
+}
+
+/**
+ * Diagnostic function to check timezone conversion
+ * Supabase ap-southeast-1 region (Singapore) = UTC+8 same as Manila
  */
 function checkTimezoneIssue() {
     const now = new Date();
     const isoString = now.toISOString();
-    
+
+    // Calculate offset adjustment for Manila
+    const clientOffsetMinutes = now.getTimezoneOffset();
+    const manilaOffsetMinutes = -480; // UTC+8
+    const totalOffsetMinutes = clientOffsetMinutes - manilaOffsetMinutes;
+    const adjustedTime = new Date(now.getTime() + (totalOffsetMinutes * 60 * 1000));
+
     // Current time in different formats
     const diagnostics = {
         'Client Local Time': now.toString(),
         'ISO String (UTC)': isoString,
-        'Client Timezone Offset (minutes)': now.getTimezoneOffset(),
-        'Formatted for Manila': new Intl.DateTimeFormat('en-US', {
+        'Client Timezone Offset (minutes)': clientOffsetMinutes,
+        'Client Timezone Offset (hours)': (clientOffsetMinutes / 60).toFixed(1),
+        'Manila Offset (UTC+8) in minutes': manilaOffsetMinutes,
+        'Total Offset Adjustment (minutes)': totalOffsetMinutes,
+        'Formatted for Manila (PH Time)': new Intl.DateTimeFormat('en-US', {
             timeZone: 'Asia/Manila',
             year: 'numeric',
             month: '2-digit',
@@ -57,25 +139,17 @@ function checkTimezoneIssue() {
             minute: '2-digit',
             second: '2-digit',
             hour12: true
-        }).format(now),
-        'Formatted for UTC': new Intl.DateTimeFormat('en-US', {
-            timeZone: 'UTC',
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: true
-        }).format(now)
+        }).format(adjustedTime),
+        'formatPHTime() Output': formatPHTime(now),
+        'Note': 'Supabase ap-southeast-1 = Singapore (UTC+8). Manila is also UTC+8. Times should match if conversion is correct.'
     };
-    
+
     console.table(diagnostics);
     return diagnostics;
 }
 
 // Run diagnostic on page load
-window.addEventListener('load', function() {
+window.addEventListener('load', function () {
     console.log('🔍 Timezone Diagnostic:');
     checkTimezoneIssue();
 });
@@ -418,7 +492,7 @@ function updateSalesChart(salesData) {
     // Find max value and calculate scale
     let maxAmt = Math.max(...salesData.map(d => d.amount), 0);
     if (maxAmt === 0) maxAmt = 100;
-    
+
     // Choose a nice clean multiple for scale
     const roundFactor = maxAmt > 500 ? 100 : (maxAmt > 100 ? 50 : 20);
     const maxScale = Math.ceil(maxAmt / roundFactor) * roundFactor;
@@ -462,7 +536,7 @@ function updateSalesChart(salesData) {
     salesData.forEach((day, idx) => {
         const center = startX + (idx * spacing);
         const rectX = center - (barWidth / 2);
-        
+
         // Calculate height
         const pct = day.amount / maxScale;
         const height = pct * 200; // max Y height is 200px
@@ -471,7 +545,7 @@ function updateSalesChart(salesData) {
         // Use a nice premium gradient feel or pure primary color
         const hasSales = day.amount > 0;
         const barFill = hasSales ? '#3B82F6' : '#e5e7eb';
-        
+
         svgContent += `
             <!-- Bar -->
             <rect x="${rectX}" y="${rectY}" width="${barWidth}" height="${height}" rx="6" ry="6" fill="${barFill}" style="transition: all 0.3s ease;">
@@ -553,7 +627,7 @@ let currentModuleFilter = 'All';
  */
 async function initializeLockerManagement() {
     // Load modules from database for the tabs
-    if (typeof isSupabaseConnected !== 'undefined' && isSupabaseConnected() && 
+    if (typeof isSupabaseConnected !== 'undefined' && isSupabaseConnected() &&
         typeof dbOps !== 'undefined' && dbOps.fetchAllModules) {
         try {
             const mods = await dbOps.fetchAllModules();
@@ -567,7 +641,7 @@ async function initializeLockerManagement() {
 
     lockerRecords = await loadLockerRecords();
     renderLockersTable();
-    initializeActionButtons();
+    initializeActionButtons(); // Only attaches listener once
     initializeAddLockerButton();
     initializeModal();
 }
@@ -599,26 +673,51 @@ async function loadLockerRecords() {
 }
 
 /**
- * Initialize action button handlers
+ * Initialize action button handlers - attach to each button individually
  */
+let globalActionListenerAttached = false;
+
 function initializeActionButtons() {
     const tbody = document.getElementById('lockers-tbody');
-
     if (!tbody) return;
 
+    // If already attached, just return
+    if (globalActionListenerAttached) {
+        console.log('Global action listener already attached');
+        return;
+    }
+
+    globalActionListenerAttached = true;
+
+    // Single delegated listener for ALL buttons in ALL modules and new lockers
     tbody.addEventListener('click', function (e) {
         const btn = e.target.closest('.action-btn');
         if (!btn) return;
 
-        const row = btn.closest('tr');
-        const lockerId = row.getAttribute('data-locker-row');
-        const action = btn.getAttribute('data-action');
-        const locker = lockerRecords.find(item => item.code === lockerId);
-        if (!locker) return;
+        e.preventDefault();
+        e.stopPropagation();
 
-        if (action === 'occupied') {
-            handleOccupiedToggle(locker);
-        } else if (action === 'maintenance') {
+        const action = btn.getAttribute('data-action');
+        const row = btn.closest('tr');
+        const lockerIdentifier = row.getAttribute('data-locker-row');
+        // Resolve locker by database ID if present, otherwise by composite key (module-id + code)
+        let locker = lockerRecords.find(item => {
+            if (item.dbLockerId && String(item.dbLockerId) === lockerIdentifier) return true;
+            const composite = `${item.moduleId || item.module}-${item.code}`;
+            return composite === lockerIdentifier;
+        });
+
+        console.log('Action button clicked:', { lockerIdentifier, action });
+
+        // Find the locker in ALL lockerRecords (works for all modules)
+        if (!locker) {
+            console.error('Locker not found:', lockerIdentifier, 'Available:', lockerRecords.map(l => l.code));
+            return;
+        }
+
+        console.log('Locker found:', { code: locker.code, status: locker.status, module: locker.module });
+
+        if (action === 'maintenance') {
             handleMaintenanceToggle(locker);
         } else if (action === 'emergency-unlock') {
             handleEmergencyUnlock(locker);
@@ -629,45 +728,82 @@ function initializeActionButtons() {
 }
 
 /**
- * Handle occupied toggle button click - cycles between available and occupied
- */
-function handleOccupiedToggle(locker) {
-    const oldStatus = locker.status;
-    locker.status = locker.status === 'occupied' ? 'available' : 'occupied';
-    persistLockerStatus(locker);
-    renderLockersTable();
-
-    if (typeof dbOps !== 'undefined' && dbOps.logConfigChangeEvent) {
-        dbOps.logConfigChangeEvent('Locker Status Toggle', `Locker ${locker.code} toggled from ${oldStatus} to ${locker.status}.`, { lockerId: locker.code, oldStatus, newStatus: locker.status });
-    }
-}
-
-/**
  * Handle maintenance toggle button click - cycles between available and maintenance
  */
-function handleMaintenanceToggle(locker) {
+async function handleMaintenanceToggle(locker) {
+    const lockerId = locker.code;
     const oldStatus = locker.status;
-    locker.status = locker.status === 'maintenance' ? 'available' : 'maintenance';
-    persistLockerStatus(locker);
-    renderLockersTable();
+    const newStatus = oldStatus === 'maintenance' ? 'available' : 'maintenance';
+
+    console.log('Toggling maintenance:', { code: lockerId, oldStatus, newStatus, dbId: locker.dbLockerId });
+
+    // Immediately update the UI for instant feedback
+    // Use the same identifier used in the row's data-locker-row attribute
+    const lockerIdentifier = locker.dbLockerId ? locker.dbLockerId : `${locker.moduleId || locker.module}-${locker.code}`;
+    const statusCell = document.querySelector(`tr[data-locker-row="${lockerIdentifier}"] .status-badge`);
+    if (statusCell) {
+        statusCell.classList.remove(oldStatus);
+        statusCell.classList.add(newStatus);
+        statusCell.textContent = newStatus;
+        console.log('Updated UI immediately:', { code: lockerId, newStatus });
+    }
+
+    // Optimistically update status in memory
+    locker.status = newStatus;
+
+    // Persist to backend (ignore result to avoid UI flicker)
+    persistLockerStatus(locker).catch(err => {
+        console.error('Failed to persist locker status:', err);
+    });
+
+    console.log('Maintenance toggled successfully:', { code: lockerId, newStatus });
 
     if (typeof dbOps !== 'undefined' && dbOps.logConfigChangeEvent) {
-        dbOps.logConfigChangeEvent('Maintenance Toggle', `Locker ${locker.code} toggled maintenance mode (from ${oldStatus} to ${locker.status}).`, { lockerId: locker.code, oldStatus, newStatus: locker.status });
+        await dbOps.logConfigChangeEvent('Maintenance Toggle', `Locker ${lockerId} toggled maintenance mode (from ${oldStatus} to ${newStatus}).`, { lockerId, oldStatus, newStatus });
     }
 }
 
 /**
  * Emergency unlock always returns the locker to available.
  */
-function handleEmergencyUnlock(locker) {
+async function handleEmergencyUnlock(locker) {
     if (!confirm(`Emergency unlock ${locker.code}?`)) return;
+
+    const lockerId = locker.code;
     const oldStatus = locker.status;
-    locker.status = 'available';
-    persistLockerStatus(locker);
-    renderLockersTable();
+    const newStatus = 'available';
+
+    console.log('Emergency unlocking:', { code: lockerId, oldStatus, newStatus });
+
+    // Immediately update the UI for instant feedback
+    const statusCell = document.querySelector(`tr[data-locker-row="${lockerId}"] .status-badge`);
+    if (statusCell) {
+        statusCell.classList.remove(oldStatus);
+        statusCell.classList.add(newStatus);
+        statusCell.textContent = newStatus;
+        console.log('Updated UI immediately:', { code: lockerId, newStatus });
+    }
+
+    locker.status = newStatus;
+
+    // Wait for database update
+    const success = await persistLockerStatus(locker);
+
+    if (!success) {
+        console.error('Failed to persist locker status');
+        locker.status = oldStatus;
+        if (statusCell) {
+            statusCell.classList.remove(newStatus);
+            statusCell.classList.add(oldStatus);
+            statusCell.textContent = oldStatus;
+        }
+        return;
+    }
+
+    console.log('Emergency unlock completed:', { code: lockerId, newStatus });
 
     if (typeof dbOps !== 'undefined' && dbOps.logConfigChangeEvent) {
-        dbOps.logConfigChangeEvent('Emergency Unlock', `Locker ${locker.code} was emergency unlocked (Status: ${oldStatus} -> available).`, { lockerId: locker.code, oldStatus });
+        await dbOps.logConfigChangeEvent('Emergency Unlock', `Locker ${lockerId} was emergency unlocked (Status: ${oldStatus} -> ${newStatus}).`, { lockerId, oldStatus, newStatus });
     }
 }
 
@@ -693,7 +829,7 @@ async function handleDeleteAction(locker) {
     }
 
     if (typeof dbOps !== 'undefined' && dbOps.logConfigChangeEvent) {
-        dbOps.logConfigChangeEvent('Locker Deleted', `Locker ${locker.code} was removed from the system.`, { lockerId: locker.code, lastStatus: locker.status });
+        await dbOps.logConfigChangeEvent('Locker Deleted', `Locker ${locker.code} was removed from the system.`, { lockerId: locker.code, lastStatus: locker.status });
     }
 
     lockerRecords = lockerRecords.filter(item => item.code !== locker.code);
@@ -786,7 +922,7 @@ async function openAddLockerModal() {
                         option.textContent = mod.name;
                         moduleSelect.appendChild(option);
                     });
-                    
+
                     if (currentModuleFilter !== 'All') {
                         moduleSelect.value = currentModuleFilter;
                     }
@@ -887,7 +1023,7 @@ function addLockerRow(lockerData) {
     if (!tbody) return;
 
     const newRow = document.createElement('tr');
-    newRow.setAttribute('data-locker-row', lockerData.code);
+    newRow.setAttribute('data-locker-row', lockerData.dbLockerId ? lockerData.dbLockerId : `${lockerData.moduleId || lockerData.module}-${lockerData.code}`);
 
     newRow.innerHTML = `
         <td class="code-cell"><span class="locker-code" data-field="code">${lockerData.code}</span></td>
@@ -896,12 +1032,6 @@ function addLockerRow(lockerData) {
         <td class="device-cell"><span data-field="device">${lockerData.device}</span></td>
         <td class="status-cell"><span class="status-badge ${lockerData.status}" data-field="status">${lockerData.status}</span></td>
         <td class="actions-cell">
-            <button class="action-btn occupied-btn" title="Toggle Occupied/Available" data-action="occupied">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="3" y="11" width="18" height="11"></rect>
-                    <path d="M7 11V7a4 4 0 0 1 4-4h2a4 4 0 0 1 4 4v4"></path>
-                </svg>
-            </button>
             <button class="action-btn maintenance-btn" title="Toggle Maintenance" data-action="maintenance">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M12 2v20m0-20L7 7m10 0L17 7M5 12h14m-14 5h14"></path>
@@ -1011,9 +1141,9 @@ function renderLockersTable() {
 function renderModuleTabs(modulesList) {
     const filtersContainer = document.getElementById('module-filters');
     if (!filtersContainer) return;
-    
+
     filtersContainer.innerHTML = '';
-    
+
     // Add "All" button
     const allBtn = document.createElement('button');
     allBtn.className = `module-filter-btn ${currentModuleFilter === 'All' ? 'active' : ''}`;
@@ -1068,7 +1198,7 @@ async function addDefaultModule() {
             if (moduleResult && moduleResult[0]) {
                 moduleId = moduleResult[0].module_id;
                 console.log('✓ Module created in database:', moduleId);
-                
+
                 // Add to moduleRecords for future reference
                 if (Array.isArray(moduleRecords)) {
                     moduleRecords.push(moduleResult[0]);
@@ -1100,7 +1230,7 @@ async function addDefaultModule() {
     });
 
     lockerRecords.push(...moduleLockers);
-    
+
     // Persist lockers to database
     try {
         await persistNewModuleLockers(moduleLockers, moduleId);

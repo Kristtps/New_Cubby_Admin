@@ -118,14 +118,12 @@
                             <path d="m21 21-4.35-4.35"></path>
                         </svg>
                     </div>
-                    <button id="sort-customers-btn" style="padding: 10px 16px; border: 1px solid #e5e7eb; border-radius: 8px; background: white; color: #1f2937; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 8px;">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M3 6h18"></path>
-                            <path d="M6 12h12"></path>
-                            <path d="M9 18h6"></path>
-                        </svg>
-                        <span id="sort-label">Newest</span>
-                    </button>
+                    <select id="sort-customers-btn" style="padding: 10px 12px; border: 1px solid #e5e7eb; border-radius: 8px; background: white; color: #1f2937; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s;">
+                        <option value="newest">Newest First</option>
+                        <option value="oldest">Oldest First</option>
+                        <option value="name-asc">Name (A-Z)</option>
+                        <option value="name-desc">Name (Z-A)</option>
+                    </select>
                 </div>
             </header>
 
@@ -146,7 +144,7 @@
                         </thead>
                         <tbody id="customers-tbody">
                             <tr class="loading-state">
-                                <td colspan="8" style="text-align: center; padding: 2rem;">Loading customers...</td>
+                                <td colspan="7" style="text-align: center; padding: 2rem;">Loading customers...</td>
                             </tr>
                         </tbody>
                     </table>

@@ -49,16 +49,23 @@ function initializeCustomerSort() {
     const sortBtn = document.getElementById('sort-customers-btn');
     if (!sortBtn) return;
 
-    sortBtn.addEventListener('click', function () {
-        customerSortNewest = !customerSortNewest;
+    sortBtn.addEventListener('change', function () {
+        const sortValue = this.value;
         
-        // Update button label
-        const sortLabel = document.getElementById('sort-label');
-        if (sortLabel) {
-            sortLabel.textContent = customerSortNewest ? 'Newest' : 'Oldest';
+        // Apply sorting based on selection
+        if (sortValue === 'newest') {
+            customerSortNewest = true;
+        } else if (sortValue === 'oldest') {
+            customerSortNewest = false;
+        } else if (sortValue === 'name-asc') {
+            sortCustomersByName('asc');
+            return;
+        } else if (sortValue === 'name-desc') {
+            sortCustomersByName('desc');
+            return;
         }
         
-        // Sort the table
+        // Sort by date
         sortCustomersTable();
     });
 }
@@ -86,6 +93,35 @@ function sortCustomersTable() {
             return dateB - dateA; // Newest first
         } else {
             return dateA - dateB; // Oldest first
+        }
+    });
+
+    // Re-append sorted rows
+    rows.forEach(row => {
+        tbody.appendChild(row);
+    });
+}
+
+/**
+ * Sort customers table by name
+ * @param {string} direction - 'asc' for A-Z, 'desc' for Z-A
+ */
+function sortCustomersByName(direction) {
+    const tbody = document.getElementById('customers-tbody');
+    if (!tbody) return;
+
+    const rows = Array.from(tbody.querySelectorAll('tr:not(#no-search-results)'));
+    
+    rows.sort((a, b) => {
+        // Get names from the rows
+        const nameA = a.querySelector('[data-field="name"]')?.textContent.toLowerCase() || '';
+        const nameB = b.querySelector('[data-field="name"]')?.textContent.toLowerCase() || '';
+        
+        // Sort alphabetically
+        if (direction === 'asc') {
+            return nameA.localeCompare(nameB); // A-Z
+        } else {
+            return nameB.localeCompare(nameA); // Z-A
         }
     });
 
@@ -125,7 +161,7 @@ function initializeCustomerSearch() {
             if (!document.getElementById('no-search-results')) {
                 const noResultsRow = document.createElement('tr');
                 noResultsRow.id = 'no-search-results';
-                noResultsRow.innerHTML = `<td colspan="8" style="text-align: center; color: var(--text-muted); padding: 2rem;">No customers found matching "${searchTerm}"</td>`;
+                noResultsRow.innerHTML = `<td colspan="7" style="text-align: center; color: var(--text-muted); padding: 2rem;">No customers found matching "${searchTerm}"</td>`;
                 tbody.appendChild(noResultsRow);
             }
         } else if (document.getElementById('no-search-results')) {
@@ -139,14 +175,22 @@ function initializeCustomerSearch() {
  */
 async function loadCustomersFromSupabase() {
     try {
-        // Ensure we have the client, not the factory library
+        // Wait for Supabase initialization if needed
+        if (window.supabasePromise) {
+            await window.supabasePromise;
+        }
+
+        // Ensure we have the client
         const client = window.supabase;
 
         if (!client || typeof client.from !== 'function') {
             throw new Error('Supabase client not properly initialized. Check supabase-client.js');
         }
 
-        const { data: customers, error } = await client
+        console.log('📡 Attempting to load customers with transactions relationship...');
+
+        // First, try to load customers with transactions relationship
+        let { data: customers, error } = await client
             .from('customers')
             .select(`
                 *,
@@ -156,7 +200,24 @@ async function loadCustomersFromSupabase() {
                 )
             `);
 
-        if (error) throw error;
+        // If relationship query fails, fall back to just customers
+        if (error) {
+            console.warn('⚠️ Transactions relationship query failed:', error.message, 'Code:', error.code);
+            if (error.code === 'PGRST204' || error.message.includes('relation')) {
+                console.log('📡 Falling back to simple customers query without relationships...');
+                const { data: customersData, error: customerError } = await client
+                    .from('customers')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+                
+                if (customerError) throw customerError;
+                customers = customersData;
+            } else {
+                throw error;
+            }
+        }
+
+        console.log('✓ Customers loaded from Supabase:', customers);
 
         // Map Supabase data to the format expected by refreshCustomersFromDatabase
         // Columns match THE ACTUAL database schema from your screenshot
@@ -184,29 +245,31 @@ async function loadCustomersFromSupabase() {
                 wallet:  0, 
                 rentals: rentalsCount,
                 spent:   totalSpent,
-                joined:  c.created_at ? new Intl.DateTimeFormat('en-US', {
-                    timeZone: 'Asia/Manila',
+                // FORMAT FOR DISPLAY: Use formatForDisplay for consistency
+                joined:  c.created_at ? formatForDisplay(new Date(c.created_at), {
                     month: 'short',
                     day: 'numeric',
                     year: 'numeric'
-                }).format(new Date(c.created_at)) : 'N/A'
+                }) : 'N/A'
             };
         });
 
         if (mapped.length === 0) {
+            console.log('ℹ️ No customers found in database');
             const tbody = document.getElementById('customers-tbody');
             if (tbody) {
-                tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 3rem;">No customers found in the database.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 3rem;">No customers found in the database.</td></tr>`;
             }
         } else {
+            console.log(`✓ Successfully mapped ${mapped.length} customers for display`);
             refreshCustomersFromDatabase(mapped);
         }
 
     } catch (err) {
-        console.error('Failed to load customers:', err.message);
+        console.error('❌ Failed to load customers:', err);
         const tbody = document.getElementById('customers-tbody');
         if (tbody) {
-            tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--danger); padding: 1rem;">Failed to load customers: ${err.message}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--danger); padding: 1rem;">Failed to load customers: ${err.message}</td></tr>`;
         }
     }
 }

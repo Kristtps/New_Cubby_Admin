@@ -2,6 +2,15 @@
 // DATABASE OPERATIONS - SUPABASE QUERIES
 // ========================================
 
+// Helper function to get Supabase client
+function getSupabaseClient() {
+    const client = window.supabaseClient || window.supabase;
+    if (!client || typeof client.from !== 'function') {
+        throw new Error('Supabase client not initialized. Make sure supabase-client.js is loaded.');
+    }
+    return client;
+}
+
 /**
  * RENTALS TABLE OPERATIONS
  */
@@ -11,6 +20,7 @@
  */
 async function fetchAllRentals() {
     try {
+        const supabase = getSupabaseClient();
         const { data, error } = await supabase
             .from('rentals')
             .select('*')
@@ -30,6 +40,7 @@ async function fetchAllRentals() {
  */
 async function fetchActiveRentals() {
     try {
+        const supabase = getSupabaseClient();
         const { data, error } = await supabase
             .from('rentals')
             .select('*')
@@ -49,6 +60,7 @@ async function fetchActiveRentals() {
  */
 async function createRental(rentalData) {
     try {
+        const supabase = getSupabaseClient();
         const { data, error } = await supabase
             .from('rentals')
             .insert([rentalData])
@@ -68,6 +80,7 @@ async function createRental(rentalData) {
  */
 async function updateRentalStatus(rentalId, status) {
     try {
+        const supabase = getSupabaseClient();
         const { data, error } = await supabase
             .from('rentals')
             .update({ status: status, updated_at: new Date() })
@@ -92,6 +105,7 @@ async function updateRentalStatus(rentalId, status) {
  */
 async function fetchAllCustomers() {
     try {
+        const supabase = getSupabaseClient();
         const { data, error } = await supabase
             .from('customers')
             .select('*')
@@ -111,6 +125,7 @@ async function fetchAllCustomers() {
  */
 async function fetchCustomerById(customerId) {
     try {
+        const supabase = getSupabaseClient();
         const { data, error } = await supabase
             .from('customers')
             .select('*')
@@ -176,8 +191,8 @@ async function createCustomer(customerData) {
             customerData.user_id = await generateUniqueUserId();
         }
 
-        const client = getSupabaseClient();
-        const { data, error } = await client
+        const supabase = getSupabaseClient();
+        const { data, error } = await supabase
             .from('customers')
             .insert([customerData])
             .select();
@@ -446,6 +461,7 @@ async function getLockerCountByStatus(status) {
     }
 }
 
+
 /**
  * TRANSACTIONS TABLE OPERATIONS
  */
@@ -455,6 +471,7 @@ async function getLockerCountByStatus(status) {
  */
 async function fetchAllTransactions() {
     try {
+        const supabase = getSupabaseClient();
         const { data, error } = await supabase
             .from('transactions')
             .select(`
@@ -479,6 +496,7 @@ async function fetchAllTransactions() {
  */
 async function fetchTodayTransactions() {
     try {
+        const supabase = getSupabaseClient();
         const today = new Date().toISOString().split('T')[0];
         const { data, error } = await supabase
             .from('transactions')
@@ -504,6 +522,7 @@ async function fetchTodayTransactions() {
  */
 async function createTransaction(transactionData) {
     try {
+        const supabase = getSupabaseClient();
         const { data, error } = await supabase
             .from('transactions')
             .insert([transactionData])
@@ -527,6 +546,7 @@ async function createTransaction(transactionData) {
  */
 async function fetchAllAuditLogs() {
     try {
+        const supabase = getSupabaseClient();
         const { data, error } = await supabase
             .from('audit_logs')
             .select('*')
@@ -546,6 +566,7 @@ async function fetchAllAuditLogs() {
  */
 async function createAuditLog(logData) {
     try {
+        const supabase = getSupabaseClient();
         const { data, error } = await supabase
             .from('audit_logs')
             .insert([logData])
@@ -569,6 +590,7 @@ async function createAuditLog(logData) {
  */
 async function fetchRates() {
     try {
+        const supabase = getSupabaseClient();
         const { data, error } = await supabase
             .from('rates')
             .select('*');
@@ -599,6 +621,7 @@ async function fetchRates() {
 
 async function updateRates(ratesData) {
     try {
+        const supabase = getSupabaseClient();
         const sizes = [
             { 
                 id: 1, 
@@ -728,6 +751,7 @@ async function logConfigChangeEvent(action, description, configData) {
  */
 async function getTodayRevenue() {
     try {
+        const supabase = getSupabaseClient();
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         
@@ -761,6 +785,7 @@ async function getDashboardStats() {
     };
 
     try {
+        const supabase = getSupabaseClient();
         const recentRentalsPromise = supabase
             .from('transactions')
             .select('*, customers(full_name), lockers(locker_number), payments(amount)')
@@ -850,6 +875,7 @@ async function getDashboardStats() {
  */
 async function getLockersTotalCount() {
     try {
+        const supabase = getSupabaseClient();
         const { count, error } = await supabase
             .from('lockers')
             .select('*', { count: 'exact', head: true });
@@ -867,6 +893,7 @@ async function getLockersTotalCount() {
  */
 async function getCustomersTotalCount() {
     try {
+        const supabase = getSupabaseClient();
         const { count, error } = await supabase
             .from('customers')
             .select('*', { count: 'exact', head: true });
@@ -884,6 +911,7 @@ async function getCustomersTotalCount() {
  */
 async function getActiveRentalsCount() {
     try {
+        const supabase = getSupabaseClient();
         const { count, error } = await supabase
             .from('transactions')
             .select('*', { count: 'exact', head: true })
@@ -902,6 +930,7 @@ async function getActiveRentalsCount() {
  */
 async function getReportData(dateFrom, dateTo) {
     try {
+        const supabase = getSupabaseClient();
         // Resolve date range – default to last 14 days
         const toDate   = dateTo   instanceof Date ? dateTo   : new Date();
         const fromDate = dateFrom instanceof Date ? dateFrom : (() => {
@@ -988,6 +1017,7 @@ async function logConfigChangeEvent(action, description, metadata = {}) {
 
 async function fetchAllPayments() {
     try {
+        const supabase = getSupabaseClient();
         const { data, error } = await supabase
             .from('payments')
             .select('*, transactions(transaction_id, customer_id, customers(full_name))')
@@ -1003,6 +1033,7 @@ async function fetchAllPayments() {
 
 async function fetchPaymentsByTransaction(transactionId) {
     try {
+        const supabase = getSupabaseClient();
         const { data, error } = await supabase
             .from('payments')
             .select('*')
@@ -1019,6 +1050,7 @@ async function fetchPaymentsByTransaction(transactionId) {
 
 async function createPayment(paymentData) {
     try {
+        const supabase = getSupabaseClient();
         const { data, error } = await supabase
             .from('payments')
             .insert([paymentData])

@@ -11,6 +11,8 @@ const reportData = {
     totalRevenue: 0.00,
     totalRentals: 0,
     avgRentalValue: 0.00,
+    mostUsedLocker: '-',
+    mostUsedPayment: '-',
     revenueAndRentals: {
         labels: [],
         revenue: [],
@@ -139,6 +141,8 @@ async function loadReportData(dateFrom, dateTo) {
 function processHistoricalData(data) {
     const dailyData = {};
     const sizeData = [0, 0, 0]; // Small, Medium, Large
+    const lockerUsage = {}; // Track locker usage count
+    const paymentMethods = {}; // Track payment method usage
 
     let totalRev = 0;
     let totalRent = 0;
@@ -155,7 +159,7 @@ function processHistoricalData(data) {
         dailyData[dateStr] = { revenue: 0, rentals: 0 };
     }
 
-    // Process Payments for Revenue
+    // Process Payments for Revenue and Payment Methods
     if (data.payments && Array.isArray(data.payments)) {
         data.payments.forEach(p => {
             const date = new Intl.DateTimeFormat('en-US', { 
@@ -168,6 +172,10 @@ function processHistoricalData(data) {
                 dailyData[date].revenue += amount;
             }
             totalRev += amount;
+
+            // Track payment methods
+            const method = p.payment_method || 'Unpaid';
+            paymentMethods[method] = (paymentMethods[method] || 0) + 1;
         });
     }
 
@@ -184,9 +192,13 @@ function processHistoricalData(data) {
             }
             totalRent += 1;
 
-            // Size distribution
-            // size_type_id mapping: 1=Small, 2=Medium, 3=Large
+            // Track locker usage
             if (tx.lockers) {
+                const lockerNum = tx.lockers.locker_number || 'Unknown';
+                lockerUsage[lockerNum] = (lockerUsage[lockerNum] || 0) + 1;
+
+                // Size distribution
+                // size_type_id mapping: 1=Small, 2=Medium, 3=Large
                 const sizeIdx = (tx.lockers.size_type_id || 1) - 1;
                 if (sizeIdx >= 0 && sizeIdx < 3) sizeData[sizeIdx]++;
             }
@@ -210,10 +222,33 @@ function processHistoricalData(data) {
             totalRent += 1;
 
             if (tx.lockers) {
+                const lockerNum = tx.lockers.locker_number || 'Unknown';
+                lockerUsage[lockerNum] = (lockerUsage[lockerNum] || 0) + 1;
+
                 const sizeIdx = (tx.lockers.size_type_id || 1) - 1;
                 if (sizeIdx >= 0 && sizeIdx < 3) sizeData[sizeIdx]++;
             }
         });
+    }
+
+    // Find most used locker
+    let mostUsedLockerName = '-';
+    let maxLockerUses = 0;
+    for (const [locker, count] of Object.entries(lockerUsage)) {
+        if (count > maxLockerUses) {
+            maxLockerUses = count;
+            mostUsedLockerName = locker;
+        }
+    }
+
+    // Find most used payment method
+    let mostUsedPaymentMethod = '-';
+    let maxPaymentUses = 0;
+    for (const [method, count] of Object.entries(paymentMethods)) {
+        if (count > maxPaymentUses) {
+            maxPaymentUses = count;
+            mostUsedPaymentMethod = method;
+        }
     }
 
     // Update reportData object
@@ -226,6 +261,8 @@ function processHistoricalData(data) {
     reportData.totalRevenue = totalRev;
     reportData.totalRentals = totalRent;
     reportData.avgRentalValue = totalRent > 0 ? totalRev / totalRent : 0;
+    reportData.mostUsedLocker = mostUsedLockerName;
+    reportData.mostUsedPayment = mostUsedPaymentMethod;
 }
 
 /**
@@ -234,10 +271,12 @@ function processHistoricalData(data) {
 function updateStatCards() {
     // Update visible stat card values
     const statCards = document.querySelectorAll('.reports-stats .stat-card');
-    if (statCards.length >= 3) {
+    if (statCards.length >= 5) {
         statCards[0].querySelector('.stat-value').textContent = `₱${reportData.totalRevenue.toFixed(2)}`;
         statCards[1].querySelector('.stat-value').textContent = reportData.totalRentals;
         statCards[2].querySelector('.stat-value').textContent = `₱${reportData.avgRentalValue.toFixed(2)}`;
+        statCards[3].querySelector('.stat-value').textContent = reportData.mostUsedLocker;
+        statCards[4].querySelector('.stat-value').textContent = reportData.mostUsedPayment;
     }
 }
 
