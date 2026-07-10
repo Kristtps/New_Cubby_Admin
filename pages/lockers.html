@@ -5,6 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CoinCubby - Locker Management</title>
     <link rel="stylesheet" href="../css/styles.css">
+    <script>
+        // Apply saved theme synchronously before page renders (prevents white flash)
+        (function() {
+            const STORAGE_KEY = 'coincubby_theme';
+            try {
+                const saved = localStorage.getItem(STORAGE_KEY);
+                const theme = (saved === 'light' || saved === 'dark') ? saved : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+                document.documentElement.setAttribute('data-theme', theme);
+            } catch (e) {
+                document.documentElement.setAttribute('data-theme', 'light');
+            }
+        })();
+    </script>
 </head>
 <body>
     <div class="container">
@@ -79,6 +92,8 @@
                     </a>
                 </div>
             </nav>
+
+            
 
             <div class="user-profile">
                 <div class="avatar">B</div>
@@ -369,6 +384,7 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../js/theme.js"></script>
     <script src="../js/supabase-client.js"></script>
     <script src="../js/db-operations.js"></script>
     <script>

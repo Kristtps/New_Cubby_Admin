@@ -21,6 +21,18 @@
     --transition: all 0.3s ease;
 }
 
+[data-theme="dark"] {
+    --color-primary: #4ade80; /* Brighter green for dark mode */
+    --color-primary-dark: #22c55e; /* Adjusted green */
+    --color-success: #4ade80;
+    --color-white: #1a1a1a; /* Dark background */
+    --color-light-gray: #2d2d2d; /* Slightly lighter dark */
+    --color-medium-gray: #3d3d3d; /* Medium dark */
+    --color-dark-gray: #b0b0b0; /* Light gray for text */
+    --color-darker-gray: #85c588; /* Medium green */
+    --color-text: #f5f5f5; /* Light text */
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -39,6 +51,71 @@ body {
     align-items: center;
     justify-content: center;
     color: var(--color-text);
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+[data-theme="dark"] body {
+    background: var(--color-white);
+}
+
+/* Login Page Theme Toggle */
+.login-theme-toggle {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+}
+
+.login-theme-toggle .theme-toggle-switch {
+    position: relative;
+    width: 50px;
+    height: 28px;
+    background-color: #d3dfd7;
+    border-radius: 14px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    border: none;
+    padding: 2px;
+    display: flex;
+    align-items: center;
+}
+
+.login-theme-toggle .theme-toggle-switch::after {
+    content: "";
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background-color: white;
+    left: 2px;
+    transition: left 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.login-theme-toggle .theme-toggle-switch::before {
+    content: "🌙";
+    position: absolute;
+    left: 8px;
+    font-size: 14px;
+    z-index: 2;
+}
+
+[data-theme="dark"] .login-theme-toggle .theme-toggle-switch {
+    background-color: #4ade80;
+}
+
+[data-theme="dark"] .login-theme-toggle .theme-toggle-switch::after {
+    left: 24px;
+    background-color: #000;
+}
+
+[data-theme="dark"] .login-theme-toggle .theme-toggle-switch::before {
+    content: "☀️";
+    left: auto;
+    right: 8px;
+    color: white;
 }
 
 /* ========================================

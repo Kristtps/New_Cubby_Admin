@@ -155,7 +155,7 @@ function refreshTransactionTable(data) {
     // Load initial batch
     const initialBatch = data.slice(0, Math.min(ITEMS_PER_LOAD, data.length));
     if (initialBatch.length === 0) {
-        tableBody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 20px; color: #9ca3af;">No transactions found</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 20px; color: var(--color-text-muted);">No transactions found</td></tr>`;
         return;
     }
 

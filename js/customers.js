@@ -379,14 +379,17 @@ function addCustomerRow(customerData) {
     const newRow = document.createElement('tr');
     newRow.setAttribute('data-customer-id', customerData.id);
 
+    // Dynamic helper to add 'na-value' style if text matches 'N/A'
+    const getVal = (val) => String(val).trim() === 'N/A' ? `<span class="na-value">N/A</span>` : val;
+
     newRow.innerHTML = `
-        <td class="name-cell"><span data-field="name">${customerData.name}</span></td>
-        <td class="email-cell"><span data-field="email">${customerData.email}</span></td>
-        <td class="user-id-cell"><span data-field="user-id">${customerData.userId}</span></td>
-        <td class="wallet-cell"><span data-field="wallet" data-currency="₱">${parseFloat(customerData.wallet).toFixed(2)}</span></td>
-        <td class="rentals-cell"><span data-field="rentals">${customerData.rentals}</span></td>
-        <td class="spent-cell"><span data-field="spent" data-currency="₱">${parseFloat(customerData.spent).toFixed(2)}</span></td>
-        <td class="joined-cell"><span data-field="joined">${customerData.joined}</span></td>
+        <td class="name-cell"><span data-field="name">${getVal(customerData.name)}</span></td>
+        <td class="email-cell"><span data-field="email">${getVal(customerData.email)}</span></td>
+        <td class="user-id-cell"><span data-field="user-id">${getVal(customerData.userId)}</span></td>
+        <td class="wallet-cell"><span data-field="wallet" data-currency="₱">${customerData.wallet === 'N/A' ? '<span class="na-value">N/A</span>' : parseFloat(customerData.wallet).toFixed(2)}</span></td>
+        <td class="rentals-cell"><span data-field="rentals">${getVal(customerData.rentals)}</span></td>
+        <td class="spent-cell"><span data-field="spent" data-currency="₱">${customerData.spent === 'N/A' ? '<span class="na-value">N/A</span>' : parseFloat(customerData.spent).toFixed(2)}</span></td>
+        <td class="joined-cell"><span data-field="joined">${getVal(customerData.joined)}</span></td>
     `;
 
     tbody.appendChild(newRow);

@@ -240,8 +240,8 @@ function processHistoricalData(data) {
     if (sortedLockers.length > 0) {
         const topLocker = sortedLockers[0];
         mostUsedLockerStr = `
-            <div class="top-locker-val" style="font-size: 24px; font-weight: 700; color: #1f2937; line-height: 1.2;">Locker ${topLocker[0]}</div>
-            <div style="font-size: 13px; font-weight: 500; color: #6b7280; margin-top: 4px;">${topLocker[1]} rented</div>
+            <div class="top-locker-val" style="font-size: 24px; font-weight: 700; color: var(--color-dark); line-height: 1.2;">Locker ${topLocker[0]}</div>
+            <div style="font-size: 13px; font-weight: 500; color: var(--color-text-muted); margin-top: 4px;">${topLocker[1]} rented</div>
         `;
     }
 
@@ -252,8 +252,8 @@ function processHistoricalData(data) {
         if (count > maxPaymentUses) {
             maxPaymentUses = count;
             mostUsedPaymentMethodStr = `
-                <div class="top-payment-val" style="font-size: 24px; font-weight: 700; color: #1f2937; line-height: 1.2;">${method}</div>
-                <div style="font-size: 13px; font-weight: 500; color: #6b7280; margin-top: 4px;">${count} used</div>
+                <div class="top-payment-val" style="font-size: 24px; font-weight: 700; color: var(--color-dark); line-height: 1.2;">${method}</div>
+                <div style="font-size: 13px; font-weight: 500; color: var(--color-text-muted); margin-top: 4px;">${count} used</div>
             `;
         }
     }

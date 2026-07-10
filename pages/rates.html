@@ -6,6 +6,19 @@
     <title>Rates - CoinCubby Admin Panel</title>
     <link rel="stylesheet" href="../css/styles.css">
     <link rel="stylesheet" href="../css/rates.css">
+    <script>
+        // Apply saved theme synchronously before page renders (prevents white flash)
+        (function() {
+            const STORAGE_KEY = 'coincubby_theme';
+            try {
+                const saved = localStorage.getItem(STORAGE_KEY);
+                const theme = (saved === 'light' || saved === 'dark') ? saved : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+                document.documentElement.setAttribute('data-theme', theme);
+            } catch (e) {
+                document.documentElement.setAttribute('data-theme', 'light');
+            }
+        })();
+    </script>
 </head>
 <body>
     <div class="container">
@@ -81,14 +94,9 @@
                 </div>
             </nav>
 
-            <div class="user-profile">
-                <div class="avatar">A</div>
-                <div class="user-info">
-                    <p class="user-name">Admin</p>
-                    <p class="user-role">Admin</p>
-                </div>
-                <a href="#" class="sign-out">Sign out</a>
-            </div>
+            
+
+            <a href="profile.html" class="user-profile"><div class="avatar" id="sidebar-avatar">A</div><div class="user-info"><p class="user-name" id="sidebar-name">Admin</p><p class="user-role">Admin</p></div></a>
         </aside>
 
         <!-- Main Content -->
@@ -162,6 +170,7 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../js/theme.js"></script>
     <script src="../js/supabase-client.js"></script>
     <script src="../js/db-operations.js"></script>
     <script>

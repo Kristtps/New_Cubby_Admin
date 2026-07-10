@@ -138,13 +138,24 @@
     color: #1f2937;
     background: white;
     cursor: pointer;
-    transition: border-color 0.18s;
+    transition: border-color 0.18s, background-color 0.18s, color 0.18s;
 }
 
 .custom-range input[type="date"]:focus {
     outline: none;
     border-color: var(--color-primary);
     box-shadow: 0 0 0 3px rgba(77, 170, 99, 0.12);
+}
+
+[data-theme="dark"] .custom-range input[type="date"] {
+    color: #f5f5f5;
+    background: #2d2d2d;
+    border-color: #3d3d3d;
+}
+
+[data-theme="dark"] .custom-range input[type="date"]:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(110, 231, 183, 0.2);
 }
 
 .range-sep {

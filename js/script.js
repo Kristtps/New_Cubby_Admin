@@ -1150,26 +1150,9 @@ function addLockerRow(lockerData) {
         <td class="device-cell"><span data-field="device">${lockerData.device}</span></td>
         <td class="status-cell"><span class="status-badge ${lockerData.status}" data-field="status">${lockerData.status}</span></td>
         <td class="actions-cell">
-            <button class="action-btn maintenance-btn" title="Toggle Maintenance" data-action="maintenance">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M12 2v20m0-20L7 7m10 0L17 7M5 12h14m-14 5h14"></path>
-                </svg>
-            </button>
-            <button class="action-btn emergency-btn" title="Emergency Unlock" data-action="emergency-unlock">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M12 1v6"></path>
-                    <path d="M5 8v5a7 7 0 0 0 14 0V8"></path>
-                    <rect x="9" y="11" width="6" height="4" rx="1"></rect>
-                </svg>
-            </button>
-            <button class="action-btn delete-btn" title="Delete" data-action="delete">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="3 6 5 6 21 6"></polyline>
-                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                    <line x1="10" y1="11" x2="10" y2="17"></line>
-                    <line x1="14" y1="11" x2="14" y2="17"></line>
-                </svg>
-            </button>
+            <button class="action-btn maintenance-btn" title="Toggle Maintenance" data-action="maintenance">Maintenance</button>
+            <button class="action-btn emergency-btn" title="Emergency Unlock" data-action="emergency-unlock">Emergency Unlock</button>
+            <button class="action-btn delete-btn" title="Delete" data-action="delete">Delete</button>
         </td>
     `;
 
@@ -1219,7 +1202,7 @@ function renderLockersTable() {
 
     if (modulesToRender.length === 0) {
         const filterName = modulesList.find(m => m.id === currentModuleFilter)?.name || currentModuleFilter;
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#6b7280;">No lockers to display in ${currentModuleFilter === 'All' ? 'any module' : filterName}.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--color-text-muted);">No lockers to display in ${currentModuleFilter === 'All' ? 'any module' : filterName}.</td></tr>`;
         return;
     }
 
@@ -1244,7 +1227,7 @@ function renderLockersTable() {
 
         if (moduleLockers.length === 0) {
             const emptyRow = document.createElement('tr');
-            emptyRow.innerHTML = `<td colspan="6" style="text-align:center; color:#6b7280;">No lockers in this module.</td>`;
+            emptyRow.innerHTML = `<td colspan="6" style="text-align:center; color:var(--color-text-muted);">No lockers in this module.</td>`;
             tbody.appendChild(emptyRow);
         } else {
             moduleLockers.forEach(locker => addLockerRow(locker));
@@ -1252,7 +1235,7 @@ function renderLockersTable() {
     });
 
     if (!displayedAnyLockers && currentModuleFilter === 'All') {
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#6b7280;">No lockers currently in the system.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--color-text-muted);">No lockers currently in the system.</td></tr>`;
     }
 }
 
