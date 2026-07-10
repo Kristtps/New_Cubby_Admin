@@ -12,10 +12,7 @@
         <aside class="sidebar">
             <div class="logo-section">
                 <div class="logo">
-                    <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <rect width="40" height="40" rx="8" fill="#3B82F6"/>
-                        <path d="M20 10C14.48 10 10 14.48 10 20C10 25.52 14.48 30 20 30C25.52 30 30 25.52 30 20C30 14.48 25.52 10 20 10ZM20 28C15.58 28 12 24.42 12 20C12 15.58 15.58 12 20 12C24.42 12 28 15.58 28 20C28 24.42 24.42 28 20 28Z" fill="white"/>
-                    </svg>
+                    <img src="../assets/logo.png" alt="CoinCubby Logo" width="40" height="40" style="border-radius: 50%;">
                     <span>CoinCubby</span>
                 </div>
                 <p class="text-muted">Admin Panel</p>
@@ -164,6 +161,123 @@
                 </table>
             </div>
         </main>
+    </div>
+
+    <!-- Add Module Modal -->
+    <div class="modal-overlay" id="add-module-modal">
+        <div class="modal modal-wide">
+            <div class="modal-header">
+                <h2>Add New Module</h2>
+                <button class="modal-close" id="module-modal-close-btn">&times;</button>
+            </div>
+
+            <form id="add-module-form" class="modal-form">
+                <div class="form-group">
+                    <label for="module-name">Module Name</label>
+                    <input 
+                        type="text" 
+                        id="module-name" 
+                        name="module_name" 
+                        placeholder="e.g., M1, M2, Module A..." 
+                        required
+                    >
+                    <small style="color: #6b7280;">This will be displayed as the module identifier</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="generated-module-id">Module ID</label>
+                    <input 
+                        type="text" 
+                        id="generated-module-id" 
+                        name="module_id" 
+                        maxlength="16"
+                        placeholder="Auto-generated 16-char ID"
+                        style="font-family: monospace; font-size: 13px;"
+                        required
+                    >
+                    <small style="color: #6b7280;">Unique 16-character identifier (editable). <button type="button" id="regenerate-id-btn" style="background: none; border: none; color: var(--color-primary); text-decoration: underline; cursor: pointer; padding: 0; font-size: inherit;">Regenerate</button></small>
+                </div>
+
+                <div class="form-divider" style="margin: 24px 0; border-top: 1px solid #e5e7eb;"></div>
+
+                <h3 style="margin-bottom: 16px; font-size: 16px; font-weight: 600; color: #1f2937;">Locker Configuration</h3>
+
+                <!-- Small Lockers -->
+                <div class="locker-config-group">
+                    <div class="form-group">
+                        <label for="small-count">
+                            <span style="display: flex; align-items: center; gap: 8px;">
+                                <span>Small Compartments</span>
+                                <span style="background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 4px; font-size: 12px;">S</span>
+                            </span>
+                        </label>
+                        <input 
+                            type="number" 
+                            id="small-count" 
+                            name="small_count" 
+                            min="0" 
+                            max="50"
+                            value="0"
+                            placeholder="Number of small lockers"
+                        >
+                        <small style="color: #6b7280;">Perfect for phones, keys, wallets</small>
+                    </div>
+                </div>
+
+                <!-- Medium Lockers -->
+                <div class="locker-config-group">
+                    <div class="form-group">
+                        <label for="medium-count">
+                            <span style="display: flex; align-items: center; gap: 8px;">
+                                <span>Medium Compartments</span>
+                                <span style="background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 4px; font-size: 12px;">M</span>
+                            </span>
+                        </label>
+                        <input 
+                            type="number" 
+                            id="medium-count" 
+                            name="medium_count" 
+                            min="0" 
+                            max="50"
+                            value="0"
+                            placeholder="Number of medium lockers"
+                        >
+                        <small style="color: #6b7280;">Ideal for bags, laptops, tablets</small>
+                    </div>
+                </div>
+
+                <!-- Large Lockers -->
+                <div class="locker-config-group">
+                    <div class="form-group">
+                        <label for="large-count">
+                            <span style="display: flex; align-items: center; gap: 8px;">
+                                <span>Large Compartments</span>
+                                <span style="background: #fecaca; color: #991b1b; padding: 2px 8px; border-radius: 4px; font-size: 12px;">L</span>
+                            </span>
+                        </label>
+                        <input 
+                            type="number" 
+                            id="large-count" 
+                            name="large_count" 
+                            min="0" 
+                            max="50"
+                            value="0"
+                            placeholder="Number of large lockers"
+                        >
+                        <small style="color: #6b7280;">Great for luggage, backpacks, large items</small>
+                    </div>
+                </div>
+
+                <div class="form-summary" style="background: #f9fafb; padding: 16px; border-radius: 8px; margin-top: 16px;">
+                    <p style="font-size: 14px; color: #374151; margin-bottom: 8px;"><strong>Summary:</strong></p>
+                    <p id="module-summary" style="font-size: 14px; color: #6b7280;">
+                        Total Compartments: <span id="total-compartments">0</span>
+                    </p>
+                </div>
+
+                <button type="submit" class="btn-modal-submit" id="module-submit-btn">Create Module</button>
+            </form>
+        </div>
     </div>
 
     <!-- Add Locker Modal -->

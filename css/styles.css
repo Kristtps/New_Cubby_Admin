@@ -5,20 +5,40 @@
 }
 
 :root {
-    --color-primary: #3B82F6;
-    --color-dark: #1a202c;
-    --color-bg-light: #fafaf8;
-    --color-nav-cream: #fff6f2;
-    --color-nav-cream-hover: #ffe9df;
-    --color-nav-text: #4b5563;
-    --color-nav-text-strong: #1f2937;
-    --color-text: #1f2937;
-    --color-text-muted: #6b7280;
-    --color-border: #e5e7eb;
-    --color-available: #10b981;
+    /* Mint Green Color Scheme */
+    --color-primary: #5FDBA7; /* Mint Green */
+    --color-primary-dark: #3BA57D; /* Dark Mint */
+    --color-primary-light: #A8F5D9; /* Light Mint */
+    --color-primary-hover: #4AC794; /* Hover Mint */
+    --color-primary-bg: #E8FBF3; /* Very Light Mint Background */
+    
+    --color-dark: #1a3a2e;
+    --color-bg-light: #f0fdf7;
+    --color-nav-cream: #e6f9f0;
+    --color-nav-cream-hover: #d1f2e3;
+    --color-nav-text: #3d6956;
+    --color-nav-text-strong: #2d5142;
+    --color-text: #1f4037;
+    --color-text-muted: #7da88f;
+    --color-border: #c5e8d6;
+    
+    /* Status Colors - with mint green tint */
+    --color-available: #5FDBA7;
     --color-occupied: #ef4444;
     --color-payment: #f59e0b;
-    --color-maintenance: #8b5cf6;
+    --color-maintenance: #a78bfa;
+    
+    /* Additional Mint Shades */
+    --color-mint-50: #f0fdf7;
+    --color-mint-100: #dcfce8;
+    --color-mint-200: #bbf7d6;
+    --color-mint-300: #86efb4;
+    --color-mint-400: #5FDBA7;
+    --color-mint-500: #3BA57D;
+    --color-mint-600: #2d8463;
+    --color-mint-700: #266b51;
+    --color-mint-800: #225543;
+    --color-mint-900: #1e4638;
 }
 
 body {
@@ -43,16 +63,18 @@ body {
     height: 100vh;
     left: 0;
     top: 0;
-    border-right: 1px solid #f3dfd6;
+    border-right: 1px solid var(--color-border);
 }
 
 .logo-section {
     margin-bottom: 32px;
+    text-align: center;
 }
 
 .logo {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 12px;
     margin-bottom: 8px;
     font-size: 18px;
@@ -61,8 +83,9 @@ body {
 
 .sidebar .text-muted {
     font-size: 12px;
-    color: #8b6f65;
+    color: var(--color-text-muted);
     margin-top: 4px;
+    text-align: center;
 }
 
 .nav-menu {
@@ -108,7 +131,7 @@ body {
     align-items: center;
     gap: 12px;
     padding: 12px;
-    background-color: #fff0e8;
+    background-color: var(--color-nav-cream-hover);
     border-radius: 8px;
     margin-top: auto;
 }
@@ -117,7 +140,8 @@ body {
     width: 32px;
     height: 32px;
     border-radius: 50%;
-    background-color: #f97316;
+    background-color: var(--color-primary);
+    color: white;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -146,7 +170,7 @@ body {
 
 .user-role {
     font-size: 12px;
-    color: #8b6f65;
+    color: var(--color-text-muted);
 }
 
 .sign-out {
@@ -195,13 +219,15 @@ body {
     background: white;
     border-radius: 12px;
     padding: 24px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 1px 3px rgba(95, 219, 167, 0.08);
     border: 1px solid var(--color-border);
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .stat-card:hover {
     border-color: var(--color-primary);
+    box-shadow: 0 4px 12px rgba(95, 219, 167, 0.15);
+    transform: translateY(-2px);
 }
 
 .stat-header {
@@ -230,13 +256,13 @@ body {
 }
 
 .stat-icon-blue {
-    background-color: rgba(59, 130, 246, 0.1);
+    background-color: rgba(95, 219, 167, 0.1);
     color: var(--color-primary);
 }
 
 .stat-icon-green {
-    background-color: rgba(16, 185, 129, 0.1);
-    color: var(--color-available);
+    background-color: rgba(95, 219, 167, 0.15);
+    color: var(--color-primary-dark);
 }
 
 .stat-icon-orange {
@@ -245,8 +271,8 @@ body {
 }
 
 .stat-icon-yellow {
-    background-color: rgba(139, 92, 246, 0.1);
-    color: var(--color-maintenance);
+    background-color: rgba(168, 245, 217, 0.2);
+    color: var(--color-primary-dark);
 }
 
 .stat-value {
@@ -490,7 +516,7 @@ body {
 
 .locker.available {
     border-color: var(--color-available);
-    background-color: rgba(16, 185, 129, 0.05);
+    background-color: rgba(95, 219, 167, 0.08);
 }
 
 .locker.available svg {
@@ -562,7 +588,7 @@ body {
 
 /* ==================== BUTTONS ==================== */
 .btn-primary {
-    background-color: var(--color-dark);
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
     color: white;
     border: none;
     padding: 10px 16px;
@@ -575,6 +601,13 @@ body {
     gap: 8px;
     transition: all 0.2s ease;
     white-space: nowrap;
+    box-shadow: 0 2px 4px rgba(95, 219, 167, 0.2);
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, var(--color-primary-hover) 0%, var(--color-primary) 100%);
+    box-shadow: 0 4px 8px rgba(95, 219, 167, 0.3);
+    transform: translateY(-1px);
 }
 
 .btn-primary:active {
@@ -582,9 +615,9 @@ body {
 }
 
 .btn-secondary {
-    background-color: #fff7ed;
-    color: #9a3412;
-    border: 1px solid #fed7aa;
+    background-color: var(--color-mint-50);
+    color: var(--color-primary-dark);
+    border: 1px solid var(--color-mint-200);
     padding: 10px 16px;
     border-radius: 8px;
     font-size: 14px;
@@ -595,6 +628,12 @@ body {
     gap: 8px;
     transition: all 0.2s ease;
     white-space: nowrap;
+}
+
+.btn-secondary:hover {
+    background-color: var(--color-mint-100);
+    border-color: var(--color-mint-300);
+    transform: translateY(-1px);
 }
 
 .btn-danger {
@@ -611,6 +650,11 @@ body {
     gap: 8px;
     transition: all 0.2s ease;
     white-space: nowrap;
+}
+
+.btn-danger:hover {
+    background-color: #dc2626;
+    transform: translateY(-1px);
 }
 
 .btn-danger:active {
@@ -716,8 +760,9 @@ body {
 }
 
 .status-badge.available {
-    background-color: rgba(16, 185, 129, 0.1);
-    color: var(--color-available);
+    background-color: rgba(95, 219, 167, 0.15);
+    color: var(--color-primary-dark);
+    border: 1px solid rgba(95, 219, 167, 0.3);
 }
 
 .status-badge.occupied {
@@ -1218,6 +1263,10 @@ body {
     animation: slideUp 0.3s ease-out;
 }
 
+.modal-wide {
+    max-width: 600px;
+}
+
 @keyframes slideUp {
     from {
         opacity: 0;
@@ -1318,7 +1367,7 @@ body {
 }
 
 .btn-modal-submit {
-    background-color: var(--color-dark);
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
     color: white;
     border: none;
     padding: 12px 16px;
@@ -1328,6 +1377,13 @@ body {
     cursor: pointer;
     transition: all 0.2s ease;
     margin-top: 8px;
+    box-shadow: 0 2px 4px rgba(95, 219, 167, 0.2);
+}
+
+.btn-modal-submit:hover {
+    background: linear-gradient(135deg, var(--color-primary-hover) 0%, var(--color-primary) 100%);
+    box-shadow: 0 4px 8px rgba(95, 219, 167, 0.3);
+    transform: translateY(-1px);
 }
 
 .btn-modal-submit:active {
@@ -1335,9 +1391,10 @@ body {
 }
 
 .btn-modal-submit:disabled {
-    background-color: #d1d5db;
+    background: #d1d5db;
     cursor: not-allowed;
     transform: none;
+    box-shadow: none;
 }
 
 /* ==================== SCROLLBAR ==================== */
@@ -1372,16 +1429,23 @@ body {
     font-size: 14px;
     font-weight: 700;
     cursor: pointer;
-    border: none;
-    background-color: #d1fae5;
-    color: #064e3b;
+    border: 1px solid var(--color-mint-200);
+    background-color: var(--color-mint-50);
+    color: var(--color-primary-dark);
     transition: all 0.2s ease;
-    flex-shrink: 0; /* prevent squishing in horizontal scroll */
+    flex-shrink: 0;
+}
+
+.module-filter-btn:hover {
+    background-color: var(--color-mint-100);
+    border-color: var(--color-mint-300);
 }
 
 .module-filter-btn.active {
-    background-color: #1f2937;
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
     color: #ffffff;
+    border-color: var(--color-primary);
+    box-shadow: 0 2px 4px rgba(95, 219, 167, 0.2);
 }
 
 /* ==================== SCROLL LAYOUTS ==================== */
@@ -1453,4 +1517,9 @@ body {
     letter-spacing: 0.03em;
     font-size: 13px;
 }
-
+
+/* Logo SVG Colors */
+.logo svg rect, .brand-logo svg rect {
+    fill: var(--color-primary-dark) !important;
+}
+

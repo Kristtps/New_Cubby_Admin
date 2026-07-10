@@ -63,7 +63,7 @@
 }
 
 .btn-print:hover {
-    color: #3b82f6;
+    color: var(--color-primary);
 }
 
 .btn-export:hover {
@@ -83,8 +83,8 @@
 }
 
 .filter-combo:focus-within {
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59,130,246,0.12);
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(77, 170, 99, 0.12);
 }
 
 .filter-icon {
@@ -143,8 +143,8 @@
 
 .custom-range input[type="date"]:focus {
     outline: none;
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59,130,246,0.12);
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(77, 170, 99, 0.12);
 }
 
 .range-sep {
@@ -175,7 +175,7 @@
 }
 
 .reports-stats .stat-card:hover {
-    border-color: #3B82F6;
+    border-color: var(--color-primary);
 }
 
 .reports-stats .stat-label {
@@ -212,7 +212,7 @@
 }
 
 .chart-card:hover {
-    border-color: #3B82F6;
+    border-color: var(--color-primary);
 }
 
 .chart-header {
@@ -264,7 +264,7 @@
     width: 20px;
     height: 20px;
     border: 3px solid #e5e7eb;
-    border-top-color: #3b82f6;
+    border-top-color: var(--color-primary);
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
     margin-left: 10px;

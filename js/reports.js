@@ -21,7 +21,7 @@ const reportData = {
     rentalsBySize: {
         labels: ['Small', 'Medium', 'Large'],
         data: [0, 0, 0],
-        backgroundColor: ['#3B82F6', '#10b981', '#f59e0b']
+        backgroundColor: ['#4DAA63', '#10b981', '#f59e0b']
     }
 };
 
@@ -313,8 +313,8 @@ function initializeRevenueChart() {
                 {
                     label: 'Revenue',
                     data: chartData.revenue,
-                    borderColor: '#3B82F6',
-                    backgroundColor: 'rgba(59, 130, 246, 0.05)',
+                    borderColor: '#4DAA63',
+                    backgroundColor: 'rgba(77, 170, 99, 0.05)',
                     borderWidth: 3,
                     fill: true,
                     tension: 0.4

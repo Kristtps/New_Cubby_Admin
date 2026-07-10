@@ -109,6 +109,20 @@ function formatPHTime(date, options = {}) {
 }
 
 /**
+ * Generate a random alphanumeric ID of specified length
+ * @param {number} length - Length of the ID to generate (default: 16)
+ * @returns {string} Random alphanumeric string
+ */
+function generateRandomId(length = 16) {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let result = '';
+    for (let i = 0; i < length; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+}
+
+/**
  * Diagnostic function to check timezone conversion
  * Supabase ap-southeast-1 region (Singapore) = UTC+8 same as Manila
  */
@@ -605,7 +619,7 @@ function updateSalesChart(salesData) {
 
         // Use a nice premium gradient feel or pure primary color
         const hasSales = day.amount > 0;
-        const barFill = hasSales ? '#3B82F6' : '#e5e7eb';
+        const barFill = hasSales ? '#4DAA63' : '#e5e7eb';
 
         svgContent += `
             <!-- Bar -->
@@ -617,7 +631,7 @@ function updateSalesChart(salesData) {
         // If sales exist, show value text above bar
         if (hasSales) {
             svgContent += `
-                <text x="${center}" y="${rectY - 8}" text-anchor="middle" font-size="11" font-family="Inter, system-ui, sans-serif" font-weight="600" fill="#3B82F6">₱${Math.round(day.amount)}</text>
+                <text x="${center}" y="${rectY - 8}" text-anchor="middle" font-size="11" font-family="Inter, system-ui, sans-serif" font-weight="600" fill="#4DAA63">₱${Math.round(day.amount)}</text>
             `;
         }
 
@@ -923,7 +937,7 @@ function initializeAddLockerButton() {
     const addModuleBtn = document.getElementById('add-module-btn');
     if (addModuleBtn) {
         addModuleBtn.addEventListener('click', function () {
-            addDefaultModule();
+            openAddModuleModal();
         });
     }
 }
@@ -932,38 +946,69 @@ function initializeAddLockerButton() {
  * Initialize modal open/close functionality
  */
 function initializeModal() {
+    // ===== Add Locker Modal =====
     const modal = document.getElementById('add-locker-modal');
     const closeBtn = document.getElementById('modal-close-btn');
     const form = document.getElementById('add-locker-form');
 
-    if (!modal) return;
-
-    // Close button click
-    if (closeBtn) {
-        closeBtn.addEventListener('click', function () {
-            closeAddLockerModal();
-        });
-    }
-
-    // Close modal when clicking outside
-    modal.addEventListener('click', function (e) {
-        if (e.target === modal) {
-            closeAddLockerModal();
+    if (modal) {
+        // Close button click
+        if (closeBtn) {
+            closeBtn.addEventListener('click', function () {
+                closeAddLockerModal();
+            });
         }
-    });
 
-    // Form submission
-    if (form) {
-        form.addEventListener('submit', function (e) {
-            e.preventDefault();
-            handleAddLockerSubmit();
+        // Close modal when clicking outside
+        modal.addEventListener('click', function (e) {
+            if (e.target === modal) {
+                closeAddLockerModal();
+            }
         });
+
+        // Form submission
+        if (form) {
+            form.addEventListener('submit', function (e) {
+                e.preventDefault();
+                handleAddLockerSubmit();
+            });
+        }
     }
 
-    // Close modal with Escape key
+    // ===== Add Module Modal =====
+    const moduleModal = document.getElementById('add-module-modal');
+    const moduleCloseBtn = document.getElementById('module-modal-close-btn');
+    const moduleForm = document.getElementById('add-module-form');
+
+    if (moduleModal) {
+        // Close button click
+        if (moduleCloseBtn) {
+            moduleCloseBtn.addEventListener('click', function () {
+                closeAddModuleModal();
+            });
+        }
+
+        // Close modal when clicking outside
+        moduleModal.addEventListener('click', function (e) {
+            if (e.target === moduleModal) {
+                closeAddModuleModal();
+            }
+        });
+
+        // Form submission
+        if (moduleForm) {
+            moduleForm.addEventListener('submit', function (e) {
+                e.preventDefault();
+                handleAddModuleSubmit();
+            });
+        }
+    }
+
+    // Close modals with Escape key
     document.addEventListener('keydown', function (e) {
         if (e.key === 'Escape') {
             closeAddLockerModal();
+            closeAddModuleModal();
         }
     });
 }
@@ -1249,6 +1294,259 @@ function updateAllLockers(lockersData) {
     renderLockersTable();
 }
 
+/**
+ * Open add module modal
+ */
+function openAddModuleModal() {
+    const modal = document.getElementById('add-module-modal');
+    if (!modal) return;
+
+    modal.classList.add('active');
+
+    // Reset form
+    const form = document.getElementById('add-module-form');
+    if (form) form.reset();
+
+    // Set default module name
+    const nextModuleNumber = getNextModuleNumber();
+    const moduleNameInput = document.getElementById('module-name');
+    if (moduleNameInput) {
+        moduleNameInput.value = `M${nextModuleNumber}`;
+    }
+
+    // Generate and display module ID in the input field
+    const generatedModuleId = generateRandomId(16);
+    const moduleIdInput = document.getElementById('generated-module-id');
+    if (moduleIdInput) {
+        moduleIdInput.value = generatedModuleId;
+    }
+
+    // Set up regenerate button
+    const regenerateBtn = document.getElementById('regenerate-id-btn');
+    if (regenerateBtn) {
+        // Remove old event listeners
+        const newBtn = regenerateBtn.cloneNode(true);
+        regenerateBtn.parentNode.replaceChild(newBtn, regenerateBtn);
+        
+        // Add new event listener
+        newBtn.addEventListener('click', function() {
+            const newId = generateRandomId(16);
+            const moduleIdInput = document.getElementById('generated-module-id');
+            if (moduleIdInput) {
+                moduleIdInput.value = newId;
+                // Add a subtle animation
+                moduleIdInput.style.background = 'var(--color-mint-100)';
+                setTimeout(() => {
+                    moduleIdInput.style.background = '';
+                }, 300);
+            }
+        });
+    }
+
+    // Initialize summary update listeners
+    initializeModuleSummaryUpdates();
+
+    // Focus on module name
+    if (moduleNameInput) moduleNameInput.focus();
+}
+
+/**
+ * Close add module modal
+ */
+function closeAddModuleModal() {
+    const modal = document.getElementById('add-module-modal');
+    if (modal) {
+        modal.classList.remove('active');
+    }
+}
+
+/**
+ * Initialize module summary real-time updates
+ */
+function initializeModuleSummaryUpdates() {
+    const smallInput = document.getElementById('small-count');
+    const mediumInput = document.getElementById('medium-count');
+    const largeInput = document.getElementById('large-count');
+    const totalSpan = document.getElementById('total-compartments');
+
+    function updateSummary() {
+        const small = parseInt(smallInput?.value || 0);
+        const medium = parseInt(mediumInput?.value || 0);
+        const large = parseInt(largeInput?.value || 0);
+        const total = small + medium + large;
+        if (totalSpan) {
+            totalSpan.textContent = total;
+        }
+    }
+
+    if (smallInput) smallInput.addEventListener('input', updateSummary);
+    if (mediumInput) mediumInput.addEventListener('input', updateSummary);
+    if (largeInput) largeInput.addEventListener('input', updateSummary);
+
+    updateSummary();
+}
+
+/**
+ * Handle add module form submission
+ */
+async function handleAddModuleSubmit() {
+    const form = document.getElementById('add-module-form');
+    if (!form) return;
+
+    const submitBtn = document.getElementById('module-submit-btn');
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Creating Module...';
+    }
+
+    try {
+        const formData = new FormData(form);
+        const moduleName = formData.get('module_name');
+        const moduleIdInput = document.getElementById('generated-module-id');
+        const moduleId = moduleIdInput?.value?.trim() || generateRandomId(16);
+        const smallCount = parseInt(formData.get('small_count') || 0);
+        const mediumCount = parseInt(formData.get('medium_count') || 0);
+        const largeCount = parseInt(formData.get('large_count') || 0);
+
+        const totalCompartments = smallCount + mediumCount + largeCount;
+
+        // Validate module ID
+        if (!moduleId || moduleId.length === 0) {
+            alert('Module ID cannot be empty.');
+            return;
+        }
+
+        if (moduleId.length > 16) {
+            alert('Module ID must be 16 characters or less.');
+            return;
+        }
+
+        // Check for valid characters (alphanumeric only)
+        if (!/^[a-zA-Z0-9]+$/.test(moduleId)) {
+            alert('Module ID can only contain letters and numbers (no spaces or special characters).');
+            return;
+        }
+
+        if (totalCompartments === 0) {
+            alert('Please add at least one compartment to the module.');
+            return;
+        }
+
+        // Generate default device ID
+        const nextModuleNumber = getNextModuleNumber();
+        const deviceId = `DEV-${String(nextModuleNumber).padStart(2, '0')}`;
+
+        if (!confirm(`Create module "${moduleName}" with ${totalCompartments} compartments?\n\nModule ID: ${moduleId}`)) {
+            return;
+        }
+
+        let createdModuleId = null;
+
+        // Create module record in database
+        if (typeof isSupabaseConnected !== 'undefined' && isSupabaseConnected() &&
+            typeof dbOps !== 'undefined' && dbOps.createModule) {
+            try {
+                // Extract numeric part from module name for DB storage
+                const moduleNumber = parseInt(moduleName.replace(/\D/g, '')) || getNextModuleNumber();
+                
+                const moduleResult = await dbOps.createModule({
+                    module_id: moduleId,
+                    name: moduleNumber,
+                    status: 'Active'
+                });
+
+                if (moduleResult && moduleResult[0]) {
+                    createdModuleId = moduleResult[0].module_id;
+                    console.log('✓ Module created in database:', createdModuleId);
+
+                    // Add to moduleRecords for future reference
+                    if (Array.isArray(moduleRecords)) {
+                        moduleRecords.push(moduleResult[0]);
+                    }
+                } else {
+                    throw new Error('No module ID returned from database');
+                }
+            } catch (error) {
+                console.error('Error creating module in DB:', error);
+                alert('Failed to create module record in database: ' + error.message);
+                return;
+            }
+        } else {
+            alert('Supabase connection not available. Cannot add module.');
+            return;
+        }
+
+        // Create locker records
+        const moduleLockers = [];
+        
+        // Add small lockers
+        for (let i = 1; i <= smallCount; i++) {
+            const code = `S${i}`;
+            moduleLockers.push({
+                code: code,
+                size: 'Small',
+                module: moduleName,
+                moduleId: createdModuleId,
+                device: deviceId,
+                status: 'available'
+            });
+        }
+
+        // Add medium lockers
+        for (let i = 1; i <= mediumCount; i++) {
+            const code = `M${i}`;
+            moduleLockers.push({
+                code: code,
+                size: 'Medium',
+                module: moduleName,
+                moduleId: createdModuleId,
+                device: deviceId,
+                status: 'available'
+            });
+        }
+
+        // Add large lockers
+        for (let i = 1; i <= largeCount; i++) {
+            const code = `L${i}`;
+            moduleLockers.push({
+                code: code,
+                size: 'Large',
+                module: moduleName,
+                moduleId: createdModuleId,
+                device: deviceId,
+                status: 'available'
+            });
+        }
+
+        // Add to local records
+        lockerRecords.push(...moduleLockers);
+
+        // Persist lockers to database
+        try {
+            await persistNewModuleLockers(moduleLockers, createdModuleId);
+            console.log('✓ Module lockers persisted to database');
+        } catch (error) {
+            console.error('Error persisting module lockers:', error);
+            alert('Failed to save module lockers to database.');
+            return;
+        }
+
+        // Close modal and refresh table
+        closeAddModuleModal();
+        renderLockersTable();
+        alert(`✓ Module "${moduleName}" created successfully with ${totalCompartments} compartments!\n\nModule ID: ${createdModuleId}`);
+
+    } catch (error) {
+        console.error('Error creating module:', error);
+        alert('Error creating module: ' + error.message);
+    } finally {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Create Module';
+        }
+    }
+}
+
 async function addDefaultModule() {
     const nextModuleNumber = getNextModuleNumber();
     const moduleName = `M${nextModuleNumber}`;
@@ -1263,7 +1561,11 @@ async function addDefaultModule() {
     if (typeof isSupabaseConnected !== 'undefined' && isSupabaseConnected() &&
         typeof dbOps !== 'undefined' && dbOps.createModule) {
         try {
+            // Generate random 16-character module_id
+            const generatedModuleId = generateRandomId(16);
+            
             const moduleResult = await dbOps.createModule({
+                module_id: generatedModuleId,
                 // modules.name is a smallint column — send the integer, not a string
                 name: nextModuleNumber,
                 status: 'Active'
