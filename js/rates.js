@@ -2,6 +2,8 @@
 // RATES PAGE - JAVASCRIPT FUNCTIONALITY
 // ========================================
 
+const RATES_HISTORY_KEY = 'coincubby_rates_history';
+
 // Set up event listeners on page load
 document.addEventListener('DOMContentLoaded', async function() {
     // Check authentication
@@ -47,6 +49,7 @@ async function initializeRatesPage() {
     
     setupFormListeners();
     setupAutoSave();
+    renderRatesHistory();
 }
 
 /**
@@ -159,6 +162,9 @@ function saveRates(isAutoSave = false) {
             return;
         }
 
+        // Capture previous rates before overwriting
+        const previousRates = getCurrentRates();
+
         // Save to localStorage
         localStorage.setItem('coincubby_rates', JSON.stringify(rates));
 
@@ -168,6 +174,8 @@ function saveRates(isAutoSave = false) {
         if (!isAutoSave) {
             showSuccessMessage('Rates saved successfully!');
             logRatesSaved(rates);
+            addToRatesHistory(rates, previousRates);
+            renderRatesHistory();
         }
 
     } catch (error) {
@@ -361,4 +369,173 @@ function getCurrentRates() {
  */
 function formatRate(rate) {
     return `₱${parseFloat(rate).toFixed(2)}`;
+}
+
+// ========================================
+// RATE CHANGE HISTORY
+// ========================================
+
+/**
+ * Add a history entry whenever rates are manually saved.
+ * @param {object} newRates  - the just-saved rates object
+ * @param {object|null} oldRates - the previous rates (null if first save)
+ */
+function addToRatesHistory(newRates, oldRates) {
+    try {
+        const history = getRatesHistory();
+
+        // Resolve admin name from localStorage auth
+        let adminName = 'Admin';
+        try {
+            const auth = JSON.parse(localStorage.getItem('coincubby_auth') || '{}');
+            if (auth.name) adminName = auth.name;
+            else if (auth.email) adminName = auth.email.split('@')[0];
+        } catch (_) {}
+
+        const entry = {
+            id: Date.now(),
+            savedAt: new Date().toISOString(),
+            changedBy: adminName,
+            rates: {
+                small:  newRates.small.rate,
+                medium: newRates.medium.rate,
+                large:  newRates.large.rate
+            },
+            previous: oldRates ? {
+                small:  oldRates.small  ? oldRates.small.rate  : null,
+                medium: oldRates.medium ? oldRates.medium.rate : null,
+                large:  oldRates.large  ? oldRates.large.rate  : null
+            } : null
+        };
+
+        // Prepend (newest first) and cap at 100 entries
+        history.unshift(entry);
+        if (history.length > 100) history.length = 100;
+
+        localStorage.setItem(RATES_HISTORY_KEY, JSON.stringify(history));
+    } catch (error) {
+        console.error('Error saving rates history:', error);
+    }
+}
+
+/**
+ * Retrieve history array from localStorage.
+ */
+function getRatesHistory() {
+    try {
+        const raw = localStorage.getItem(RATES_HISTORY_KEY);
+        return raw ? JSON.parse(raw) : [];
+    } catch (_) {
+        return [];
+    }
+}
+
+/**
+ * Render the history table in the DOM.
+ */
+function renderRatesHistory() {
+    const tbody    = document.getElementById('ratesHistoryBody');
+    const empty    = document.getElementById('ratesHistoryEmpty');
+    const table    = document.getElementById('ratesHistoryTable');
+    const countEl  = document.getElementById('historyCount');
+
+    if (!tbody) return;
+
+    const history = getRatesHistory();
+
+    // Update count badge
+    if (countEl) {
+        countEl.textContent = history.length === 1 ? '1 record' : `${history.length} records`;
+    }
+
+    if (history.length === 0) {
+        table.style.display  = 'none';
+        empty.style.display  = 'flex';
+        return;
+    }
+
+    table.style.display = '';
+    empty.style.display = 'none';
+
+    const fmt = new Intl.DateTimeFormat('en-PH', {
+        timeZone: 'Asia/Manila',
+        year:   'numeric',
+        month:  'short',
+        day:    '2-digit',
+        hour:   '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true
+    });
+
+    tbody.innerHTML = history.map((entry, idx) => {
+        const dt   = fmt.formatToParts(new Date(entry.savedAt));
+        const part = (t) => dt.find(p => p.type === t)?.value ?? '';
+        const dateStr = `${part('month')} ${part('day')}, ${part('year')}`;
+        const timeStr = `${part('hour')}:${part('minute')}:${part('second')} ${part('dayPeriod')}`;
+
+        const initials = entry.changedBy.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+
+        const badge = (size, newVal, prev) => {
+            if (prev === null || prev === undefined) {
+                return `<span class="change-badge unchanged">${size}: ₱${parseFloat(newVal).toFixed(2)}</span>`;
+            }
+            const diff = newVal - prev;
+            if (diff > 0) {
+                return `<span class="change-badge increased">↑ ${size} +₱${diff.toFixed(2)}</span>`;
+            } else if (diff < 0) {
+                return `<span class="change-badge decreased">↓ ${size} -₱${Math.abs(diff).toFixed(2)}</span>`;
+            }
+            return `<span class="change-badge unchanged">${size}: no change</span>`;
+        };
+
+        const prev = entry.previous || {};
+        const changeBadges = [
+            badge('Small',  entry.rates.small,  prev.small),
+            badge('Medium', entry.rates.medium, prev.medium),
+            badge('Large',  entry.rates.large,  prev.large)
+        ].join('');
+
+        return `
+        <tr>
+            <td><span class="history-index">${idx + 1}</span></td>
+            <td>
+                <div class="history-datetime">
+                    <span class="history-date">${dateStr}</span>
+                    <span class="history-time">${timeStr}</span>
+                </div>
+            </td>
+            <td>
+                <div class="history-admin">
+                    <div class="history-admin-avatar">${initials}</div>
+                    <span class="history-admin-name">${escapeHtml(entry.changedBy)}</span>
+                </div>
+            </td>
+            <td><span class="history-rate">₱${parseFloat(entry.rates.small).toFixed(2)}</span></td>
+            <td><span class="history-rate">₱${parseFloat(entry.rates.medium).toFixed(2)}</span></td>
+            <td><span class="history-rate">₱${parseFloat(entry.rates.large).toFixed(2)}</span></td>
+            <td><div class="history-changes">${changeBadges}</div></td>
+        </tr>`;
+    }).join('');
+}
+
+/**
+ * Clear all rate change history.
+ */
+function clearRatesHistory() {
+    if (!confirm('Are you sure you want to clear the entire rate change history? This cannot be undone.')) return;
+    localStorage.removeItem(RATES_HISTORY_KEY);
+    renderRatesHistory();
+}
+
+/**
+ * Minimal XSS escape for user-controlled strings rendered as HTML.
+ */
+function escapeHtml(str) {
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 }

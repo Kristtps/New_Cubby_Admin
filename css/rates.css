@@ -247,3 +247,356 @@
         font-size: 14px;
     }
 }
+
+/* ========================================
+   RATE CHANGE HISTORY SECTION
+   ======================================== */
+
+.rates-history-container {
+    background: white;
+    border-radius: 12px;
+    padding: 28px 32px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    max-width: 1050px;
+    margin: 24px auto 0;
+    border: 1px solid #e5e7eb;
+    transition: border-color 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.rates-history-container:hover {
+    border-color: var(--color-primary);
+}
+
+/* Header row */
+.rates-history-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+}
+
+.rates-history-title-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.rates-history-title-group svg {
+    color: var(--color-primary);
+    flex-shrink: 0;
+}
+
+.rates-history-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1f2937;
+    margin: 0;
+}
+
+.rates-history-count {
+    font-size: 11px;
+    font-weight: 600;
+    color: #6b7280;
+    background: #f3f4f6;
+    border: 1px solid #e5e7eb;
+    border-radius: 99px;
+    padding: 2px 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+/* Clear button */
+.btn-clear-history {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    background: transparent;
+    color: #9ca3af;
+    border: 1px solid #e5e7eb;
+    border-radius: 7px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.2s ease;
+}
+
+.btn-clear-history:hover {
+    background: #fef2f2;
+    color: #dc2626;
+    border-color: #fee2e2;
+}
+
+/* Table wrapper for horizontal scroll on small screens */
+.rates-history-table-wrapper {
+    overflow-x: auto;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+}
+
+/* History Table */
+.rates-history-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13.5px;
+}
+
+.rates-history-table thead tr {
+    background: #f9fafb;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.rates-history-table th {
+    padding: 11px 16px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 700;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+}
+
+.rates-history-table td {
+    padding: 13px 16px;
+    border-bottom: 1px solid #f3f4f6;
+    color: #374151;
+    vertical-align: middle;
+}
+
+.rates-history-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.rates-history-table tbody tr {
+    transition: background 0.15s ease;
+}
+
+.rates-history-table tbody tr:hover {
+    background: #f9fafb;
+}
+
+/* Row index badge */
+.history-index {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    background: #f3f4f6;
+    color: #6b7280;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+/* Datetime cell */
+.history-datetime {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.history-date {
+    font-weight: 600;
+    color: #1f2937;
+    font-size: 13px;
+}
+
+.history-time {
+    font-size: 11px;
+    color: #9ca3af;
+}
+
+/* Admin name */
+.history-admin {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.history-admin-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
+    color: white;
+    font-size: 11px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.history-admin-name {
+    font-weight: 600;
+    color: #374151;
+    font-size: 13px;
+}
+
+/* Rate value cells */
+.history-rate {
+    font-weight: 700;
+    color: #1f2937;
+    font-size: 14px;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Change badges */
+.history-changes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.change-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 5px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.change-badge.increased {
+    background: #dcfce7;
+    color: #15803d;
+}
+
+.change-badge.decreased {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.change-badge.unchanged {
+    background: #f3f4f6;
+    color: #9ca3af;
+}
+
+/* Empty state */
+.rates-history-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 48px 24px;
+    color: #9ca3af;
+    text-align: center;
+}
+
+.rates-history-empty svg {
+    color: #d1d5db;
+    margin-bottom: 4px;
+}
+
+.rates-history-empty p {
+    font-size: 14px;
+    font-weight: 600;
+    color: #6b7280;
+    margin: 0;
+}
+
+.rates-history-empty span {
+    font-size: 12px;
+    color: #9ca3af;
+}
+
+/* ── Dark Mode ── */
+[data-theme="dark"] .rates-history-container {
+    background: var(--dark-bg-secondary);
+    border-color: var(--dark-border);
+}
+
+[data-theme="dark"] .rates-history-container:hover {
+    border-color: var(--color-primary);
+}
+
+[data-theme="dark"] .rates-history-title {
+    color: var(--dark-text-primary);
+}
+
+[data-theme="dark"] .rates-history-count {
+    background: var(--dark-bg-tertiary);
+    border-color: var(--dark-border);
+    color: var(--dark-text-secondary);
+}
+
+[data-theme="dark"] .btn-clear-history {
+    color: var(--dark-text-secondary);
+    border-color: var(--dark-border);
+}
+
+[data-theme="dark"] .btn-clear-history:hover {
+    background: rgba(220, 38, 38, 0.1);
+    color: #f87171;
+    border-color: rgba(220, 38, 38, 0.3);
+}
+
+[data-theme="dark"] .rates-history-table-wrapper {
+    border-color: var(--dark-border);
+}
+
+[data-theme="dark"] .rates-history-table thead tr {
+    background: var(--dark-bg-tertiary);
+    border-bottom-color: var(--dark-border);
+}
+
+[data-theme="dark"] .rates-history-table th {
+    color: var(--dark-text-secondary);
+}
+
+[data-theme="dark"] .rates-history-table td {
+    color: #c9c9c9;
+    border-bottom-color: var(--dark-border);
+}
+
+[data-theme="dark"] .rates-history-table tbody tr:hover {
+    background: var(--dark-bg-tertiary);
+}
+
+[data-theme="dark"] .history-index {
+    background: var(--dark-bg-tertiary);
+    color: var(--dark-text-secondary);
+}
+
+[data-theme="dark"] .history-date {
+    color: var(--dark-text-primary);
+}
+
+[data-theme="dark"] .history-time {
+    color: var(--dark-text-secondary);
+}
+
+[data-theme="dark"] .history-admin-name {
+    color: var(--dark-text-primary);
+}
+
+[data-theme="dark"] .history-rate {
+    color: var(--dark-text-primary);
+}
+
+[data-theme="dark"] .change-badge.unchanged {
+    background: var(--dark-bg-tertiary);
+    color: var(--dark-text-secondary);
+}
+
+[data-theme="dark"] .rates-history-empty p {
+    color: var(--dark-text-secondary);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .rates-history-container {
+        padding: 20px;
+    }
+
+    .rates-history-header {
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+}
