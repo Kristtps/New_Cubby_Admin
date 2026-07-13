@@ -13,6 +13,7 @@ document.addEventListener('DOMContentLoaded', function() {
     setupProfileForm();
     setupPasswordForm();
     setupProfileThemeToggle();
+    setupLanguageSelector();
 });
 
 function setupProfileForm() {
@@ -253,6 +254,41 @@ function setupProfileThemeToggle() {
             sidebarToggleBtn.setAttribute('aria-pressed', newTheme === 'dark' ? 'true' : 'false');
             if (sidebarIcon) sidebarIcon.textContent = newTheme === 'dark' ? '🌙' : '☀️';
             if (sidebarLabel) sidebarLabel.textContent = newTheme === 'dark' ? 'Dark' : 'Light';
+        }
+    });
+}
+
+
+function setupLanguageSelector() {
+    const languageSelect = document.getElementById('language-select');
+    
+    if (!languageSelect) {
+        console.log('Language selector not found');
+        return;
+    }
+    
+    // Check if languageManager exists (from language.js)
+    if (typeof languageManager === 'undefined') {
+        console.error('Language manager not loaded');
+        return;
+    }
+    
+    // Set initial value
+    const currentLang = languageManager.getCurrentLanguage();
+    languageSelect.value = currentLang;
+    
+    // Handle language change
+    languageSelect.addEventListener('change', function(e) {
+        const selectedLang = e.target.value;
+        console.log('Language changed to:', selectedLang);
+        languageManager.setLanguage(selectedLang);
+    });
+    
+    // Listen for language changes from other pages
+    window.addEventListener('languageChanged', function(e) {
+        const newLang = e.detail.language;
+        if (languageSelect.value !== newLang) {
+            languageSelect.value = newLang;
         }
     });
 }

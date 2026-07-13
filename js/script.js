@@ -543,6 +543,7 @@ function refreshDashboardFromDatabase(dashboardData) {
 
         // Re-initialize click handlers for the new locker elements
         initializeLockers();
+        attachLockerClickHandlers();
     }
 
     // Update recent rentals
@@ -554,6 +555,159 @@ function refreshDashboardFromDatabase(dashboardData) {
     if (dashboardData.last7DaysSales) {
         updateSalesChart(dashboardData.last7DaysSales);
     }
+}
+
+/**
+ * Attach click handlers to locker cards in overview to show rental details
+ */
+function attachLockerClickHandlers() {
+    const lockerCards = document.querySelectorAll('.locker[data-locker-id]');
+    
+    lockerCards.forEach(card => {
+        // Remove existing listener if any
+        card.style.cursor = 'pointer';
+        
+        card.addEventListener('click', async function(e) {
+            e.preventDefault();
+            const lockerId = this.getAttribute('data-locker-id');
+            const status = this.getAttribute('data-status');
+            
+            await showRentalDetailsModal(lockerId, status);
+        });
+    });
+}
+
+/**
+ * Show rental details modal for a locker
+ */
+async function showRentalDetailsModal(lockerId, status) {
+    const modal = document.getElementById('rentalDetailsModal');
+    if (!modal) return;
+
+    try {
+        // Fetch locker and rental details from database
+        let lockerData = null;
+        let rentalData = null;
+        let customerData = null;
+
+        if (typeof isSupabaseConnected !== 'undefined' && isSupabaseConnected() && typeof dbOps !== 'undefined') {
+            // Get locker details
+            if (dbOps.fetchLockerByCode) {
+                lockerData = await dbOps.fetchLockerByCode(lockerId);
+            }
+
+            // Get active rental for this locker
+            if (dbOps.fetchActiveRentalByLocker) {
+                rentalData = await dbOps.fetchActiveRentalByLocker(lockerId);
+            }
+
+            // If we have rental data, get customer details
+            if (rentalData && rentalData.customer_id && dbOps.fetchCustomerById) {
+                customerData = await dbOps.fetchCustomerById(rentalData.customer_id);
+            }
+        }
+
+        // Populate modal with locker information
+        document.getElementById('detail-locker-number').textContent = lockerId || '-';
+        
+        if (lockerData) {
+            const sizeLabel = lockerData.size || (lockerData.size_type_id === 1 ? 'Small' : lockerData.size_type_id === 2 ? 'Medium' : 'Large');
+            document.getElementById('detail-locker-size').textContent = sizeLabel;
+            
+            const moduleName = lockerData.modules?.name || `M${lockerData.module_id || '?'}`;
+            document.getElementById('detail-locker-module').textContent = moduleName;
+        } else {
+            document.getElementById('detail-locker-size').textContent = '-';
+            document.getElementById('detail-locker-module').textContent = '-';
+        }
+
+        const statusEl = document.getElementById('detail-locker-status');
+        statusEl.textContent = status ? status.charAt(0).toUpperCase() + status.slice(1) : '-';
+        statusEl.style.color = getStatusColor(status);
+
+        // Show/hide renter information based on status
+        const renterInfoSection = document.getElementById('renterInfoSection');
+        const rentalTimeSection = document.getElementById('rentalTimeSection');
+        const renterDivider = document.getElementById('renterDivider');
+
+        if (status === 'available' || status === 'maintenance') {
+            // Hide renter sections for available/maintenance lockers
+            renterInfoSection.style.display = 'none';
+            rentalTimeSection.style.display = 'none';
+            renterDivider.style.display = 'none';
+        } else {
+            // Show renter information for occupied/payment lockers
+            renterInfoSection.style.display = 'block';
+            rentalTimeSection.style.display = 'block';
+            renterDivider.style.display = 'block';
+
+            if (customerData) {
+                document.getElementById('detail-customer-name').textContent = customerData.name || 'N/A';
+                document.getElementById('detail-customer-email').textContent = customerData.email || 'N/A';
+                document.getElementById('detail-customer-phone').textContent = customerData.phone || 'N/A';
+            } else {
+                document.getElementById('detail-customer-name').textContent = 'N/A';
+                document.getElementById('detail-customer-email').textContent = 'N/A';
+                document.getElementById('detail-customer-phone').textContent = 'N/A';
+            }
+
+            if (rentalData) {
+                // Format start time
+                const startTime = rentalData.start_time ? formatForDisplay(rentalData.start_time) : 'N/A';
+                document.getElementById('detail-start-time').textContent = startTime;
+
+                // Calculate duration
+                let durationText = 'N/A';
+                if (rentalData.start_time) {
+                    const start = new Date(rentalData.start_time);
+                    const now = new Date();
+                    const diffMs = now - start;
+                    const diffMins = Math.floor(diffMs / 60000);
+                    const hours = Math.floor(diffMins / 60);
+                    const mins = diffMins % 60;
+                    durationText = `${hours}h ${mins}m`;
+                }
+                document.getElementById('detail-duration').textContent = durationText;
+
+                // Amount paid
+                const amount = rentalData.amount_paid || rentalData.total_amount || 0;
+                document.getElementById('detail-amount').textContent = `₱${Number(amount).toFixed(2)}`;
+            } else {
+                document.getElementById('detail-start-time').textContent = 'N/A';
+                document.getElementById('detail-duration').textContent = 'N/A';
+                document.getElementById('detail-amount').textContent = '₱0.00';
+            }
+        }
+
+        // Show modal
+        modal.classList.add('active');
+    } catch (error) {
+        console.error('Error loading rental details:', error);
+        alert('Failed to load rental details. Please try again.');
+    }
+}
+
+/**
+ * Close rental details modal
+ */
+function closeRentalDetailsModal() {
+    const modal = document.getElementById('rentalDetailsModal');
+    if (modal) {
+        modal.classList.remove('active');
+    }
+}
+
+/**
+ * Get color for status
+ */
+function getStatusColor(status) {
+    const statusColors = {
+        'available': 'var(--color-available)',
+        'occupied': 'var(--color-occupied)',
+        'payment': 'var(--color-payment)',
+        'maintenance': 'var(--color-maintenance)'
+    };
+    return statusColors[status] || 'var(--color-text)';
 }
 
 /**

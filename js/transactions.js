@@ -138,10 +138,106 @@ function updateSummaryStats() {
     if (todayTotalElem) todayTotalElem.textContent = `₱${todayTotal.toFixed(2)}`;
 
     // 3. Coins on Hand (Heuristic based on amount for demo)
+    // Check if there's a stored reset offset
+    const resetOffset = parseFloat(localStorage.getItem('coins_on_hand_offset') || '0');
     const coinsTotal = transactionData.reduce((sum, tx) => sum + (tx.amount <= 20 ? tx.amount : 0), 0);
+    const adjustedCoins = Math.max(0, coinsTotal - resetOffset);
 
-    if (coinsOnHandElem) coinsOnHandElem.textContent = `₱${coinsTotal.toFixed(2)}`;
+    if (coinsOnHandElem) {
+        coinsOnHandElem.textContent = `₱${adjustedCoins.toFixed(2)}`;
+        coinsOnHandElem.setAttribute('data-value', adjustedCoins.toFixed(2));
+    }
 }
+
+/**
+ * Open reset coins modal
+ */
+function openResetCoinsModal() {
+    const modal = document.getElementById('resetCoinsModal');
+    const coinsOnHandElem = document.getElementById('coins-on-hand');
+    const modalAmountElem = document.getElementById('modal-coins-amount');
+    
+    if (modal) {
+        // Update modal with current amount
+        if (modalAmountElem && coinsOnHandElem) {
+            modalAmountElem.textContent = coinsOnHandElem.textContent;
+        }
+        
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+}
+
+/**
+ * Close reset coins modal
+ */
+function closeResetCoinsModal() {
+    const modal = document.getElementById('resetCoinsModal');
+    if (modal) {
+        modal.classList.remove('active');
+        document.body.style.overflow = '';
+    }
+}
+
+/**
+ * Confirm and reset coins on hand to zero (after physical collection)
+ */
+function confirmResetCoins() {
+    // Calculate current coins total
+    const coinsTotal = transactionData.reduce((sum, tx) => sum + (tx.amount <= 20 ? tx.amount : 0), 0);
+    
+    // Store the offset (cumulative reset amount)
+    const currentOffset = parseFloat(localStorage.getItem('coins_on_hand_offset') || '0');
+    const newOffset = currentOffset + (coinsTotal - currentOffset);
+    localStorage.setItem('coins_on_hand_offset', newOffset.toString());
+    
+    // Update display
+    const coinsOnHandElem = document.getElementById('coins-on-hand');
+    if (coinsOnHandElem) {
+        coinsOnHandElem.textContent = '₱0.00';
+        coinsOnHandElem.setAttribute('data-value', '0.00');
+    }
+    
+    // Close modal
+    closeResetCoinsModal();
+    
+    // Show success message
+    showResetNotification('Coins on Hand has been reset to ₱0.00');
+}
+
+/**
+ * Show notification after reset
+ */
+function showResetNotification(message) {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = 'reset-notification';
+    notification.innerHTML = `
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+        </svg>
+        <span>${message}</span>
+    `;
+    document.body.appendChild(notification);
+    
+    // Trigger animation
+    setTimeout(() => notification.classList.add('show'), 10);
+    
+    // Remove after 3 seconds
+    setTimeout(() => {
+        notification.classList.remove('show');
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
+}
+
+// Close modal when clicking outside
+document.addEventListener('click', function(e) {
+    const modal = document.getElementById('resetCoinsModal');
+    if (e.target === modal) {
+        closeResetCoinsModal();
+    }
+});
 
 /**
  * Refresh transaction table with data (clears and loads initial batch)

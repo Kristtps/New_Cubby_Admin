@@ -128,45 +128,46 @@
             </header>
 
             <!-- Stats Cards -->
-            <div class="transactions-stats">
+            <div class="stats-grid">
                 <div class="stat-card">
                     <div class="stat-header">
-                        <span class="stat-label">TODAY'S TOTAL</span>
+                        <p class="stat-label">TODAY'S TOTAL</p>
                         <div class="stat-icon stat-icon-green">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="23 6 13.5 15.5 8.5 10.5 1 17"></polyline>
                                 <polyline points="17 6 23 6 23 12"></polyline>
                             </svg>
                         </div>
                     </div>
-                    <div class="stat-value" id="today-total">₱0.00</div>
+                    <p class="stat-value" id="today-total" data-value="0.00" data-currency="₱">₱0.00</p>
                 </div>
 
-                <div class="stat-card">
+                <div class="stat-card stat-card-clickable" onclick="openResetCoinsModal()">
                     <div class="stat-header">
-                        <span class="stat-label">COINS ON HAND</span>
+                        <p class="stat-label">COINS ON HAND</p>
                         <div class="stat-icon stat-icon-yellow">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <circle cx="12" cy="12" r="10"></circle>
-                                <path d="M12 6v12M6 12h12"></path>
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="1"></circle>
+                                <path d="M12 1v6m0 6v6M4.22 4.22l4.24 4.24m2.12 2.12l4.24 4.24M1 12h6m6 0h6m-17.78 7.78l4.24-4.24m2.12-2.12l4.24-4.24"></path>
                             </svg>
                         </div>
                     </div>
-                    <div class="stat-value" id="coins-on-hand">₱0.00</div>
+                    <p class="stat-value" id="coins-on-hand" data-value="0.00" data-currency="₱">₱0.00</p>
                 </div>
-
-
 
                 <div class="stat-card">
                     <div class="stat-header">
-                        <span class="stat-label">ALL TRANSACTIONS</span>
+                        <p class="stat-label">ALL TRANSACTIONS</p>
                         <div class="stat-icon stat-icon-blue">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M6 9l6 6 6-6"></path>
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="3" width="7" height="7"></rect>
+                                <rect x="14" y="3" width="7" height="7"></rect>
+                                <rect x="14" y="14" width="7" height="7"></rect>
+                                <rect x="3" y="14" width="7" height="7"></rect>
                             </svg>
                         </div>
                     </div>
-                    <div class="stat-value" id="all-transactions-count">0</div>
+                    <p class="stat-value" id="all-transactions-count" data-value="0">0</p>
                 </div>
             </div>
 
@@ -174,23 +175,81 @@
             <div class="transactions-section">
                 <h2 class="section-title">All Transactions</h2>
                 
-                <div class="transactions-table-wrapper">
-                    <table class="transactions-table">
-                        <thead>
-                            <tr>
-                                <th class="date-header">Date</th>
-                                <th class="customer-header">Customer</th>
-                                <th class="userid-header">User ID</th>
-                                <th class="type-header">Type</th>
-                                <th class="method-header">Method</th>
-                                <th class="locker-header">Locker</th>
-                                <th class="amount-header">Amount</th>
-                            </tr>
-                        </thead>
-                        <tbody id="transactionTableBody">
-                            <!-- Data will be populated by JavaScript -->
-                        </tbody>
-                    </table>
+                <div class="transactions-table-container">
+                    <div class="transactions-table-wrapper">
+                        <table class="transactions-table">
+                            <thead>
+                                <tr>
+                                    <th class="date-header">Date</th>
+                                    <th class="customer-header">Customer</th>
+                                    <th class="userid-header">User ID</th>
+                                    <th class="type-header">Type</th>
+                                    <th class="method-header">Method</th>
+                                    <th class="locker-header">Locker</th>
+                                    <th class="amount-header">Amount</th>
+                                </tr>
+                            </thead>
+                        </table>
+                    </div>
+                    <div class="transactions-table-body-wrapper">
+                        <table class="transactions-table">
+                            <tbody id="transactionTableBody">
+                                <!-- Data will be populated by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reset Coins Modal -->
+            <div class="modal-overlay" id="resetCoinsModal">
+                <div class="modal">
+                    <div class="modal-header">
+                        <h2>Reset Coins on Hand</h2>
+                        <button class="modal-close" onclick="closeResetCoinsModal()">&times;</button>
+                    </div>
+                    <div class="modal-body" style="padding: 24px;">
+                        <div style="text-align: center; padding: 20px 0;">
+                            <div style="width: 80px; height: 80px; margin: 0 auto 20px; background: linear-gradient(135deg, rgba(251, 191, 36, 0.1) 0%, rgba(251, 191, 36, 0.2) 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--color-warning);">
+                                    <circle cx="12" cy="12" r="1"></circle>
+                                    <path d="M12 1v6m0 6v6M4.22 4.22l4.24 4.24m2.12 2.12l4.24 4.24M1 12h6m6 0h6m-17.78 7.78l4.24-4.24m2.12-2.12l4.24-4.24"></path>
+                                </svg>
+                            </div>
+                            
+                            <h3 style="font-size: 20px; font-weight: 700; color: var(--color-dark); margin: 0 0 12px 0;">Current Coins on Hand</h3>
+                            <p style="font-size: 32px; font-weight: 700; color: var(--color-warning); margin: 0 0 24px 0;" id="modal-coins-amount">₱0.00</p>
+                            
+                            <div style="background: var(--color-gray-50); border-radius: 12px; padding: 20px; margin-bottom: 24px; text-align: left;">
+                                <h4 style="font-size: 14px; font-weight: 600; color: var(--color-dark); margin: 0 0 12px 0; display: flex; align-items: center; gap: 8px;">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--color-primary);">
+                                        <circle cx="12" cy="12" r="10"></circle>
+                                        <line x1="12" y1="16" x2="12" y2="12"></line>
+                                        <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                                    </svg>
+                                    What is Reset For?
+                                </h4>
+                                <p style="font-size: 14px; color: var(--color-text-muted); line-height: 1.6; margin: 0;">
+                                    Use this reset function when you have physically collected the coins from your device. 
+                                    This will set the counter to <strong>₱0.00</strong> and start tracking from zero again. 
+                                    Your transaction history will remain unchanged.
+                                </p>
+                            </div>
+                            
+                            <div style="display: flex; gap: 12px; justify-content: center;">
+                                <button class="btn-secondary" onclick="closeResetCoinsModal()" style="padding: 12px 24px; border-radius: 10px; font-weight: 600;">
+                                    Cancel
+                                </button>
+                                <button class="btn-primary" onclick="confirmResetCoins()" style="padding: 12px 24px; border-radius: 10px; font-weight: 600; background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%); color: white; border: none; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                                        <path d="M3 3v5h5"></path>
+                                    </svg>
+                                    Reset to ₱0.00
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </main>
