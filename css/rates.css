@@ -2,17 +2,26 @@
    RATES PAGE - SPECIFIC STYLES
    ======================================== */
 
+/* Main Layout - Side by Side */
+.rates-main-layout {
+    display: grid;
+    grid-template-columns: 400px 1fr;
+    gap: 20px;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
 /* Rates Container */
 .rates-container {
     background: white;
     border-radius: 12px;
-    padding: 32px;
+    padding: 24px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    max-width: 1050px;
-    /* Widened from 800px / 900px */
-    margin: 0 auto;
     border: 1px solid #e5e7eb;
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    height: fit-content;
+    position: sticky;
+    top: 20px;
 }
 
 /* Hover effect removed for cleaner look */
@@ -24,15 +33,14 @@
 .rates-form {
     display: flex;
     flex-direction: column;
-    gap: 28px;
+    gap: 20px;
 }
 
-/* Grid of rate cards — all three side by side */
+/* Grid of rate cards — stacked vertically */
 .rates-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 24px;
-    /* Increased gap */
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
 }
 
 /* Individual Rate Card */
@@ -40,10 +48,10 @@
     background: #f9fafb;
     border: 1px solid #e5e7eb;
     border-radius: 10px;
-    padding: 24px;
+    padding: 18px;
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 12px;
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -58,11 +66,11 @@
     flex-direction: column;
     gap: 4px;
     border-bottom: 1px solid #e5e7eb;
-    padding-bottom: 14px;
+    padding-bottom: 10px;
 }
 
 .rate-title {
-    font-size: 17px;
+    font-size: 16px;
     font-weight: 700;
     color: #1f2937;
     margin: 0;
@@ -80,7 +88,7 @@
 .rate-inputs {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 8px;
 }
 
 /* Input Group */
@@ -101,15 +109,21 @@
 /* Form Input */
 .form-input {
     width: 100%;
-    padding: 10px 14px;
+    padding: 10px 12px;
     border: 1px solid #e5e7eb;
     border-radius: 8px;
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 600;
     font-family: inherit;
     color: #1f2937;
     background-color: #ffffff;
     transition: all 0.2s ease;
+}
+
+.form-input:disabled {
+    background-color: #f9fafb;
+    cursor: not-allowed;
+    opacity: 0.7;
 }
 
 .form-input:focus {
@@ -147,37 +161,49 @@
     color: #7d7d7d;
 }
 
-/* Save Button */
+/* Edit/Save Button */
 .btn-save-rates {
     align-self: stretch;
-    padding: 14px 24px;
-    background-color: #1f2937;
+    padding: 12px 20px;
+    background-color: var(--color-primary);
     color: white;
     border: none;
     border-radius: 8px;
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.3s ease;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 10px;
+    gap: 8px;
 }
 
 .btn-save-rates:hover {
-    background-color: #111827;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    background-color: var(--color-primary-dark);
+    box-shadow: 0 4px 12px rgba(77, 170, 99, 0.25);
     transform: translateY(-1px);
 }
 
 .btn-save-rates:active {
     transform: translateY(0);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 8px rgba(77, 170, 99, 0.15);
 }
 
 .btn-save-rates svg {
     flex-shrink: 0;
+}
+
+/* Disabled state for Edit mode */
+.btn-save-rates:disabled {
+    background-color: #9ca3af;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.btn-save-rates:disabled:hover {
+    box-shadow: none;
+    transform: none;
 }
 
 /* Success Message */
@@ -232,14 +258,19 @@
 }
 
 /* Responsive Design */
+@media (max-width: 1200px) {
+    .rates-main-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .rates-container {
+        position: static;
+    }
+}
+
 @media (max-width: 768px) {
     .rates-container {
         padding: 20px;
-    }
-
-    .rates-grid {
-        grid-template-columns: 1fr;
-        gap: 16px;
     }
 
     .btn-save-rates {
@@ -255,12 +286,11 @@
 .rates-history-container {
     background: white;
     border-radius: 12px;
-    padding: 28px 32px;
+    padding: 24px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    max-width: 1050px;
-    margin: 24px auto 0;
     border: 1px solid #e5e7eb;
     transition: border-color 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    height: fit-content;
 }
 
 .rates-history-container:hover {
@@ -272,7 +302,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 20px;
+    margin-bottom: 16px;
 }
 
 .rates-history-title-group {
@@ -328,11 +358,14 @@
     border-color: #fee2e2;
 }
 
-/* Table wrapper for horizontal scroll on small screens */
+/* Table wrapper for horizontal scroll on small screens and vertical scroll */
 .rates-history-table-wrapper {
     overflow-x: auto;
+    overflow-y: auto;
+    max-height: 400px;
     border-radius: 8px;
     border: 1px solid #e5e7eb;
+    position: relative;
 }
 
 /* History Table */
@@ -340,6 +373,12 @@
     width: 100%;
     border-collapse: collapse;
     font-size: 13.5px;
+}
+
+.rates-history-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
 }
 
 .rates-history-table thead tr {
@@ -356,6 +395,9 @@
     text-transform: uppercase;
     letter-spacing: 0.5px;
     white-space: nowrap;
+    background: #f9fafb;
+    position: sticky;
+    top: 0;
 }
 
 .rates-history-table td {
@@ -507,6 +549,41 @@
 }
 
 /* ── Dark Mode ── */
+/* ── Dark Mode ── */
+[data-theme="dark"] .rates-container {
+    background: var(--dark-bg-secondary);
+    border-color: var(--dark-border);
+}
+
+[data-theme="dark"] .rates-container:hover {
+    border-color: var(--color-primary);
+}
+
+[data-theme="dark"] .rate-section {
+    background: var(--dark-bg-tertiary);
+    border-color: var(--dark-border);
+}
+
+[data-theme="dark"] .rate-section:hover {
+    border-color: var(--color-primary);
+}
+
+[data-theme="dark"] .rate-title-section {
+    border-bottom-color: var(--dark-border);
+}
+
+[data-theme="dark"] .rate-title {
+    color: var(--dark-text-primary);
+}
+
+[data-theme="dark"] .rate-description {
+    color: var(--dark-text-secondary);
+}
+
+[data-theme="dark"] .input-group label {
+    color: var(--dark-text-secondary);
+}
+
 [data-theme="dark"] .rates-history-container {
     background: var(--dark-bg-secondary);
     border-color: var(--dark-border);
@@ -548,6 +625,7 @@
 
 [data-theme="dark"] .rates-history-table th {
     color: var(--dark-text-secondary);
+    background: var(--dark-bg-tertiary);
 }
 
 [data-theme="dark"] .rates-history-table td {
@@ -599,4 +677,4 @@
         flex-wrap: wrap;
         gap: 12px;
     }
-}
+}

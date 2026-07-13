@@ -4,6 +4,9 @@
 
 const RATES_HISTORY_KEY = 'coincubby_rates_history';
 
+// Track edit mode state
+let isEditMode = false;
+
 // Set up event listeners on page load
 document.addEventListener('DOMContentLoaded', async function() {
     // Check authentication
@@ -48,7 +51,7 @@ async function initializeRatesPage() {
     }
     
     setupFormListeners();
-    setupAutoSave();
+    setInputsDisabled(true); // Start with inputs disabled
     renderRatesHistory();
 }
 
@@ -107,37 +110,73 @@ function loadSavedRates() {
  * Setup form submission
  */
 function setupFormListeners() {
-    const ratesForm = document.getElementById('ratesForm');
+    const btnEditSave = document.getElementById('btnEditSave');
+    const btnText = document.getElementById('btnText');
     
-    if (ratesForm) {
-        ratesForm.addEventListener('submit', function(e) {
+    if (btnEditSave) {
+        btnEditSave.addEventListener('click', function(e) {
             e.preventDefault();
-            saveRates();
+            
+            if (isEditMode) {
+                // Currently in edit mode, so save the changes
+                saveRates();
+                setInputsDisabled(true);
+                isEditMode = false;
+                
+                // Update button to show "Edit Rates"
+                btnText.textContent = 'Edit Rates';
+                btnEditSave.innerHTML = `
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                    </svg>
+                    <span id="btnText">Edit Rates</span>
+                `;
+            } else {
+                // Currently in view mode, so enable editing
+                setInputsDisabled(false);
+                isEditMode = true;
+                
+                // Update button to show "Save Changes"
+                btnText.textContent = 'Save Changes';
+                btnEditSave.innerHTML = `
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                        <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                        <polyline points="7 3 7 8 15 8"></polyline>
+                    </svg>
+                    <span id="btnText">Save Changes</span>
+                `;
+                
+                // Focus on first input
+                document.getElementById('smallRate')?.focus();
+            }
         });
     }
 }
 
 /**
- * Setup auto-save on input change
+ * Enable or disable all rate input fields
+ */
+function setInputsDisabled(disabled) {
+    const inputs = document.querySelectorAll('.form-input');
+    inputs.forEach(input => {
+        input.disabled = disabled;
+    });
+}
+
+/**
+ * Setup auto-save on input change (REMOVED - now manual only)
  */
 function setupAutoSave() {
-    const inputs = document.querySelectorAll('.form-input');
-    
-    inputs.forEach(input => {
-        input.addEventListener('change', function() {
-            // Auto-save after 1 second of inactivity
-            clearTimeout(window.autoSaveTimeout);
-            window.autoSaveTimeout = setTimeout(() => {
-                saveRates(true);
-            }, 1000);
-        });
-    });
+    // Removed auto-save functionality for better UX
+    // Users now explicitly click Edit → Save
 }
 
 /**
  * Save rates to localStorage and backend
  */
-function saveRates(isAutoSave = false) {
+function saveRates() {
     try {
         // Get form values
         const rates = {
@@ -171,12 +210,10 @@ function saveRates(isAutoSave = false) {
         // Try to save to backend if available
         saveRatesToBackend(rates);
 
-        if (!isAutoSave) {
-            showSuccessMessage('Rates saved successfully!');
-            logRatesSaved(rates);
-            addToRatesHistory(rates, previousRates);
-            renderRatesHistory();
-        }
+        showSuccessMessage('Rates saved successfully!');
+        logRatesSaved(rates);
+        addToRatesHistory(rates, previousRates);
+        renderRatesHistory();
 
     } catch (error) {
         console.error('Error saving rates:', error);

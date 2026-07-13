@@ -862,6 +862,9 @@ async function initializeLockerManagement() {
             const mods = await dbOps.fetchAllModules();
             if (mods && Array.isArray(mods)) {
                 moduleRecords = mods;
+                
+                // Initialize module counter based on existing modules
+                initializeModuleCounter();
             }
         } catch (err) {
             console.error('Error loading modules:', err);
@@ -1317,14 +1320,25 @@ function renderLockersTable() {
     const tbody = document.getElementById('lockers-tbody');
     if (!tbody) return;
 
-    // Build the definitive list of modules
+    // Build the definitive list of modules with display numbers
     let modulesList = [];
     if (typeof moduleRecords !== 'undefined' && Array.isArray(moduleRecords) && moduleRecords.length > 0) {
-        modulesList = moduleRecords.map(m => {
-            // modules.name is a smallint in the DB — format as "M1", "M2" etc.
-            const raw = m.name != null ? m.name : (m.module_id || m.id);
-            const label = String(raw).startsWith('M') ? String(raw) : `M${raw}`;
-            return { id: String(m.module_id || m.id), name: label };
+        // Sort modules by their database name to maintain consistent order
+        const sortedModules = [...moduleRecords].sort((a, b) => {
+            const aNum = parseInt(String(a.name || a.module_id).replace(/\D/g, '')) || 0;
+            const bNum = parseInt(String(b.name || b.module_id).replace(/\D/g, '')) || 0;
+            return aNum - bNum;
+        });
+        
+        // Assign display numbers sequentially (1, 2, 3...)
+        modulesList = sortedModules.map((m, index) => {
+            const displayNumber = index + 1; // Sequential display number
+            const displayLabel = `M${displayNumber}`;
+            return { 
+                id: String(m.module_id || m.id), 
+                name: displayLabel,
+                dbName: m.name // Keep original DB name for reference
+            };
         });
     } else {
         // Fallback: extract unique modules from lockerRecords
@@ -1337,14 +1351,6 @@ function renderLockersTable() {
         });
         modulesList = Object.values(fallbackModules);
     }
-
-    // Sort modulesList
-    modulesList.sort((a, b) => {
-        const numA = parseInt(a.name.replace('M', ''), 10);
-        const numB = parseInt(b.name.replace('M', ''), 10);
-        if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
-        return a.name.localeCompare(b.name);
-    });
 
     // Render the filter tabs
     renderModuleTabs(modulesList);
@@ -1444,11 +1450,12 @@ function openAddModuleModal() {
     const form = document.getElementById('add-module-form');
     if (form) form.reset();
 
-    // Set default module name
-    const nextModuleNumber = getNextModuleNumber();
+    // Set default module name using DISPLAY number (sequential)
+    const nextDisplayNumber = getNextModuleDisplayNumber();
     const moduleNameInput = document.getElementById('module-name');
     if (moduleNameInput) {
-        moduleNameInput.value = `M${nextModuleNumber}`;
+        moduleNameInput.value = `M${nextDisplayNumber}`;
+        moduleNameInput.readOnly = true; // Make it read-only since it's auto-generated
     }
 
     // Generate and display module ID in the input field
@@ -1483,8 +1490,9 @@ function openAddModuleModal() {
     // Initialize summary update listeners
     initializeModuleSummaryUpdates();
 
-    // Focus on module name
-    if (moduleNameInput) moduleNameInput.focus();
+    // Focus on first compartment count input
+    const firstInput = document.getElementById('small_count');
+    if (firstInput) firstInput.focus();
 }
 
 /**
@@ -1538,7 +1546,6 @@ async function handleAddModuleSubmit() {
 
     try {
         const formData = new FormData(form);
-        const moduleName = formData.get('module_name');
         const moduleIdInput = document.getElementById('generated-module-id');
         const moduleId = moduleIdInput?.value?.trim() || generateRandomId(16);
         const smallCount = parseInt(formData.get('small_count') || 0);
@@ -1569,9 +1576,15 @@ async function handleAddModuleSubmit() {
             return;
         }
 
-        // Generate default device ID
+        // Get the next module number for DATABASE storage (persistent counter)
         const nextModuleNumber = getNextModuleNumber();
-        const deviceId = `DEV-${String(nextModuleNumber).padStart(2, '0')}`;
+        
+        // Get the next module number for UI DISPLAY (sequential)
+        const displayNumber = getNextModuleDisplayNumber();
+        const moduleName = `M${displayNumber}`;
+        
+        // Generate default device ID using display number for user-friendly naming
+        const deviceId = `DEV-${String(displayNumber).padStart(2, '0')}`;
 
         if (!confirm(`Create module "${moduleName}" with ${totalCompartments} compartments?\n\nModule ID: ${moduleId}`)) {
             return;
@@ -1579,22 +1592,21 @@ async function handleAddModuleSubmit() {
 
         let createdModuleId = null;
 
-        // Create module record in database
+        // Create module record in database (using persistent counter)
         if (typeof isSupabaseConnected !== 'undefined' && isSupabaseConnected() &&
             typeof dbOps !== 'undefined' && dbOps.createModule) {
             try {
-                // Extract numeric part from module name for DB storage
-                const moduleNumber = parseInt(moduleName.replace(/\D/g, '')) || getNextModuleNumber();
-                
                 const moduleResult = await dbOps.createModule({
                     module_id: moduleId,
-                    name: moduleNumber,
+                    name: nextModuleNumber, // Database uses persistent counter
                     status: 'Active'
                 });
 
                 if (moduleResult && moduleResult[0]) {
                     createdModuleId = moduleResult[0].module_id;
                     console.log('✓ Module created in database:', createdModuleId);
+                    console.log(`  → Database name: ${nextModuleNumber}`);
+                    console.log(`  → UI display: ${moduleName}`);
 
                     // Add to moduleRecords for future reference
                     if (Array.isArray(moduleRecords)) {
@@ -1622,7 +1634,7 @@ async function handleAddModuleSubmit() {
             moduleLockers.push({
                 code: code,
                 size: 'Small',
-                module: moduleName,
+                module: moduleName, // UI display name
                 moduleId: createdModuleId,
                 device: deviceId,
                 status: 'available'
@@ -1635,7 +1647,7 @@ async function handleAddModuleSubmit() {
             moduleLockers.push({
                 code: code,
                 size: 'Medium',
-                module: moduleName,
+                module: moduleName, // UI display name
                 moduleId: createdModuleId,
                 device: deviceId,
                 status: 'available'
@@ -1648,7 +1660,7 @@ async function handleAddModuleSubmit() {
             moduleLockers.push({
                 code: code,
                 size: 'Large',
-                module: moduleName,
+                module: moduleName, // UI display name
                 moduleId: createdModuleId,
                 device: deviceId,
                 status: 'available'
@@ -1757,19 +1769,161 @@ async function addDefaultModule() {
     alert(`✓ ${moduleName} added successfully with ${template.length} lockers!`);
 }
 
-function getNextModuleNumber() {
-    // Prefer the moduleRecords loaded from the DB (most accurate)
-    if (Array.isArray(moduleRecords) && moduleRecords.length > 0) {
-        const nums = moduleRecords.map(m => {
-            const raw = m.name != null ? m.name : (m.module_id || m.id);
-            return parseInt(String(raw).replace('M', ''), 10);
-        }).filter(n => !isNaN(n));
-        return nums.length ? Math.max(...nums) + 1 : 1;
-    }
-    // Fallback: infer from loaded lockerRecords
-    const modules = (lockerRecords || []).map(l => parseInt((l.module || '').replace('M', ''), 10)).filter(n => !isNaN(n));
-    return modules.length ? Math.max(...modules) + 1 : 1;
+/**
+ * Get display number for a module (sequential 1, 2, 3...).
+ * This is different from the database ID which uses a persistent counter.
+ * 
+ * @param {object} module - Module record from database
+ * @param {array} allModules - All module records (sorted)
+ * @returns {number} Display number (1-based index)
+ */
+function getModuleDisplayNumber(module, allModules) {
+    if (!allModules || allModules.length === 0) return 1;
+    
+    // Sort modules by their actual name/ID to maintain consistent order
+    const sorted = [...allModules].sort((a, b) => {
+        const aNum = parseInt(String(a.name || a.module_id).replace(/\D/g, '')) || 0;
+        const bNum = parseInt(String(b.name || b.module_id).replace(/\D/g, '')) || 0;
+        return aNum - bNum;
+    });
+    
+    // Find the index (position) of this module
+    const moduleId = module.module_id || module.id;
+    const index = sorted.findIndex(m => (m.module_id || m.id) === moduleId);
+    
+    return index >= 0 ? index + 1 : 1; // 1-based numbering
 }
+
+/**
+ * Get the next display number for a new module.
+ * This shows what the user will see in the UI (sequential).
+ * 
+ * @returns {number} Next display number
+ */
+function getNextModuleDisplayNumber() {
+    if (!Array.isArray(moduleRecords) || moduleRecords.length === 0) {
+        return 1;
+    }
+    return moduleRecords.length + 1;
+}
+
+/**
+ * Initialize the module counter based on existing modules in the database.
+ * This should be called when the page loads to sync the counter.
+ */
+function initializeModuleCounter() {
+    const MODULE_COUNTER_KEY = 'coincubby_module_counter';
+    
+    try {
+        if (Array.isArray(moduleRecords) && moduleRecords.length > 0) {
+            const nums = moduleRecords.map(m => {
+                const raw = m.name != null ? m.name : (m.module_id || m.id);
+                return parseInt(String(raw).replace('M', ''), 10);
+            }).filter(n => !isNaN(n));
+            const maxNum = nums.length ? Math.max(...nums) : 0;
+            localStorage.setItem(MODULE_COUNTER_KEY, maxNum);
+            console.log(`✓ Module counter initialized to ${maxNum} (based on ${moduleRecords.length} existing modules)`);
+            console.log(`  → Database will use: Module ${maxNum + 1}`);
+            console.log(`  → UI will display: Module ${moduleRecords.length + 1}`);
+        } else {
+            // No modules exist, start from 0
+            localStorage.setItem(MODULE_COUNTER_KEY, '0');
+            console.log('✓ Module counter initialized to 0 (no existing modules)');
+        }
+    } catch (error) {
+        console.error('Error initializing module counter:', error);
+    }
+}
+
+/**
+ * Get the next module number using a persistent counter.
+ * This counter never resets even if modules are deleted,
+ * ensuring unique sequential module names.
+ * 
+ * Example: If you have modules 1 and 2, deleting module 2 and adding a new one
+ * will create module 3 (not module 2 again).
+ * 
+ * @returns {number} Next module number
+ */
+function getNextModuleNumber() {
+    // Use a persistent counter that never resets, even if modules are deleted
+    const MODULE_COUNTER_KEY = 'coincubby_module_counter';
+    
+    try {
+        // Get the current counter from localStorage
+        let counter = localStorage.getItem(MODULE_COUNTER_KEY);
+        
+        if (counter === null) {
+            // Initialize counter based on existing modules in DB
+            if (Array.isArray(moduleRecords) && moduleRecords.length > 0) {
+                const nums = moduleRecords.map(m => {
+                    const raw = m.name != null ? m.name : (m.module_id || m.id);
+                    return parseInt(String(raw).replace('M', ''), 10);
+                }).filter(n => !isNaN(n));
+                counter = nums.length ? Math.max(...nums) : 0;
+            } else {
+                // Fallback: infer from loaded lockerRecords
+                const modules = (lockerRecords || []).map(l => parseInt((l.module || '').replace('M', ''), 10)).filter(n => !isNaN(n));
+                counter = modules.length ? Math.max(...modules) : 0;
+            }
+            
+            // Save the initialized counter
+            localStorage.setItem(MODULE_COUNTER_KEY, counter);
+        }
+        
+        // Increment and save the counter
+        counter = parseInt(counter) + 1;
+        localStorage.setItem(MODULE_COUNTER_KEY, counter);
+        
+        return counter;
+    } catch (error) {
+        console.error('Error getting next module number:', error);
+        // Fallback to old logic if localStorage fails
+        if (Array.isArray(moduleRecords) && moduleRecords.length > 0) {
+            const nums = moduleRecords.map(m => {
+                const raw = m.name != null ? m.name : (m.module_id || m.id);
+                return parseInt(String(raw).replace('M', ''), 10);
+            }).filter(n => !isNaN(n));
+            return nums.length ? Math.max(...nums) + 1 : 1;
+        }
+        const modules = (lockerRecords || []).map(l => parseInt((l.module || '').replace('M', ''), 10)).filter(n => !isNaN(n));
+        return modules.length ? Math.max(...modules) + 1 : 1;
+    }
+}
+
+/**
+ * Reset the persistent module counter (admin function).
+ * This will recalculate the counter based on existing modules in the database.
+ * Use this only if the counter gets out of sync.
+ */
+function resetModuleCounter() {
+    const MODULE_COUNTER_KEY = 'coincubby_module_counter';
+    
+    try {
+        if (Array.isArray(moduleRecords) && moduleRecords.length > 0) {
+            const nums = moduleRecords.map(m => {
+                const raw = m.name != null ? m.name : (m.module_id || m.id);
+                return parseInt(String(raw).replace('M', ''), 10);
+            }).filter(n => !isNaN(n));
+            const maxNum = nums.length ? Math.max(...nums) : 0;
+            localStorage.setItem(MODULE_COUNTER_KEY, maxNum);
+            console.log(`✓ Module counter reset to ${maxNum}`);
+            alert(`Module counter reset to ${maxNum}. Your next module will be Module ${maxNum + 1}.`);
+            return maxNum;
+        } else {
+            localStorage.removeItem(MODULE_COUNTER_KEY);
+            console.log('✓ Module counter cleared');
+            alert('Module counter cleared. Your next module will be Module 1.');
+            return 0;
+        }
+    } catch (error) {
+        console.error('Error resetting module counter:', error);
+        return null;
+    }
+}
+
+// Make resetModuleCounter available globally for console access
+window.resetModuleCounter = resetModuleCounter;
 
 function getModuleTemplate() {
     return [

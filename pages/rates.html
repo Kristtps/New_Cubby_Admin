@@ -106,115 +106,117 @@
                 <p class="subtitle">Configure hourly rates displayed on the machine.</p>
             </div>
 
-            <!-- Rates Form Container -->
-            <div class="rates-container">
-                <form id="ratesForm" class="rates-form">
-                    <!-- Rates Grid: Small / Medium / Large side by side -->
-                    <div class="rates-grid">
-                        <!-- Small Locker Rate -->
-                        <div class="rate-section">
-                            <div class="rate-title-section">
-                                <h3 class="rate-title">Small</h3>
-                                <p class="rate-description">shoes / small pack</p>
+            <!-- Side by Side Layout -->
+            <div class="rates-main-layout">
+                <!-- Rates Form Container -->
+                <div class="rates-container">
+                    <form id="ratesForm" class="rates-form">
+                        <!-- Rates Grid: Small / Medium / Large stacked vertically -->
+                        <div class="rates-grid">
+                            <!-- Small Locker Rate -->
+                            <div class="rate-section">
+                                <div class="rate-title-section">
+                                    <h3 class="rate-title">Small</h3>
+                                    <p class="rate-description">shoes / small pack</p>
+                                </div>
+                                <div class="rate-inputs">
+                                    <div class="input-group">
+                                        <label for="smallRate">Rate per hour (₱)</label>
+                                        <input type="number" id="smallRate" name="smallRate" class="form-input" value="10" min="0" step="0.01">
+                                    </div>
+                                </div>
                             </div>
-                            <div class="rate-inputs">
-                                <div class="input-group">
-                                    <label for="smallRate">Rate per hour (₱)</label>
-                                    <input type="number" id="smallRate" name="smallRate" class="form-input" value="10" min="0" step="0.01">
+
+                            <!-- Medium Locker Rate -->
+                            <div class="rate-section">
+                                <div class="rate-title-section">
+                                    <h3 class="rate-title">Medium</h3>
+                                    <p class="rate-description">helmet / backpack</p>
+                                </div>
+                                <div class="rate-inputs">
+                                    <div class="input-group">
+                                        <label for="mediumRate">Rate per hour (₱)</label>
+                                        <input type="number" id="mediumRate" name="mediumRate" class="form-input" value="20" min="0" step="0.01">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Large Locker Rate -->
+                            <div class="rate-section">
+                                <div class="rate-title-section">
+                                    <h3 class="rate-title">Large</h3>
+                                    <p class="rate-description">blue jug / luggage</p>
+                                </div>
+                                <div class="rate-inputs">
+                                    <div class="input-group">
+                                        <label for="largeRate">Rate per hour (₱)</label>
+                                        <input type="number" id="largeRate" name="largeRate" class="form-input" value="35" min="0" step="0.01">
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Medium Locker Rate -->
-                        <div class="rate-section">
-                            <div class="rate-title-section">
-                                <h3 class="rate-title">Medium</h3>
-                                <p class="rate-description">helmet / backpack</p>
-                            </div>
-                            <div class="rate-inputs">
-                                <div class="input-group">
-                                    <label for="mediumRate">Rate per hour (₱)</label>
-                                    <input type="number" id="mediumRate" name="mediumRate" class="form-input" value="20" min="0" step="0.01">
-                                </div>
-                            </div>
-                        </div>
 
-                        <!-- Large Locker Rate -->
-                        <div class="rate-section">
-                            <div class="rate-title-section">
-                                <h3 class="rate-title">Large</h3>
-                                <p class="rate-description">blue jug / luggage</p>
-                            </div>
-                            <div class="rate-inputs">
-                                <div class="input-group">
-                                    <label for="largeRate">Rate per hour (₱)</label>
-                                    <input type="number" id="largeRate" name="largeRate" class="form-input" value="35" min="0" step="0.01">
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-
-                    <!-- Save Button -->
-                    <button type="submit" class="btn-save-rates">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-                            <polyline points="17 21 17 13 7 13 7 21"></polyline>
-                            <polyline points="7 3 7 8 15 8"></polyline>
-                        </svg>
-                        Save Rates
-                    </button>
-                </form>
-            </div>
-
-            <!-- Rate Change History -->
-            <div class="rates-history-container">
-                <div class="rates-history-header">
-                    <div class="rates-history-title-group">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="12" cy="12" r="10"></circle>
-                            <polyline points="12 6 12 12 16 14"></polyline>
-                        </svg>
-                        <h2 class="rates-history-title">Rate Change History</h2>
-                        <span class="rates-history-count" id="historyCount">0 records</span>
-                    </div>
-                    <button class="btn-clear-history" id="btnClearHistory" onclick="clearRatesHistory()">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="3 6 5 6 21 6"></polyline>
-                            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
-                            <path d="M10 11v6M14 11v6"></path>
-                        </svg>
-                        Clear History
-                    </button>
+                        <!-- Edit/Save Button -->
+                        <button type="button" id="btnEditSave" class="btn-save-rates">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                            </svg>
+                            <span id="btnText">Edit Rates</span>
+                        </button>
+                    </form>
                 </div>
 
-                <!-- History Table -->
-                <div class="rates-history-table-wrapper">
-                    <table class="rates-history-table" id="ratesHistoryTable">
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>Date & Time</th>
-                                <th>Changed By</th>
-                                <th>Small (₱/hr)</th>
-                                <th>Medium (₱/hr)</th>
-                                <th>Large (₱/hr)</th>
-                                <th>Changes</th>
-                            </tr>
-                        </thead>
-                        <tbody id="ratesHistoryBody">
-                            <!-- Populated by JS -->
-                        </tbody>
-                    </table>
+                <!-- Rate Change History -->
+                <div class="rates-history-container">
+                    <div class="rates-history-header">
+                        <div class="rates-history-title-group">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <polyline points="12 6 12 12 16 14"></polyline>
+                            </svg>
+                            <h2 class="rates-history-title">Rate Change History</h2>
+                            <span class="rates-history-count" id="historyCount">0 records</span>
+                        </div>
+                        <button class="btn-clear-history" id="btnClearHistory" onclick="clearRatesHistory()">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="3 6 5 6 21 6"></polyline>
+                                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
+                                <path d="M10 11v6M14 11v6"></path>
+                            </svg>
+                            Clear History
+                        </button>
+                    </div>
 
-                    <!-- Empty State -->
-                    <div class="rates-history-empty" id="ratesHistoryEmpty">
-                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                            <circle cx="12" cy="12" r="10"></circle>
-                            <polyline points="12 6 12 12 16 14"></polyline>
-                        </svg>
-                        <p>No rate changes recorded yet.</p>
-                        <span>Changes will appear here after you save rates.</span>
+                    <!-- History Table -->
+                    <div class="rates-history-table-wrapper">
+                        <table class="rates-history-table" id="ratesHistoryTable">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Date & Time</th>
+                                    <th>Changed By</th>
+                                    <th>Small (₱/hr)</th>
+                                    <th>Medium (₱/hr)</th>
+                                    <th>Large (₱/hr)</th>
+                                    <th>Changes</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ratesHistoryBody">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+
+                        <!-- Empty State -->
+                        <div class="rates-history-empty" id="ratesHistoryEmpty">
+                            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <polyline points="12 6 12 12 16 14"></polyline>
+                            </svg>
+                            <p>No rate changes recorded yet.</p>
+                            <span>Changes will appear here after you save rates.</span>
+                        </div>
                     </div>
                 </div>
             </div>
