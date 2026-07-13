@@ -7,6 +7,9 @@ const RATES_HISTORY_KEY = 'coincubby_rates_history';
 // Track edit mode state
 let isEditMode = false;
 
+// Auto-refresh interval
+let ratesAutoRefreshInterval = null;
+
 // Set up event listeners on page load
 document.addEventListener('DOMContentLoaded', async function() {
     // Check authentication
@@ -16,7 +19,10 @@ document.addEventListener('DOMContentLoaded', async function() {
         return;
     }
     
-    initializeRatesPage();
+    await initializeRatesPage();
+    
+    // Start auto-refresh (every 30 seconds)
+    initializeRatesAutoRefresh();
 });
 
 /**
@@ -576,3 +582,35 @@ function escapeHtml(str) {
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
 }
+
+/**
+ * Initialize auto-refresh for rates page (every 30 seconds)
+ */
+function initializeRatesAutoRefresh() {
+    ratesAutoRefreshInterval = setInterval(async function() {
+        try {
+            // Only auto-refresh if NOT in edit mode
+            if (!isEditMode) {
+                await initializeRatesPage();
+                console.log('✓ Rates data auto-refreshed via AJAX');
+            }
+        } catch (error) {
+            console.error('Rates auto-refresh error:', error);
+        }
+    }, 30000); // 30 seconds
+}
+
+/**
+ * Stop auto-refresh
+ */
+function stopRatesAutoRefresh() {
+    if (ratesAutoRefreshInterval) {
+        clearInterval(ratesAutoRefreshInterval);
+        ratesAutoRefreshInterval = null;
+    }
+}
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', function() {
+    stopRatesAutoRefresh();
+});

@@ -6,6 +6,9 @@
 let revenueChartInstance = null;
 let rentalsBySizeInstance = null;
 
+// Auto-refresh interval
+let reportsAutoRefreshInterval = null;
+
 // Report data structure
 const reportData = {
     totalRevenue: 0.00,
@@ -34,7 +37,10 @@ document.addEventListener('DOMContentLoaded', async function () {
         return;
     }
 
-    initializeReports();
+    await initializeReports();
+    
+    // Start auto-refresh (every 60 seconds for reports)
+    initializeReportsAutoRefresh();
 });
 
 /**
@@ -409,3 +415,47 @@ function refreshReport() {
 window.printReport = printReport;
 window.exportReport = exportReport;
 window.refreshReport = refreshReport;
+
+/**
+ * Initialize auto-refresh for reports page (every 60 seconds)
+ */
+function initializeReportsAutoRefresh() {
+    reportsAutoRefreshInterval = setInterval(async function() {
+        try {
+            // Refresh data without resetting filters
+            await loadReportData();
+            
+            // Update charts with new data
+            if (revenueChartInstance) {
+                revenueChartInstance.data.labels = reportData.revenueAndRentals.labels;
+                revenueChartInstance.data.datasets[0].data = reportData.revenueAndRentals.revenue;
+                revenueChartInstance.data.datasets[1].data = reportData.revenueAndRentals.rentals;
+                revenueChartInstance.update('none'); // Update without animation for smooth refresh
+            }
+            
+            if (rentalsBySizeInstance) {
+                rentalsBySizeInstance.data.datasets[0].data = reportData.rentalsBySize.data;
+                rentalsBySizeInstance.update('none');
+            }
+            
+            console.log('✓ Reports data auto-refreshed via AJAX');
+        } catch (error) {
+            console.error('Reports auto-refresh error:', error);
+        }
+    }, 60000); // 60 seconds
+}
+
+/**
+ * Stop auto-refresh
+ */
+function stopReportsAutoRefresh() {
+    if (reportsAutoRefreshInterval) {
+        clearInterval(reportsAutoRefreshInterval);
+        reportsAutoRefreshInterval = null;
+    }
+}
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', function() {
+    stopReportsAutoRefresh();
+});
