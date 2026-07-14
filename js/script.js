@@ -204,7 +204,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     }
 
     initializeSidebar();
-    updateUserProfile();
+    await updateUserProfile(); // Load profile from database
 
     // Check which page we're on
     if (document.getElementById('lockers-table')) {
@@ -582,7 +582,14 @@ function attachLockerClickHandlers() {
  */
 async function showRentalDetailsModal(lockerId, status) {
     const modal = document.getElementById('rentalDetailsModal');
-    if (!modal) return;
+    if (!modal) {
+        console.error('❌ Rental details modal not found in DOM');
+        return;
+    }
+
+    console.log('=== SHOWING RENTAL DETAILS ===');
+    console.log('Locker ID:', lockerId);
+    console.log('Status:', status);
 
     try {
         // Fetch locker and rental details from database
@@ -591,67 +598,99 @@ async function showRentalDetailsModal(lockerId, status) {
         let customerData = null;
 
         if (typeof isSupabaseConnected !== 'undefined' && isSupabaseConnected() && typeof dbOps !== 'undefined') {
+            console.log('✓ Database connected, fetching data...');
+            
             // Get locker details
             if (dbOps.fetchLockerByCode) {
                 lockerData = await dbOps.fetchLockerByCode(lockerId);
+                console.log('Locker data:', lockerData);
             }
 
             // Get active rental for this locker
             if (dbOps.fetchActiveRentalByLocker) {
                 rentalData = await dbOps.fetchActiveRentalByLocker(lockerId);
+                console.log('Rental data:', rentalData);
             }
 
             // If we have rental data, get customer details
             if (rentalData && rentalData.customer_id && dbOps.fetchCustomerById) {
+                console.log('Fetching customer with ID:', rentalData.customer_id);
                 customerData = await dbOps.fetchCustomerById(rentalData.customer_id);
+                console.log('Customer data:', customerData);
+            } else {
+                console.log('⚠️ No customer_id in rental data or missing fetchCustomerById');
             }
+        } else {
+            console.error('❌ Database not connected or dbOps not available');
         }
 
         // Populate modal with locker information
         document.getElementById('detail-locker-number').textContent = lockerId || '-';
         
         if (lockerData) {
-            const sizeLabel = lockerData.size || (lockerData.size_type_id === 1 ? 'Small' : lockerData.size_type_id === 2 ? 'Medium' : 'Large');
+            const sizeLabel = lockerData.size || (lockerData.size_type_id === 1 ? 'Small' : lockerData.size_type_id === 2 ? 'Medium' : lockerData.size_type_id === 3 ? 'Large' : '-');
             document.getElementById('detail-locker-size').textContent = sizeLabel;
             
             const moduleName = lockerData.modules?.name || `M${lockerData.module_id || '?'}`;
             document.getElementById('detail-locker-module').textContent = moduleName;
         } else {
+            console.log('⚠️ No locker data, using defaults');
             document.getElementById('detail-locker-size').textContent = '-';
             document.getElementById('detail-locker-module').textContent = '-';
         }
 
         const statusEl = document.getElementById('detail-locker-status');
-        statusEl.textContent = status ? status.charAt(0).toUpperCase() + status.slice(1) : '-';
+        const displayStatus = status ? status.charAt(0).toUpperCase() + status.slice(1) : '-';
+        statusEl.textContent = displayStatus;
         statusEl.style.color = getStatusColor(status);
 
         // Show/hide renter information based on status
         const renterInfoSection = document.getElementById('renterInfoSection');
         const rentalTimeSection = document.getElementById('rentalTimeSection');
         const renterDivider = document.getElementById('renterDivider');
+        const rentalDivider2 = document.getElementById('rentalDivider2');
 
-        if (status === 'available' || status === 'maintenance') {
+        const statusLower = (status || '').toLowerCase();
+        const isAvailableOrMaintenance = statusLower === 'available' || statusLower === 'maintenance';
+
+        if (isAvailableOrMaintenance) {
+            console.log('ℹ️ Locker is available/maintenance, hiding renter info');
             // Hide renter sections for available/maintenance lockers
-            renterInfoSection.style.display = 'none';
-            rentalTimeSection.style.display = 'none';
-            renterDivider.style.display = 'none';
+            if (renterInfoSection) renterInfoSection.style.display = 'none';
+            if (rentalTimeSection) rentalTimeSection.style.display = 'none';
+            if (renterDivider) renterDivider.style.display = 'none';
+            if (rentalDivider2) rentalDivider2.style.display = 'none';
         } else {
+            console.log('ℹ️ Locker is occupied, showing renter info');
             // Show renter information for occupied/payment lockers
-            renterInfoSection.style.display = 'block';
-            rentalTimeSection.style.display = 'block';
-            renterDivider.style.display = 'block';
+            if (renterInfoSection) renterInfoSection.style.display = 'block';
+            if (rentalTimeSection) rentalTimeSection.style.display = 'block';
+            if (renterDivider) renterDivider.style.display = 'block';
+            if (rentalDivider2) rentalDivider2.style.display = 'block';
 
+            // Populate customer information
             if (customerData) {
-                document.getElementById('detail-customer-name').textContent = customerData.name || 'N/A';
-                document.getElementById('detail-customer-email').textContent = customerData.email || 'N/A';
-                document.getElementById('detail-customer-phone').textContent = customerData.phone || 'N/A';
+                console.log('✓ Populating customer info from database');
+                const customerName = customerData.name || customerData.full_name || customerData.customer_name || 'N/A';
+                const customerEmail = customerData.email || 'N/A';
+                const customerPhone = customerData.phone || customerData.contact_number || customerData.phone_number || 'N/A';
+                
+                document.getElementById('detail-customer-name').textContent = customerName;
+                document.getElementById('detail-customer-email').textContent = customerEmail;
+                document.getElementById('detail-customer-phone').textContent = customerPhone;
+                
+                console.log('Customer info populated:', { customerName, customerEmail, customerPhone });
             } else {
+                console.log('⚠️ No customer data available');
                 document.getElementById('detail-customer-name').textContent = 'N/A';
                 document.getElementById('detail-customer-email').textContent = 'N/A';
                 document.getElementById('detail-customer-phone').textContent = 'N/A';
             }
 
+            // Populate rental information
             if (rentalData) {
+                console.log('✓ Populating rental info from database');
+                
                 // Format start time
                 const startTime = rentalData.start_time ? formatForDisplay(rentalData.start_time) : 'N/A';
                 document.getElementById('detail-start-time').textContent = startTime;
@@ -670,20 +709,27 @@ async function showRentalDetailsModal(lockerId, status) {
                 document.getElementById('detail-duration').textContent = durationText;
 
                 // Amount paid
-                const amount = rentalData.amount_paid || rentalData.total_amount || 0;
+                const amount = rentalData.amount_paid || rentalData.total_amount || rentalData.amount || 0;
                 document.getElementById('detail-amount').textContent = `₱${Number(amount).toFixed(2)}`;
+                
+                console.log('Rental info populated:', { startTime, durationText, amount });
             } else {
+                console.log('⚠️ No rental data available');
                 document.getElementById('detail-start-time').textContent = 'N/A';
                 document.getElementById('detail-duration').textContent = 'N/A';
                 document.getElementById('detail-amount').textContent = '₱0.00';
             }
         }
 
-        // Show modal
+        // Show modal using both methods for compatibility
         modal.classList.add('active');
+        modal.style.display = 'flex';
+        console.log('✓ Modal displayed');
+        console.log('=== END RENTAL DETAILS ===');
     } catch (error) {
-        console.error('Error loading rental details:', error);
-        alert('Failed to load rental details. Please try again.');
+        console.error('❌ Error loading rental details:', error);
+        console.error('Error stack:', error.stack);
+        alert('Failed to load rental details. Check the console for more information.');
     }
 }
 
@@ -694,7 +740,23 @@ function closeRentalDetailsModal() {
     const modal = document.getElementById('rentalDetailsModal');
     if (modal) {
         modal.classList.remove('active');
+        // Also handle display style for compatibility
+        modal.style.display = 'none';
     }
+}
+
+// Set up rental details modal close on outside click
+if (typeof window !== 'undefined') {
+    window.addEventListener('DOMContentLoaded', function() {
+        const rentalModal = document.getElementById('rentalDetailsModal');
+        if (rentalModal) {
+            rentalModal.addEventListener('click', function(e) {
+                if (e.target === this) {
+                    closeRentalDetailsModal();
+                }
+            });
+        }
+    });
 }
 
 /**
@@ -799,25 +861,61 @@ function updateSalesChart(salesData) {
 }
 
 /**
- * Update user profile in sidebar from localStorage
+ * Update user profile in sidebar from admin table database
  */
-function updateUserProfile() {
+async function updateUserProfile() {
     try {
         const authData = JSON.parse(localStorage.getItem('coincubby_auth') || '{}');
         const email = authData.email || 'Admin';
-
-        // Update user name (now email)
-        const userNameElem = document.querySelector('.user-name');
-        if (userNameElem) {
-            userNameElem.textContent = email;
-            userNameElem.title = email; // Show full email on hover
+        let displayName = email;
+        
+        // Try to load full name from database
+        if (typeof window.supabase !== 'undefined' && window.supabase) {
+            try {
+                const { data, error } = await window.supabase
+                    .from('admin')
+                    .select('full_name')
+                    .eq('email', email)
+                    .single();
+                
+                if (!error && data && data.full_name) {
+                    displayName = data.full_name;
+                    // Store in localStorage for quick access
+                    localStorage.setItem('coincubby_admin_name', data.full_name);
+                    console.log('✓ Admin name loaded from database:', displayName);
+                }
+            } catch (dbError) {
+                console.warn('Could not load name from database:', dbError);
+                // Fallback to localStorage if available
+                const savedName = localStorage.getItem('coincubby_admin_name');
+                if (savedName) {
+                    displayName = savedName;
+                }
+            }
+        } else {
+            // Fallback to localStorage if Supabase not available
+            const savedName = localStorage.getItem('coincubby_admin_name');
+            if (savedName) {
+                displayName = savedName;
+            }
         }
+
+        // Update user name in sidebar
+        const userNameElems = document.querySelectorAll('.user-name, #sidebar-name');
+        userNameElems.forEach(elem => {
+            if (elem) {
+                elem.textContent = displayName;
+                elem.title = email; // Show email on hover
+            }
+        });
 
         // Update avatar initial
-        const avatarElem = document.querySelector('.avatar');
-        if (avatarElem) {
-            avatarElem.textContent = email.charAt(0).toUpperCase();
-        }
+        const avatarElems = document.querySelectorAll('.avatar, #sidebar-avatar');
+        avatarElems.forEach(elem => {
+            if (elem) {
+                elem.textContent = displayName.charAt(0).toUpperCase();
+            }
+        });
     } catch (e) {
         console.error('Error updating user profile:', e);
     }
@@ -1299,6 +1397,11 @@ function addLockerRow(lockerData) {
 
     const newRow = document.createElement('tr');
     newRow.setAttribute('data-locker-row', lockerData.dbLockerId ? lockerData.dbLockerId : `${lockerData.moduleId || lockerData.module}-${lockerData.code}`);
+    newRow.setAttribute('data-locker-code', lockerData.code);
+    newRow.setAttribute('data-locker-status', lockerData.status);
+    
+    // Make the row clickable (except when clicking action buttons)
+    newRow.style.cursor = 'pointer';
 
     newRow.innerHTML = `
         <td class="code-cell"><span class="locker-code" data-field="code">${lockerData.code}</span></td>
@@ -1312,6 +1415,21 @@ function addLockerRow(lockerData) {
             <button class="action-btn delete-btn" title="Delete" data-action="delete">Delete</button>
         </td>
     `;
+
+    // Add click event to show rental details (except when clicking buttons)
+    newRow.addEventListener('click', async function(e) {
+        // Don't trigger if clicking action buttons
+        if (e.target.closest('.actions-cell')) {
+            return;
+        }
+        
+        const lockerCode = this.getAttribute('data-locker-code');
+        const status = this.getAttribute('data-locker-status');
+        
+        if (lockerCode) {
+            await showRentalDetailsModal(lockerCode, status);
+        }
+    });
 
     tbody.appendChild(newRow);
 }

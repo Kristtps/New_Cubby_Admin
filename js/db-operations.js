@@ -155,16 +155,129 @@ async function fetchAllCustomers() {
 async function fetchCustomerById(customerId) {
     try {
         const supabase = getSupabaseClient();
+        console.log('🔍 Fetching customer by ID:', customerId);
+        
         const { data, error } = await supabase
             .from('customers')
             .select('*')
             .eq('customer_id', customerId)
             .single();
 
-        if (error) throw error;
+        if (error) {
+            console.error('❌ Error fetching customer:', error);
+            throw error;
+        }
+        
+        console.log('✓ Customer data from DB:', data);
+        
+        // Map database columns to expected UI properties
+        if (data) {
+            const mappedData = {
+                ...data,
+                // Try multiple possible column names
+                name: data.full_name || data.name || data.customer_name || 'N/A',
+                phone: data.contact_number || data.phone || data.phone_number || 'N/A',
+                email: data.email || 'N/A'
+            };
+            console.log('✓ Mapped customer data:', mappedData);
+            return mappedData;
+        }
         return data;
     } catch (error) {
-        console.error('Error fetching customer:', error);
+        console.error('❌ Error in fetchCustomerById:', error);
+        return null;
+    }
+}
+
+/**
+ * Fetch locker by locker_number (code like "S2", "M1")
+ */
+async function fetchLockerByCode(lockerNumber) {
+    try {
+        const supabase = getSupabaseClient();
+        const { data, error } = await supabase
+            .from('lockers')
+            .select('*, modules(name)')
+            .eq('locker_number', lockerNumber)
+            .single();
+
+        if (error) throw error;
+        console.log('✓ Locker fetched by number:', data);
+        return data;
+    } catch (error) {
+        console.error('Error fetching locker by number:', error);
+        return null;
+    }
+}
+
+/**
+ * Fetch active rental/transaction for a specific locker by locker_number
+ * Includes payment information from the payments table
+ */
+async function fetchActiveRentalByLocker(lockerNumber) {
+    try {
+        const supabase = getSupabaseClient();
+        
+        console.log('🔍 Fetching active rental for locker:', lockerNumber);
+        
+        // First get the locker_id from locker_number
+        const { data: lockerData, error: lockerError } = await supabase
+            .from('lockers')
+            .select('locker_id, status')
+            .eq('locker_number', lockerNumber)
+            .single();
+
+        if (lockerError) throw lockerError;
+        if (!lockerData) {
+            console.log('❌ Locker not found:', lockerNumber);
+            return null;
+        }
+
+        console.log('✓ Locker found:', lockerData);
+
+        // Fetch active transaction with payment information
+        // Join with payments table to get amount
+        const { data, error } = await supabase
+            .from('transactions')
+            .select(`
+                *,
+                payments(amount, payment_method, payment_date)
+            `)
+            .eq('locker_id', lockerData.locker_id)
+            .eq('status', 'Active')
+            .order('start_time', { ascending: false })
+            .limit(1);
+
+        if (error) {
+            // PGRST116 means no rows returned (no active rental)
+            if (error.code === 'PGRST116') {
+                console.log('ℹ️ No active rental found for locker:', lockerNumber);
+                return null;
+            }
+            console.error('❌ Error fetching transaction:', error);
+            throw error;
+        }
+
+        if (data && data.length > 0) {
+            const transaction = data[0];
+            
+            // Flatten payment data into transaction object
+            if (transaction.payments && transaction.payments.length > 0) {
+                transaction.amount_paid = transaction.payments[0].amount;
+                transaction.payment_method = transaction.payments[0].payment_method;
+                transaction.payment_date = transaction.payments[0].payment_date;
+            } else {
+                transaction.amount_paid = 0;
+            }
+            
+            console.log('✓ Active rental found:', transaction);
+            return transaction;
+        }
+
+        console.log('ℹ️ No active rental data found for locker:', lockerNumber);
+        return null;
+    } catch (error) {
+        console.error('❌ Error fetching active rental by locker:', error);
         return null;
     }
 }
@@ -582,13 +695,26 @@ async function fetchAllTransactions() {
             .from('transactions')
             .select(`
                 *,
-                customers (full_name, email),
+                customers (full_name, email, contact_number),
                 lockers (locker_number),
-                payments (amount, payment_method)
+                payments (amount, payment_method, payment_date)
             `)
             .order('start_time', { ascending: false });
 
         if (error) throw error;
+        
+        // Flatten payment data into transaction objects
+        if (data) {
+            data.forEach(transaction => {
+                if (transaction.payments && transaction.payments.length > 0) {
+                    transaction.amount_paid = transaction.payments[0].amount;
+                    transaction.payment_method = transaction.payments[0].payment_method;
+                } else {
+                    transaction.amount_paid = 0;
+                }
+            });
+        }
+        
         console.log('✓ Transactions fetched:', data);
         return data;
     } catch (error) {
@@ -608,14 +734,28 @@ async function fetchTodayTransactions() {
             .from('transactions')
             .select(`
                 *,
-                customers (full_name, email),
-                lockers (locker_number)
+                customers (full_name, email, contact_number),
+                lockers (locker_number),
+                payments (amount, payment_method, payment_date)
             `)
             .gte('start_time', `${today}T00:00:00`)
             .lte('start_time', `${today}T23:59:59`)
             .order('start_time', { ascending: false });
 
         if (error) throw error;
+        
+        // Flatten payment data into transaction objects
+        if (data) {
+            data.forEach(transaction => {
+                if (transaction.payments && transaction.payments.length > 0) {
+                    transaction.amount_paid = transaction.payments[0].amount;
+                    transaction.payment_method = transaction.payments[0].payment_method;
+                } else {
+                    transaction.amount_paid = 0;
+                }
+            });
+        }
+        
         return data;
     } catch (error) {
         console.error('Error fetching today transactions:', error);
@@ -1207,6 +1347,7 @@ window.dbOps = {
     createRental,
     updateRentalStatus,
     completeActiveTransactionForLocker,
+    fetchActiveRentalByLocker,
 
     // Customers
     fetchAllCustomers,
@@ -1215,6 +1356,7 @@ window.dbOps = {
 
     // Lockers
     fetchAllLockers,
+    fetchLockerByCode,
     updateLockerStatus,
     createLocker,
     createLockersBatch,

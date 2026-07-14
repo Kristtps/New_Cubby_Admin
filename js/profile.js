@@ -1,8 +1,9 @@
 // ========================================
 // PROFILE PAGE - JAVASCRIPT FUNCTIONALITY
+// Connected to admin table in database
 // ========================================
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
     // Check authentication
     if (typeof isUserAuthenticated !== 'undefined' && !isUserAuthenticated()) {
         console.log('User not authenticated, redirecting to login...');
@@ -10,11 +11,77 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
     }
     
+    await loadProfileFromDatabase();
     setupProfileForm();
     setupPasswordForm();
     setupProfileThemeToggle();
     setupLanguageSelector();
 });
+
+/**
+ * Load profile data from admin table
+ */
+async function loadProfileFromDatabase() {
+    try {
+        // Get logged in user email from localStorage
+        const auth = JSON.parse(localStorage.getItem('coincubby_auth') || '{}');
+        const userEmail = auth.email;
+        
+        if (!userEmail) {
+            console.warn('No user email found in auth');
+            return;
+        }
+        
+        // Check if Supabase is available
+        if (typeof window.supabase === 'undefined' || !window.supabase) {
+            console.warn('Supabase not initialized, using localStorage');
+            return;
+        }
+        
+        console.log('Loading profile from database for:', userEmail);
+        
+        // Fetch admin profile from database
+        const { data, error } = await window.supabase
+            .from('admin')
+            .select('*')
+            .eq('email', userEmail)
+            .single();
+        
+        if (error) {
+            console.error('Error loading profile:', error);
+            return;
+        }
+        
+        if (data) {
+            console.log('✓ Profile loaded from database:', data);
+            
+            // Update UI with database data
+            const nameInput = document.getElementById('profile-name');
+            const emailInput = document.getElementById('profile-email');
+            const mainName = document.getElementById('main-name');
+            const sidebarName = document.getElementById('sidebar-name');
+            const mainEmail = document.getElementById('main-email');
+            
+            if (data.full_name) {
+                nameInput.value = data.full_name;
+                mainName.textContent = data.full_name;
+                sidebarName.textContent = data.full_name;
+                setAvatarInitials(data.full_name);
+            }
+            
+            if (data.email) {
+                emailInput.value = data.email;
+                mainEmail.textContent = data.email;
+            }
+            
+            // Store in localStorage for quick access
+            localStorage.setItem('coincubby_admin_name', data.full_name || userEmail.split('@')[0]);
+            localStorage.setItem('coincubby_admin_email', data.email);
+        }
+    } catch (error) {
+        console.error('Error in loadProfileFromDatabase:', error);
+    }
+}
 
 function setupProfileForm() {
     const editBtn = document.getElementById('edit-profile-btn');
@@ -36,31 +103,9 @@ function setupProfileForm() {
     const sidebarName = document.getElementById('sidebar-name');
     const mainEmail = document.getElementById('main-email');
 
-    // Load initial values from localStorage if they exist
-    const savedName = localStorage.getItem('coincubby_admin_name');
-    const savedEmail = localStorage.getItem('coincubby_admin_email');
-    const savedAvatar = localStorage.getItem('coincubby_admin_avatar');
-
-    if (savedName) {
-        nameInput.value = savedName;
-        mainName.textContent = savedName;
-        sidebarName.textContent = savedName;
-    }
-    
-    if (savedEmail) {
-        emailInput.value = savedEmail;
-        mainEmail.textContent = savedEmail;
-    }
-    
-    if (savedAvatar) {
-        setAvatarImage(savedAvatar);
-    } else if (savedName) {
-        setAvatarInitials(savedName);
-    } else {
-        setAvatarInitials(nameInput.value);
-    }
-
     let isEditing = false;
+    let originalName = nameInput.value;
+    let originalEmail = emailInput.value;
 
     // Toggle edit mode
     editBtn.addEventListener('click', function(e) {
@@ -68,10 +113,14 @@ function setupProfileForm() {
         isEditing = !isEditing;
         
         if (isEditing) {
+            // Store original values
+            originalName = nameInput.value;
+            originalEmail = emailInput.value;
+            
             // Enable editing
             editBtn.textContent = 'Cancel';
             nameInput.removeAttribute('readonly');
-            emailInput.removeAttribute('readonly');
+            // Email should stay readonly - can't change email
             avatarUpload.removeAttribute('disabled');
             btnUploadAvatar.removeAttribute('disabled');
             saveBtn.style.display = 'block';
@@ -80,21 +129,14 @@ function setupProfileForm() {
             // Disable editing (cancel)
             editBtn.textContent = 'Edit';
             nameInput.setAttribute('readonly', 'readonly');
-            emailInput.setAttribute('readonly', 'readonly');
             avatarUpload.setAttribute('disabled', 'disabled');
             btnUploadAvatar.setAttribute('disabled', 'disabled');
             saveBtn.style.display = 'none';
             
             // Revert changes
-            nameInput.value = localStorage.getItem('coincubby_admin_name') || 'Admin User';
-            emailInput.value = localStorage.getItem('coincubby_admin_email') || 'admin@coincubby.com';
-            
-            const avatar = localStorage.getItem('coincubby_admin_avatar');
-            if (avatar) {
-                setAvatarImage(avatar);
-            } else {
-                setAvatarInitials(nameInput.value);
-            }
+            nameInput.value = originalName;
+            emailInput.value = originalEmail;
+            setAvatarInitials(nameInput.value);
         }
     });
 
@@ -113,39 +155,65 @@ function setupProfileForm() {
         }
     });
 
-    // Save profile changes
-    profileForm.addEventListener('submit', function(e) {
+    // Save profile changes to DATABASE
+    profileForm.addEventListener('submit', async function(e) {
         e.preventDefault();
         
-        // Save to localStorage (mocking DB save)
-        localStorage.setItem('coincubby_admin_name', nameInput.value);
-        localStorage.setItem('coincubby_admin_email', emailInput.value);
+        const auth = JSON.parse(localStorage.getItem('coincubby_auth') || '{}');
+        const userEmail = auth.email;
         
-        // If image uploaded, it's already previewing, but we save it as a data URL for now
-        // In a real app this would upload to storage and return a URL
-        if (avatarPreview.style.backgroundImage) {
-            const bgImage = avatarPreview.style.backgroundImage.slice(5, -2);
-            localStorage.setItem('coincubby_admin_avatar', bgImage);
-        } else {
-            localStorage.removeItem('coincubby_admin_avatar');
-            setAvatarInitials(nameInput.value);
+        if (!userEmail) {
+            alert('Error: No user email found');
+            return;
         }
-
-        // Update UI
-        mainName.textContent = nameInput.value;
-        sidebarName.textContent = nameInput.value;
-        mainEmail.textContent = emailInput.value;
-
-        // Exit edit mode
-        isEditing = false;
-        editBtn.textContent = 'Edit';
-        nameInput.setAttribute('readonly', 'readonly');
-        emailInput.setAttribute('readonly', 'readonly');
-        avatarUpload.setAttribute('disabled', 'disabled');
-        btnUploadAvatar.setAttribute('disabled', 'disabled');
-        saveBtn.style.display = 'none';
         
-        // Optional: show a toast or success indicator
+        try {
+            // Save to database
+            if (typeof window.supabase !== 'undefined' && window.supabase) {
+                console.log('Updating profile in database...');
+                
+                const { data, error } = await window.supabase
+                    .from('admin')
+                    .update({
+                        full_name: nameInput.value,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('email', userEmail)
+                    .select();
+                
+                if (error) {
+                    console.error('Error updating profile:', error);
+                    alert('Error saving profile: ' + error.message);
+                    return;
+                }
+                
+                console.log('✓ Profile updated in database:', data);
+            }
+            
+            // Update localStorage
+            localStorage.setItem('coincubby_admin_name', nameInput.value);
+            localStorage.setItem('coincubby_admin_email', emailInput.value);
+            
+            // Update UI
+            mainName.textContent = nameInput.value;
+            sidebarName.textContent = nameInput.value;
+            mainEmail.textContent = emailInput.value;
+            setAvatarInitials(nameInput.value);
+
+            // Exit edit mode
+            isEditing = false;
+            editBtn.textContent = 'Edit';
+            nameInput.setAttribute('readonly', 'readonly');
+            avatarUpload.setAttribute('disabled', 'disabled');
+            btnUploadAvatar.setAttribute('disabled', 'disabled');
+            saveBtn.style.display = 'none';
+            
+            // Show success message
+            showSuccessMessage('Profile updated successfully!');
+        } catch (error) {
+            console.error('Error saving profile:', error);
+            alert('Error saving profile. Please try again.');
+        }
     });
 
     function setAvatarImage(url) {
@@ -171,16 +239,46 @@ function setupProfileForm() {
         sidebarAvatar.style.backgroundImage = '';
         sidebarAvatar.textContent = initial;
     }
+    
+    // Make setAvatarInitials available globally for loadProfileFromDatabase
+    window.setAvatarInitials = setAvatarInitials;
 }
 
-function setupPasswordForm() {
+/**
+ * Show success message
+ */
+function showSuccessMessage(message) {
+    const successDiv = document.createElement('div');
+    successDiv.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #4caf50;
+        color: white;
+        padding: 15px 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 9999;
+        animation: slideIn 0.3s ease;
+    `;
+    successDiv.textContent = message;
+    document.body.appendChild(successDiv);
+    
+    setTimeout(() => {
+        successDiv.style.animation = 'slideOut 0.3s ease';
+        setTimeout(() => successDiv.remove(), 300);
+    }, 3000);
+}
+
+async function setupPasswordForm() {
     const passwordForm = document.getElementById('password-form');
+    const currentPassword = document.getElementById('current-password');
     const newPassword = document.getElementById('new-password');
     const confirmPassword = document.getElementById('confirm-password');
     const errorMsg = document.getElementById('password-error');
     const successMsg = document.getElementById('password-success');
 
-    passwordForm.addEventListener('submit', function(e) {
+    passwordForm.addEventListener('submit', async function(e) {
         e.preventDefault();
         errorMsg.style.display = 'none';
         successMsg.style.display = 'none';
@@ -196,15 +294,66 @@ function setupPasswordForm() {
             errorMsg.style.display = 'block';
             return;
         }
-
-        // Simulating password update success
-        successMsg.style.display = 'block';
-        passwordForm.reset();
         
-        // Hide success message after 3 seconds
-        setTimeout(() => {
-            successMsg.style.display = 'none';
-        }, 3000);
+        // Get user email
+        const auth = JSON.parse(localStorage.getItem('coincubby_auth') || '{}');
+        const userEmail = auth.email;
+        
+        if (!userEmail) {
+            errorMsg.textContent = "Error: No user email found";
+            errorMsg.style.display = 'block';
+            return;
+        }
+        
+        try {
+            // Verify current password
+            if (typeof window.supabase !== 'undefined' && window.supabase) {
+                const { data: adminData, error: verifyError } = await window.supabase
+                    .from('admin')
+                    .select('password')
+                    .eq('email', userEmail)
+                    .single();
+                
+                if (verifyError || !adminData) {
+                    errorMsg.textContent = "Error verifying current password";
+                    errorMsg.style.display = 'block';
+                    return;
+                }
+                
+                if (adminData.password !== currentPassword.value) {
+                    errorMsg.textContent = "Current password is incorrect";
+                    errorMsg.style.display = 'block';
+                    return;
+                }
+                
+                // Update password in database
+                const { error: updateError } = await window.supabase
+                    .from('admin')
+                    .update({ password: newPassword.value })
+                    .eq('email', userEmail);
+                
+                if (updateError) {
+                    errorMsg.textContent = "Error updating password: " + updateError.message;
+                    errorMsg.style.display = 'block';
+                    return;
+                }
+                
+                console.log('✓ Password updated in database');
+            }
+            
+            // Success
+            successMsg.style.display = 'block';
+            passwordForm.reset();
+            
+            // Hide success message after 3 seconds
+            setTimeout(() => {
+                successMsg.style.display = 'none';
+            }, 3000);
+        } catch (error) {
+            console.error('Error updating password:', error);
+            errorMsg.textContent = "Error updating password. Please try again.";
+            errorMsg.style.display = 'block';
+        }
     });
 }
 
