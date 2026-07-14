@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login Debug Tool</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        h1, h2 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        .info {
+            background: #e3f2fd;
+            border-left: 4px solid #2196F3;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+
+        .error {
+            background: #ffebee;
+            border-left: 4px solid #f44336;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            color: #c62828;
+        }
+
+        .success {
+            background: #e8f5e9;
+            border-left: 4px solid #4caf50;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            color: #2e7d32;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+
+        button:hover {
+            background: #5568d3;
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .log {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+
+        .log-entry {
+            margin-bottom: 8px;
+            line-height: 1.6;
+        }
+
+        .log-error { color: #f48771; }
+        .log-success { color: #4ec9b0; }
+        .log-warning { color: #dcdcaa; }
+        .log-info { color: #569cd6; }
+
+        code {
+            background: #f5f5f5;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>🔍 Login Debug Tool</h1>
+            <p>This tool helps diagnose login issues and test the authentication system.</p>
+
+            <div class="info">
+                <strong>ℹ️ What this checks:</strong><br>
+                • Supabase connection<br>
+                • Admin table access<br>
+                • Login functionality<br>
+                • Error messages
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Step 1: Check Connection</h2>
+            <button onclick="checkSupabase()">Test Supabase Connection</button>
+            <button onclick="checkAdminTable()">Check Admin Table</button>
+            <button onclick="checkDbOps()">Check dbOps Module</button>
+        </div>
+
+        <div class="card">
+            <h2>Step 2: Test Login</h2>
+            <form id="testLoginForm" onsubmit="testLogin(event)">
+                <div class="form-group">
+                    <label>Email:</label>
+                    <input type="email" id="testEmail" value="admin@coincubby.com" required>
+                </div>
+                <div class="form-group">
+                    <label>Password:</label>
+                    <input type="password" id="testPassword" value="" required>
+                </div>
+                <button type="submit">Test Login</button>
+            </form>
+
+            <div class="info" style="margin-top: 20px;">
+                <strong>💡 Tip:</strong> Enter your actual Supabase Auth credentials (the email/password you created in Supabase Authentication)
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>📋 Debug Log</h2>
+            <button onclick="clearLogs()">Clear Logs</button>
+            <div id="logContainer" class="log">
+                <div class="log-entry log-info">Ready to debug...</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/supabase-client.js"></script>
+    <script src="js/db-operations.js"></script>
+
+    <script>
+        function log(message, type = 'info') {
+            const logContainer = document.getElementById('logContainer');
+            const timestamp = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            entry.textContent = `[${timestamp}] ${message}`;
+            logContainer.appendChild(entry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+            console.log(message);
+        }
+
+        function clearLogs() {
+            document.getElementById('logContainer').innerHTML = '<div class="log-entry log-info">Logs cleared...</div>';
+        }
+
+        async function checkSupabase() {
+            log('Checking Supabase connection...', 'info');
+            
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            if (typeof window.supabase === 'undefined' || !window.supabase) {
+                log('❌ Supabase client not initialized', 'error');
+                log('💡 Check if supabase-client.js is loaded', 'warning');
+                return;
+            }
+            
+            if (typeof window.supabase.from !== 'function') {
+                log('❌ Supabase client loaded but not properly initialized', 'error');
+                return;
+            }
+            
+            log('✓ Supabase client is connected', 'success');
+            
+            try {
+                const { data, error } = await window.supabase
+                    .from('admin')
+                    .select('count')
+                    .limit(1);
+                
+                if (error) {
+                    log(`⚠️ Can access Supabase but query failed: ${error.message}`, 'warning');
+                } else {
+                    log('✓ Supabase queries working properly', 'success');
+                }
+            } catch (err) {
+                log(`⚠️ Error testing query: ${err.message}`, 'warning');
+            }
+        }
+
+        async function checkAdminTable() {
+            log('Checking admin table...', 'info');
+            
+            if (!window.supabase) {
+                log('❌ Supabase not connected. Run "Test Supabase Connection" first', 'error');
+                return;
+            }
+            
+            try {
+                const { data, error } = await window.supabase
+                    .from('admin')
+                    .select('*')
+                    .limit(5);
+                
+                if (error) {
+                    log(`❌ Admin table error: ${error.message}`, 'error');
+                    
+                    if (error.message.includes('does not exist')) {
+                        log('💡 Solution: Make sure you have an "admin" table in Supabase', 'warning');
+                    } else if (error.message.includes('permission') || error.message.includes('policy')) {
+                        log('💡 Solution: Disable RLS for admin table: ALTER TABLE admin DISABLE ROW LEVEL SECURITY;', 'warning');
+                    }
+                    return;
+                }
+                
+                log(`✓ Admin table exists with ${data.length} records`, 'success');
+                
+                data.forEach((admin, index) => {
+                    log(`  Admin ${index + 1}: ${admin.email} ${admin.full_name ? '(' + admin.full_name + ')' : ''}`, 'info');
+                });
+                
+                if (data.length === 0) {
+                    log('⚠️ Warning: Admin table is empty!', 'warning');
+                    log('💡 You need to create an admin account in Supabase Auth first', 'warning');
+                }
+            } catch (err) {
+                log(`❌ Error: ${err.message}`, 'error');
+            }
+        }
+
+        async function checkDbOps() {
+            log('Checking dbOps module...', 'info');
+            
+            if (typeof window.dbOps === 'undefined') {
+                log('❌ dbOps module not loaded', 'error');
+                log('💡 Check if db-operations.js is loaded correctly', 'warning');
+                return;
+            }
+            
+            log('✓ dbOps module is loaded', 'success');
+            
+            const functions = [
+                'fetchAdminByEmail',
+                'updateAdminLastLogin',
+                'getAdminDisplayName',
+                'fetchRateHistory',
+                'createRateHistory'
+            ];
+            
+            functions.forEach(fn => {
+                if (typeof window.dbOps[fn] === 'function') {
+                    log(`  ✓ ${fn} available`, 'success');
+                } else {
+                    log(`  ❌ ${fn} missing`, 'error');
+                }
+            });
+        }
+
+        async function testLogin(event) {
+            event.preventDefault();
+            
+            const email = document.getElementById('testEmail').value;
+            const password = document.getElementById('testPassword').value;
+            
+            log('=== TESTING LOGIN ===', 'info');
+            log(`Email: ${email}`, 'info');
+            
+            if (!window.supabase) {
+                log('❌ Supabase not connected', 'error');
+                return;
+            }
+            
+            try {
+                log('Attempting Supabase Auth login...', 'info');
+                
+                const { data, error } = await window.supabase.auth.signInWithPassword({
+                    email: email,
+                    password: password
+                });
+                
+                if (error) {
+                    log(`❌ Login failed: ${error.message}`, 'error');
+                    
+                    if (error.message.includes('Invalid login credentials')) {
+                        log('💡 Check: Is this email registered in Supabase Auth? (Dashboard → Authentication → Users)', 'warning');
+                        log('💡 Check: Is the password correct?', 'warning');
+                    } else if (error.message.includes('Email not confirmed')) {
+                        log('💡 Solution: Confirm the email in Supabase Auth settings', 'warning');
+                    }
+                    return;
+                }
+                
+                log('✓ Supabase Auth successful!', 'success');
+                log(`  User ID: ${data.user.id}`, 'info');
+                log(`  Email: ${data.user.email}`, 'info');
+                
+                // Check if user is a customer
+                log('Checking if user is a customer...', 'info');
+                const { data: customerData } = await window.supabase
+                    .from('customers')
+                    .select('customer_id')
+                    .eq('email', email)
+                    .maybeSingle();
+                
+                if (customerData) {
+                    log('⚠️ This user exists in customers table - would be blocked as customer', 'warning');
+                } else {
+                    log('✓ User is not a customer - can access admin panel', 'success');
+                }
+                
+                // Try to fetch admin info
+                log('Fetching admin profile...', 'info');
+                try {
+                    if (typeof window.dbOps !== 'undefined' && window.dbOps.fetchAdminByEmail) {
+                        const admin = await window.dbOps.fetchAdminByEmail(email);
+                        if (admin) {
+                            log(`✓ Admin profile found: ${admin.full_name || admin.email}`, 'success');
+                        } else {
+                            log('⚠️ No admin profile found (table might not have full_name column yet)', 'warning');
+                            log('💡 This is OK - login will still work, just using email as name', 'info');
+                        }
+                    }
+                } catch (adminErr) {
+                    log(`⚠️ Could not fetch admin profile: ${adminErr.message}`, 'warning');
+                    log('💡 This is OK if you haven\'t run the admin table migration yet', 'info');
+                }
+                
+                log('=== LOGIN TEST COMPLETE ===', 'success');
+                log('✅ Login should work! Try logging in normally now.', 'success');
+                
+                // Sign out the test login
+                await window.supabase.auth.signOut();
+                
+            } catch (err) {
+                log(`❌ Unexpected error: ${err.message}`, 'error');
+                console.error(err);
+            }
+        }
+
+        // Auto-check on load
+        window.addEventListener('DOMContentLoaded', async () => {
+            log('Page loaded. Initializing...', 'info');
+            if (window.supabasePromise) {
+                await window.supabasePromise;
+            }
+            setTimeout(() => {
+                checkSupabase();
+                checkDbOps();
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

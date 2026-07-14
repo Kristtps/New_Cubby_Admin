@@ -420,23 +420,22 @@ function formatRate(rate) {
 
 /**
  * Add a history entry whenever rates are manually saved.
+ * NOW SAVES TO DATABASE instead of localStorage
  * @param {object} newRates  - the just-saved rates object
  * @param {object|null} oldRates - the previous rates (null if first save)
  */
-function addToRatesHistory(newRates, oldRates) {
+async function addToRatesHistory(newRates, oldRates) {
     try {
-        const history = getRatesHistory();
-
         // Resolve admin name from localStorage auth
         let adminName = 'Admin';
         try {
             const auth = JSON.parse(localStorage.getItem('coincubby_auth') || '{}');
-            if (auth.name) adminName = auth.name;
-            else if (auth.email) adminName = auth.email.split('@')[0];
+            if (auth.email) {
+                adminName = auth.email.split('@')[0]; // Use email username as name
+            }
         } catch (_) {}
 
-        const entry = {
-            id: Date.now(),
+        const historyData = {
             savedAt: new Date().toISOString(),
             changedBy: adminName,
             rates: {
@@ -451,20 +450,65 @@ function addToRatesHistory(newRates, oldRates) {
             } : null
         };
 
-        // Prepend (newest first) and cap at 100 entries
-        history.unshift(entry);
-        if (history.length > 100) history.length = 100;
-
-        localStorage.setItem(RATES_HISTORY_KEY, JSON.stringify(history));
+        // Save to DATABASE
+        if (typeof dbOps !== 'undefined' && dbOps.createRateHistory) {
+            await dbOps.createRateHistory(historyData);
+            console.log('✓ Rate history saved to database');
+        } else {
+            // Fallback to localStorage if database is unavailable
+            const history = getRatesHistoryFromLocalStorage();
+            history.unshift({
+                id: Date.now(),
+                ...historyData
+            });
+            if (history.length > 100) history.length = 100;
+            localStorage.setItem(RATES_HISTORY_KEY, JSON.stringify(history));
+            console.log('⚠ Rate history saved to localStorage (database unavailable)');
+        }
     } catch (error) {
         console.error('Error saving rates history:', error);
     }
 }
 
 /**
- * Retrieve history array from localStorage.
+ * Retrieve history from DATABASE (primary) or localStorage (fallback).
  */
-function getRatesHistory() {
+async function getRatesHistory() {
+    try {
+        // Try database first
+        if (typeof dbOps !== 'undefined' && dbOps.fetchRateHistory) {
+            const dbHistory = await dbOps.fetchRateHistory();
+            if (dbHistory && dbHistory.length > 0) {
+                // Transform database format to match UI expectations
+                return dbHistory.map(entry => ({
+                    id: entry.history_id,
+                    savedAt: entry.changed_at,
+                    changedBy: entry.changed_by,
+                    rates: {
+                        small: parseFloat(entry.small_rate),
+                        medium: parseFloat(entry.medium_rate),
+                        large: parseFloat(entry.large_rate)
+                    },
+                    previous: (entry.previous_small || entry.previous_medium || entry.previous_large) ? {
+                        small: entry.previous_small ? parseFloat(entry.previous_small) : null,
+                        medium: entry.previous_medium ? parseFloat(entry.previous_medium) : null,
+                        large: entry.previous_large ? parseFloat(entry.previous_large) : null
+                    } : null
+                }));
+            }
+        }
+    } catch (error) {
+        console.error('Error fetching rate history from database:', error);
+    }
+    
+    // Fallback to localStorage
+    return getRatesHistoryFromLocalStorage();
+}
+
+/**
+ * Get history from localStorage (legacy/fallback)
+ */
+function getRatesHistoryFromLocalStorage() {
     try {
         const raw = localStorage.getItem(RATES_HISTORY_KEY);
         return raw ? JSON.parse(raw) : [];
@@ -476,7 +520,7 @@ function getRatesHistory() {
 /**
  * Render the history table in the DOM.
  */
-function renderRatesHistory() {
+async function renderRatesHistory() {
     const tbody    = document.getElementById('ratesHistoryBody');
     const empty    = document.getElementById('ratesHistoryEmpty');
     const table    = document.getElementById('ratesHistoryTable');
@@ -484,7 +528,7 @@ function renderRatesHistory() {
 
     if (!tbody) return;
 
-    const history = getRatesHistory();
+    const history = await getRatesHistory(); // Now async - fetches from database
 
     // Update count badge
     if (countEl) {
@@ -563,12 +607,29 @@ function renderRatesHistory() {
 }
 
 /**
- * Clear all rate change history.
+ * Clear all rate change history from DATABASE
  */
-function clearRatesHistory() {
+async function clearRatesHistory() {
     if (!confirm('Are you sure you want to clear the entire rate change history? This cannot be undone.')) return;
-    localStorage.removeItem(RATES_HISTORY_KEY);
-    renderRatesHistory();
+    
+    try {
+        // Try to clear from database
+        if (typeof dbOps !== 'undefined' && dbOps.clearRateHistory) {
+            const success = await dbOps.clearRateHistory();
+            if (success) {
+                console.log('✓ Rate history cleared from database');
+            }
+        }
+        
+        // Also clear localStorage (legacy data)
+        localStorage.removeItem(RATES_HISTORY_KEY);
+        
+        // Refresh the display
+        await renderRatesHistory();
+    } catch (error) {
+        console.error('Error clearing rate history:', error);
+        alert('Error clearing history. Please try again.');
+    }
 }
 
 /**

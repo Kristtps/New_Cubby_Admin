@@ -1,9 +1,11 @@
 // ========================================
-// LOGIN PAGE - JAVASCRIPT FUNCTIONALITY
+// LOGIN PAGE - ADMIN TABLE AUTHENTICATION
 // ========================================
+// This version authenticates against the admin table in Supabase
+// NOT Supabase Auth - uses your custom admin table
 
 const SUPABASE_URL = "https://cjuimxgxovdmijuenagr.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNqdWlteGd4b3ZkbWlqdWVuYWdyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0MzQ0OTEsImV4cCI6MjA5MjAxMDQ5MX0.t6ixuFiD2iYzrNZsc1QjG3gpdTdBuMY37qTKzwxdg18"; // your full key
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNqdWlteGd4b3ZkbWlqdWVuYWdyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0MzQ0OTEsImV4cCI6MjA5MjAxMDQ5MX0.t6ixuFiD2iYzrNZsc1QjG3gpdTdBuMY37qTKzwxdg18";
 
 let supabaseClient;
 
@@ -29,7 +31,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     }
 
-    // Force show login for demo/reset - CLEAR STORED AUTH
+    // Clear stored auth for demo/reset
     localStorage.removeItem('coincubby_auth');
     console.log('✓ Demo mode: Auth cleared, login form will show');
 
@@ -85,7 +87,7 @@ function initializeLoginForm() {
 }
 
 /**
- * Handle login form submission
+ * Handle login form submission - AUTHENTICATE AGAINST ADMIN TABLE
  */
 async function handleLoginSubmit(e) {
     e.preventDefault();
@@ -107,46 +109,61 @@ async function handleLoginSubmit(e) {
 
     try {
         if (!supabaseClient) {
-            showError('Supabase client not initialized. Check your internet connection.');
+            showError('Database connection not initialized. Check your internet connection.');
             return;
         }
 
-        const { data, error } = await supabaseClient.auth.signInWithPassword({
-            email: email,
-            password: password,
-        });
+        console.log('Authenticating against admin table...');
 
-        if (error) {
-            showError(error.message || 'Incorrect email or password. Please try again.');
-            validatePassword();
-            return;
-        }
-
-        // Login successful - Now check if this is an Admin (not a Customer)
-        const { data: customerData, error: customerError } = await supabaseClient
-            .from('customers')
-            .select('customer_id')
+        // Query admin table for matching email and password
+        const { data: adminData, error: adminError } = await supabaseClient
+            .from('admin')
+            .select('*')
             .eq('email', email)
+            .eq('password', password)
             .maybeSingle();
 
-        if (customerData) {
-            // User exists in the customers table, so they are not an admin
-            await supabaseClient.auth.signOut();
-            showError('Access Denied: This account is registered as a Customer. Only Administrators can access the Admin Panel.');
+        if (adminError) {
+            console.error('Database error:', adminError);
+            showError('Database error. Please try again.');
             return;
         }
 
+        if (!adminData) {
+            // No matching admin found
+            showError('Invalid email or password. Please try again.');
+            console.log('Login failed: No matching admin in database');
+            return;
+        }
+
+        // Login successful!
+        console.log('✓ Admin authenticated:', adminData.email);
         showSuccess('Login successful! Redirecting...');
 
+        // Store auth data
         storeLoginCredentials({
-            email: data.user.email,
+            id: adminData.id,
+            email: adminData.email,
+            name: adminData.full_name || adminData.email.split('@')[0],
             loginTime: new Date().toISOString(),
             rememberMe: rememberMe
         });
 
+        // Update last_login in database (if column exists)
+        try {
+            await supabaseClient
+                .from('admin')
+                .update({ last_login: new Date().toISOString() })
+                .eq('id', adminData.id);
+            console.log('✓ Last login updated');
+        } catch (updateErr) {
+            console.warn('Could not update last_login (column may not exist):', updateErr);
+        }
+
         setTimeout(() => {
             redirectToDashboard();
         }, 1500);
+
     } catch (error) {
         console.error('Login error:', error);
         showError('An error occurred during login. Please try again.');
@@ -187,11 +204,6 @@ function validatePassword() {
 
     if (!password) {
         showFieldError('passwordError', 'Password is required');
-        return false;
-    }
-
-    if (password.length < 6) {
-        showFieldError('passwordError', 'Password must be at least 6 characters');
         return false;
     }
 
@@ -263,12 +275,14 @@ function clearMessages() {
 function storeLoginCredentials(credentials) {
     const authData = {
         isAuthenticated: true,
+        id: credentials.id,
         email: credentials.email,
+        name: credentials.name,
         loginTime: credentials.loginTime,
         rememberMe: credentials.rememberMe || false
     };
     localStorage.setItem('coincubby_auth', JSON.stringify(authData));
-    console.log('✓ User authenticated:', credentials.email);
+    console.log('✓ User authenticated:', credentials.email, '-', credentials.name);
 }
 
 /**

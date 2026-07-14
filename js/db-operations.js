@@ -1240,6 +1240,18 @@ window.dbOps = {
     // Rates
     fetchRates,
     updateRates,
+    
+    // Rates History
+    createRateHistory,
+    fetchRateHistory,
+    clearRateHistory,
+
+    // Admin Accounts
+    fetchAdminByEmail,
+    updateAdminLastLogin,
+    getAdminDisplayName,
+    fetchAllAdmins,
+    upsertAdminAccount,
 
     // Statistics
     getDashboardStats,
@@ -1319,6 +1331,210 @@ async function fixLockerNumbersPerModule() {
         return true;
     } catch (error) {
         console.error('Error fixing locker numbers:', error);
+        return false;
+    }
+}
+
+
+/**
+ * ADMIN ACCOUNTS TABLE OPERATIONS
+ */
+
+/**
+ * Fetch admin account by email
+ * @param {string} email - Admin email
+ * @returns {Promise<Object|null>} Admin account data
+ */
+async function fetchAdminByEmail(email) {
+    try {
+        const supabase = getSupabaseClient();
+        const { data, error } = await supabase
+            .from('admin_accounts')
+            .select('*')
+            .eq('email', email)
+            .eq('is_active', true)
+            .single();
+
+        if (error) {
+            if (error.code === 'PGRST116') {
+                // No rows returned - admin not found
+                console.warn(`Admin account not found for email: ${email}`);
+                return null;
+            }
+            throw error;
+        }
+        
+        console.log('✓ Admin account fetched:', data);
+        return data;
+    } catch (error) {
+        console.error('Error fetching admin account:', error);
+        return null;
+    }
+}
+
+/**
+ * Update admin's last login timestamp
+ * @param {string} email - Admin email
+ * @returns {Promise<boolean>} Success status
+ */
+async function updateAdminLastLogin(email) {
+    try {
+        const supabase = getSupabaseClient();
+        const { error } = await supabase
+            .from('admin_accounts')
+            .update({ last_login: new Date().toISOString() })
+            .eq('email', email)
+            .eq('is_active', true);
+
+        if (error) throw error;
+        console.log('✓ Admin last login updated:', email);
+        return true;
+    } catch (error) {
+        console.error('Error updating admin last login:', error);
+        return false;
+    }
+}
+
+/**
+ * Get admin's display name (from database or fallback to email)
+ * @param {string} email - Admin email
+ * @returns {Promise<string>} Admin display name
+ */
+async function getAdminDisplayName(email) {
+    try {
+        const admin = await fetchAdminByEmail(email);
+        if (admin && admin.full_name) {
+            return admin.full_name;
+        }
+        // Fallback: use email username part
+        return email.split('@')[0];
+    } catch (error) {
+        console.error('Error getting admin display name:', error);
+        return email.split('@')[0];
+    }
+}
+
+/**
+ * Fetch all admin accounts
+ * @returns {Promise<Array>} Array of admin accounts
+ */
+async function fetchAllAdmins() {
+    try {
+        const supabase = getSupabaseClient();
+        const { data, error } = await supabase
+            .from('admin_accounts')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        console.log('✓ Admin accounts fetched:', data);
+        return data;
+    } catch (error) {
+        console.error('Error fetching admin accounts:', error);
+        return [];
+    }
+}
+
+/**
+ * Create or update admin account
+ * @param {Object} adminData - Admin account data
+ * @returns {Promise<Object|null>} Created/updated admin account
+ */
+async function upsertAdminAccount(adminData) {
+    try {
+        const supabase = getSupabaseClient();
+        const { data, error } = await supabase
+            .from('admin_accounts')
+            .upsert(adminData, { onConflict: 'email' })
+            .select();
+
+        if (error) throw error;
+        console.log('✓ Admin account upserted:', data);
+        return data[0];
+    } catch (error) {
+        console.error('Error upserting admin account:', error);
+        return null;
+    }
+}
+
+/**
+ * RATES HISTORY TABLE OPERATIONS
+ */
+
+/**
+ * Create rate change history entry in database
+ * @param {Object} historyData - Rate change history data
+ * @returns {Promise<Object>} Created history entry
+ */
+async function createRateHistory(historyData) {
+    try {
+        const supabase = getSupabaseClient();
+        const { data, error} = await supabase
+            .from('rates_history')
+            .insert([{
+                changed_by: historyData.changedBy,
+                small_rate: historyData.rates.small,
+                medium_rate: historyData.rates.medium,
+                large_rate: historyData.rates.large,
+                previous_small: historyData.previous?.small || null,
+                previous_medium: historyData.previous?.medium || null,
+                previous_large: historyData.previous?.large || null,
+                changed_at: historyData.savedAt || new Date().toISOString()
+            }])
+            .select();
+
+        if (error) throw error;
+        console.log('✓ Rate history saved to database:', data);
+        return data[0];
+    } catch (error) {
+        console.error('Error saving rate history:', error);
+        return null;
+    }
+}
+
+/**
+ * Fetch all rate change history from database
+ * @param {number} limit - Maximum number of records to fetch (default: 100)
+ * @returns {Promise<Array>} Array of rate history entries
+ */
+async function fetchRateHistory(limit = 100) {
+    try {
+        const supabase = getSupabaseClient();
+        const { data, error } = await supabase
+            .from('rates_history')
+            .select('*')
+            .order('changed_at', { ascending: false })
+            .limit(limit);
+
+        if (error) throw error;
+        console.log('✓ Rate history fetched from database:', data);
+        return data;
+    } catch (error) {
+        console.error('Error fetching rate history:', error);
+        return [];
+    }
+}
+
+/**
+ * Clear all rate history (admin function)
+ * @returns {Promise<boolean>} Success status
+ */
+async function clearRateHistory() {
+    try {
+        const supabase = getSupabaseClient();
+        const { error } = await supabase
+            .from('rates_history')
+            .delete()
+            .neq('history_id', 0); // Delete all records
+
+        if (error) throw error;
+        
+        await logConfigChangeEvent('Rates History Cleared', 'All rate change history was cleared from the database.', {});
+        
+        console.log('✓ Rate history cleared from database');
+        return true;
+    } catch (error) {
+        console.error('Error clearing rate history:', error);
         return false;
     }
 }

@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rates History - Diagnostic Test</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .test-section {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+        }
+
+        .test-section h2 {
+            color: #333;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .test-button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 10px 10px 0;
+            transition: all 0.3s;
+        }
+
+        .test-button:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .test-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .log-container {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+
+        .log-entry {
+            margin-bottom: 8px;
+            line-height: 1.6;
+        }
+
+        .log-success {
+            color: #4ec9b0;
+        }
+
+        .log-error {
+            color: #f48771;
+        }
+
+        .log-warning {
+            color: #dcdcaa;
+        }
+
+        .log-info {
+            color: #569cd6;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+
+        .status-ok {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .sql-box {
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 15px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            overflow-x: auto;
+        }
+
+        .action-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .clear-btn {
+            background: #6c757d;
+            margin-top: 10px;
+        }
+
+        .clear-btn:hover {
+            background: #5a6268;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 Rates History Diagnostic Tool</h1>
+            <p class="subtitle">Test database connection and troubleshoot rates history issues</p>
+        </div>
+
+        <div class="test-section">
+            <h2>📊 Connection Status</h2>
+            <div id="statusDisplay">
+                <p>Supabase Client: <span id="supabaseStatus" class="status-badge status-pending">Checking...</span></p>
+                <p>dbOps Module: <span id="dbOpsStatus" class="status-badge status-pending">Checking...</span></p>
+                <p>Rate History Functions: <span id="functionsStatus" class="status-badge status-pending">Checking...</span></p>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>🧪 Diagnostic Tests</h2>
+            <div class="action-grid">
+                <button class="test-button" onclick="runFullDiagnostic()">Run Full Diagnostic</button>
+                <button class="test-button" onclick="testFetchHistory()">Test Fetch History</button>
+                <button class="test-button" onclick="testCreateHistory()">Test Create Entry</button>
+                <button class="test-button" onclick="checkTableExists()">Check Table Exists</button>
+                <button class="test-button" onclick="checkRLSPolicies()">Check RLS Policies</button>
+                <button class="test-button" onclick="viewCurrentHistory()">View Current History</button>
+            </div>
+            <button class="test-button clear-btn" onclick="clearLogs()">Clear Logs</button>
+
+            <div id="logContainer" class="log-container">
+                <div class="log-entry log-info">Ready to run diagnostics...</div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>📋 Quick Fix SQL</h2>
+            <p style="margin-bottom: 15px;">Copy and paste these SQL queries in your Supabase SQL Editor if issues are found:</p>
+            
+            <h3 style="margin: 20px 0 10px 0; color: #555;">1. Create Table (if it doesn't exist)</h3>
+            <div class="sql-box">CREATE TABLE IF NOT EXISTS rates_history (
+    history_id SERIAL PRIMARY KEY,
+    changed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    changed_by VARCHAR(255) NOT NULL,
+    small_rate DECIMAL(10, 2) NOT NULL,
+    medium_rate DECIMAL(10, 2) NOT NULL,
+    large_rate DECIMAL(10, 2) NOT NULL,
+    previous_small DECIMAL(10, 2),
+    previous_medium DECIMAL(10, 2),
+    previous_large DECIMAL(10, 2),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_rates_history_changed_at 
+ON rates_history(changed_at DESC);</div>
+
+            <h3 style="margin: 20px 0 10px 0; color: #555;">2. Disable RLS (Row Level Security)</h3>
+            <div class="sql-box">ALTER TABLE rates_history DISABLE ROW LEVEL SECURITY;</div>
+
+            <h3 style="margin: 20px 0 10px 0; color: #555;">3. Or Add Permissive Policy (if you want to keep RLS)</h3>
+            <div class="sql-box">ALTER TABLE rates_history ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow all for authenticated users" ON rates_history
+FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+CREATE POLICY "Allow all for anon users" ON rates_history
+FOR ALL TO anon USING (true) WITH CHECK (true);</div>
+        </div>
+    </div>
+
+    <!-- Load Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/supabase-client.js"></script>
+    <script src="js/db-operations.js"></script>
+
+    <script>
+        // Logging functions
+        function log(message, type = 'info') {
+            const logContainer = document.getElementById('logContainer');
+            const timestamp = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            entry.textContent = `[${timestamp}] ${message}`;
+            logContainer.appendChild(entry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+            console.log(message);
+        }
+
+        function clearLogs() {
+            document.getElementById('logContainer').innerHTML = '<div class="log-entry log-info">Logs cleared. Ready for new tests...</div>';
+        }
+
+        // Status checking
+        async function checkStatus() {
+            // Check Supabase
+            const supabaseOk = typeof window.supabase !== 'undefined' && 
+                              window.supabase !== null &&
+                              typeof window.supabase.from === 'function';
+            document.getElementById('supabaseStatus').className = `status-badge ${supabaseOk ? 'status-ok' : 'status-error'}`;
+            document.getElementById('supabaseStatus').textContent = supabaseOk ? 'Connected' : 'Not Connected';
+
+            // Check dbOps
+            const dbOpsOk = typeof window.dbOps !== 'undefined' && window.dbOps !== null;
+            document.getElementById('dbOpsStatus').className = `status-badge ${dbOpsOk ? 'status-ok' : 'status-error'}`;
+            document.getElementById('dbOpsStatus').textContent = dbOpsOk ? 'Loaded' : 'Not Loaded';
+
+            // Check functions
+            const functionsOk = dbOpsOk && 
+                               typeof window.dbOps.fetchRateHistory === 'function' &&
+                               typeof window.dbOps.createRateHistory === 'function';
+            document.getElementById('functionsStatus').className = `status-badge ${functionsOk ? 'status-ok' : 'status-error'}`;
+            document.getElementById('functionsStatus').textContent = functionsOk ? 'Available' : 'Missing';
+        }
+
+        // Test functions
+        async function runFullDiagnostic() {
+            log('=== STARTING FULL DIAGNOSTIC ===', 'info');
+            await checkStatus();
+            
+            log('Checking Supabase connection...', 'info');
+            if (typeof window.supabase === 'undefined' || !window.supabase) {
+                log('❌ Supabase client not initialized', 'error');
+                log('💡 Make sure supabase-client.js is loaded correctly', 'warning');
+                return;
+            }
+            log('✓ Supabase client initialized', 'success');
+
+            log('Checking dbOps module...', 'info');
+            if (typeof window.dbOps === 'undefined') {
+                log('❌ dbOps module not loaded', 'error');
+                log('💡 Make sure db-operations.js is loaded correctly', 'warning');
+                return;
+            }
+            log('✓ dbOps module loaded', 'success');
+
+            log('Checking rate history functions...', 'info');
+            if (typeof window.dbOps.fetchRateHistory !== 'function') {
+                log('❌ fetchRateHistory function missing', 'error');
+                return;
+            }
+            if (typeof window.dbOps.createRateHistory !== 'function') {
+                log('❌ createRateHistory function missing', 'error');
+                return;
+            }
+            log('✓ Rate history functions available', 'success');
+
+            await testFetchHistory();
+            log('=== DIAGNOSTIC COMPLETE ===', 'info');
+        }
+
+        async function testFetchHistory() {
+            log('Testing fetchRateHistory()...', 'info');
+            try {
+                const history = await window.dbOps.fetchRateHistory();
+                if (history && Array.isArray(history)) {
+                    log(`✓ Successfully fetched ${history.length} rate history entries`, 'success');
+                    if (history.length === 0) {
+                        log('ℹ️ History is empty. This is normal if no rates have been changed yet.', 'warning');
+                        log('💡 Try changing a rate in the Rates page to create history entries.', 'warning');
+                    } else {
+                        log(`Latest entry: Changed by ${history[0].changed_by} at ${history[0].changed_at}`, 'info');
+                    }
+                } else {
+                    log('⚠️ Unexpected response format', 'warning');
+                }
+            } catch (error) {
+                log(`❌ Error fetching rate history: ${error.message}`, 'error');
+                
+                if (error.message.includes('does not exist') || error.message.includes('relation')) {
+                    log('💡 SOLUTION: The rates_history table does not exist in your database', 'warning');
+                    log('💡 Copy the "Create Table" SQL from below and run it in Supabase SQL Editor', 'warning');
+                } else if (error.message.includes('permission') || error.message.includes('policy')) {
+                    log('💡 SOLUTION: Row Level Security (RLS) is blocking access', 'warning');
+                    log('💡 Copy the "Disable RLS" SQL from below and run it in Supabase SQL Editor', 'warning');
+                } else {
+                    log(`💡 Full error: ${JSON.stringify(error)}`, 'error');
+                }
+            }
+        }
+
+        async function testCreateHistory() {
+            log('Testing createRateHistory()...', 'info');
+            const testData = {
+                savedAt: new Date().toISOString(),
+                changedBy: 'Test User (Diagnostic)',
+                rates: {
+                    small: 10.00,
+                    medium: 20.00,
+                    large: 35.00
+                },
+                previous: null
+            };
+
+            try {
+                log('Creating test rate history entry...', 'info');
+                const result = await window.dbOps.createRateHistory(testData);
+                if (result) {
+                    log(`✓ Successfully created test entry with ID: ${result.history_id}`, 'success');
+                    log('Fetching updated history to confirm...', 'info');
+                    await testFetchHistory();
+                } else {
+                    log('⚠️ Create returned null or undefined', 'warning');
+                }
+            } catch (error) {
+                log(`❌ Error creating test entry: ${error.message}`, 'error');
+                
+                if (error.message.includes('does not exist')) {
+                    log('💡 SOLUTION: Run the "Create Table" SQL in Supabase', 'warning');
+                } else if (error.message.includes('permission') || error.message.includes('denied')) {
+                    log('💡 SOLUTION: Run the "Disable RLS" SQL in Supabase', 'warning');
+                }
+            }
+        }
+
+        async function checkTableExists() {
+            log('Checking if rates_history table exists...', 'info');
+            try {
+                const { data, error } = await window.supabase
+                    .from('rates_history')
+                    .select('history_id')
+                    .limit(1);
+
+                if (error) {
+                    if (error.message.includes('does not exist') || error.code === '42P01') {
+                        log('❌ Table does NOT exist', 'error');
+                        log('💡 SOLUTION: Run the "Create Table" SQL below', 'warning');
+                    } else if (error.message.includes('permission') || error.code === '42501') {
+                        log('⚠️ Table exists but RLS is blocking access', 'warning');
+                        log('💡 SOLUTION: Run the "Disable RLS" SQL below', 'warning');
+                    } else {
+                        log(`⚠️ Error checking table: ${error.message}`, 'warning');
+                    }
+                } else {
+                    log('✓ Table EXISTS and is accessible', 'success');
+                }
+            } catch (error) {
+                log(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function checkRLSPolicies() {
+            log('Checking Row Level Security policies...', 'info');
+            log('Note: This requires elevated permissions to view policies', 'warning');
+            
+            try {
+                // Try a simple select to see if RLS is blocking
+                const { data, error } = await window.supabase
+                    .from('rates_history')
+                    .select('*')
+                    .limit(1);
+
+                if (error) {
+                    if (error.message.includes('policy') || error.code === '42501') {
+                        log('❌ RLS is ENABLED and blocking access', 'error');
+                        log('💡 SOLUTION: Run the "Disable RLS" SQL below', 'warning');
+                    } else {
+                        log(`⚠️ Error: ${error.message}`, 'warning');
+                    }
+                } else {
+                    log('✓ No RLS issues detected (or RLS disabled)', 'success');
+                }
+            } catch (error) {
+                log(`❌ Error checking RLS: ${error.message}`, 'error');
+            }
+        }
+
+        async function viewCurrentHistory() {
+            log('Fetching current rate history...', 'info');
+            try {
+                const history = await window.dbOps.fetchRateHistory();
+                if (history && history.length > 0) {
+                    log(`Found ${history.length} entries:`, 'success');
+                    history.forEach((entry, index) => {
+                        log(`${index + 1}. ${entry.changed_by} on ${new Date(entry.changed_at).toLocaleString()}`, 'info');
+                        log(`   Small: ₱${entry.small_rate}, Medium: ₱${entry.medium_rate}, Large: ₱${entry.large_rate}`, 'info');
+                    });
+                } else {
+                    log('No history entries found (empty table)', 'warning');
+                }
+            } catch (error) {
+                log(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Initialize on load
+        window.addEventListener('DOMContentLoaded', async () => {
+            log('Page loaded. Initializing...', 'info');
+            
+            // Wait for Supabase to initialize
+            if (window.supabasePromise) {
+                await window.supabasePromise;
+            }
+            
+            setTimeout(checkStatus, 500);
+        });
+    </script>
+</body>
+</html>
