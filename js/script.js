@@ -204,13 +204,14 @@ document.addEventListener('DOMContentLoaded', async function () {
     }
 
     initializeSidebar();
+    initializeCustomDropdowns();
     await updateUserProfile(); // Load profile from database
 
     // Check which page we're on
     if (document.getElementById('lockers-table')) {
         await initializeLockerManagement();
         // Start AJAX Auto-Refresh for Lockers (every 30 seconds)
-        setInterval(async function() {
+        setInterval(async function () {
             try {
                 lockerRecords = await loadLockerRecords();
                 renderLockersTable();
@@ -222,7 +223,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     } else if (document.getElementById('modules-container')) {
         await loadDashboardData();
         // Start AJAX Auto-Refresh for Dashboard (every 30 seconds)
-        setInterval(async function() {
+        setInterval(async function () {
             try {
                 await loadDashboardData();
                 console.log('✓ Dashboard data auto-refreshed via AJAX');
@@ -562,174 +563,252 @@ function refreshDashboardFromDatabase(dashboardData) {
  */
 function attachLockerClickHandlers() {
     const lockerCards = document.querySelectorAll('.locker[data-locker-id]');
-    
+
     lockerCards.forEach(card => {
         // Remove existing listener if any
         card.style.cursor = 'pointer';
-        
-        card.addEventListener('click', async function(e) {
+
+        card.addEventListener('click', async function (e) {
             e.preventDefault();
             const lockerId = this.getAttribute('data-locker-id');
             const status = this.getAttribute('data-status');
-            
+
             await showRentalDetailsModal(lockerId, status);
         });
     });
 }
 
 /**
- * Show rental details modal for a locker
+ * Show rental details modal for a locker.
+ *
+ * Queries used (matching exact schema):
+ *   lockers          → locker_id, locker_number, status, size_type_id, module_id
+ *   modules          → name  (via FK join in fetchLockerByCode)
+ *   transactions     → transaction_id, customer_id, rate_id, locker_id,
+ *                      start_time, duration_minutes, status
+ *                      NOTE: NO payments join — payments table not in schema
+ *   customers        → full_name, email, contact_number
+ *   rates            → price
  */
 async function showRentalDetailsModal(lockerId, status) {
     const modal = document.getElementById('rentalDetailsModal');
-    if (!modal) {
-        console.error('❌ Rental details modal not found in DOM');
-        return;
-    }
+    if (!modal) return;
 
-    console.log('=== SHOWING RENTAL DETAILS ===');
-    console.log('Locker ID:', lockerId);
-    console.log('Status:', status);
+    // ── Helper: safely set element text ───────────────────────────────────
+    const set = (id, value) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = (value !== null && value !== undefined && value !== '') ? value : 'N/A';
+    };
+
+    // ── Open modal immediately with loading placeholders ───────────────────
+    modal.classList.add('active');
+    modal.style.display = 'flex';
+    set('detail-locker-number', lockerId);
+    set('detail-locker-size', 'Loading…');
+    set('detail-locker-module', 'Loading…');
+    set('detail-locker-status', status || '—');
+    set('detail-customer-name', 'Loading…');
+    set('detail-customer-email', 'Loading…');
+    set('detail-customer-phone', 'Loading…');
+    set('detail-start-time', 'Loading…');
+    set('detail-duration', 'Loading…');
+    const amountEl = document.getElementById('detail-amount');
+    if (amountEl) amountEl.textContent = '₱—';
+
+    console.log('=== RENTAL DETAILS MODAL ===', { lockerId, status });
 
     try {
-        // Fetch locker and rental details from database
+        // ── Wait for Supabase to initialise ────────────────────────────────
+        if (window.supabasePromise) await window.supabasePromise;
+        const supabase = window.supabaseClient || window.supabase;
+
+        if (!supabase || typeof supabase.from !== 'function') {
+            throw new Error('Supabase client not ready');
+        }
+
+        // ── STEP 1: Fetch locker (uses fetchLockerByCode — confirmed working) ─
+        // Returns: locker_id, locker_number, status, size_type_id, module_id,
+        //          modules { name }
         let lockerData = null;
-        let rentalData = null;
-        let customerData = null;
-
-        if (typeof isSupabaseConnected !== 'undefined' && isSupabaseConnected() && typeof dbOps !== 'undefined') {
-            console.log('✓ Database connected, fetching data...');
-            
-            // Get locker details
-            if (dbOps.fetchLockerByCode) {
-                lockerData = await dbOps.fetchLockerByCode(lockerId);
-                console.log('Locker data:', lockerData);
-            }
-
-            // Get active rental for this locker
-            if (dbOps.fetchActiveRentalByLocker) {
-                rentalData = await dbOps.fetchActiveRentalByLocker(lockerId);
-                console.log('Rental data:', rentalData);
-            }
-
-            // If we have rental data, get customer details
-            if (rentalData && rentalData.customer_id && dbOps.fetchCustomerById) {
-                console.log('Fetching customer with ID:', rentalData.customer_id);
-                customerData = await dbOps.fetchCustomerById(rentalData.customer_id);
-                console.log('Customer data:', customerData);
-            } else {
-                console.log('⚠️ No customer_id in rental data or missing fetchCustomerById');
-            }
-        } else {
-            console.error('❌ Database not connected or dbOps not available');
+        if (typeof fetchLockerByCode === 'function') {
+            lockerData = await fetchLockerByCode(lockerId);
         }
+        console.log('step1 lockerData:', lockerData);
 
-        // Populate modal with locker information
-        document.getElementById('detail-locker-number').textContent = lockerId || '-';
-        
+        // ── STEP 2: Fill Locker Information ───────────────────────────────
         if (lockerData) {
-            const sizeLabel = lockerData.size || (lockerData.size_type_id === 1 ? 'Small' : lockerData.size_type_id === 2 ? 'Medium' : lockerData.size_type_id === 3 ? 'Large' : '-');
-            document.getElementById('detail-locker-size').textContent = sizeLabel;
-            
-            const moduleName = lockerData.modules?.name || `M${lockerData.module_id || '?'}`;
-            document.getElementById('detail-locker-module').textContent = moduleName;
+            set('detail-locker-number', lockerData.locker_number || lockerId);
+
+            // Map size_type_id → readable label (no storage_size_type FK needed)
+            const SIZE_MAP = { 1: 'Small', 2: 'Medium', 3: 'Large' };
+            set('detail-locker-size',
+                lockerData.size ||
+                SIZE_MAP[Number(lockerData.size_type_id)] ||
+                String(lockerData.size_type_id || 'N/A'));
+
+            // modules.name comes from the FK join inside fetchLockerByCode
+            set('detail-locker-module',
+                lockerData.modules?.name ||
+                (lockerData.module_id ? `Module ${lockerData.module_id}` : 'N/A'));
         } else {
-            console.log('⚠️ No locker data, using defaults');
-            document.getElementById('detail-locker-size').textContent = '-';
-            document.getElementById('detail-locker-module').textContent = '-';
+            set('detail-locker-size', 'N/A');
+            set('detail-locker-module', 'N/A');
         }
 
+        const resolvedStatus = (status || lockerData?.status || '').toLowerCase();
         const statusEl = document.getElementById('detail-locker-status');
-        const displayStatus = status ? status.charAt(0).toUpperCase() + status.slice(1) : '-';
-        statusEl.textContent = displayStatus;
-        statusEl.style.color = getStatusColor(status);
+        if (statusEl) {
+            statusEl.textContent = resolvedStatus
+                ? resolvedStatus.charAt(0).toUpperCase() + resolvedStatus.slice(1)
+                : 'N/A';
+            statusEl.style.color = getStatusColor(resolvedStatus);
+        }
 
-        // Show/hide renter information based on status
-        const renterInfoSection = document.getElementById('renterInfoSection');
-        const rentalTimeSection = document.getElementById('rentalTimeSection');
-        const renterDivider = document.getElementById('renterDivider');
-        const rentalDivider2 = document.getElementById('rentalDivider2');
+        // ── STEP 3: Toggle renter sections visibility ─────────────────────
+        const ids = ['renterInfoSection', 'rentalTimeSection', 'renterDivider', 'rentalDivider2'];
+        const hide = resolvedStatus === 'available' || resolvedStatus === 'maintenance';
+        ids.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = hide ? 'none' : 'block';
+        });
 
-        const statusLower = (status || '').toLowerCase();
-        const isAvailableOrMaintenance = statusLower === 'available' || statusLower === 'maintenance';
+        if (hide) {
+            console.log('Available/Maintenance — no rental info needed.');
+            console.log('=== END RENTAL DETAILS MODAL ===');
+            return;
+        }
 
-        if (isAvailableOrMaintenance) {
-            console.log('ℹ️ Locker is available/maintenance, hiding renter info');
-            // Hide renter sections for available/maintenance lockers
-            if (renterInfoSection) renterInfoSection.style.display = 'none';
-            if (rentalTimeSection) rentalTimeSection.style.display = 'none';
-            if (renterDivider) renterDivider.style.display = 'none';
-            if (rentalDivider2) rentalDivider2.style.display = 'none';
-        } else {
-            console.log('ℹ️ Locker is occupied, showing renter info');
-            // Show renter information for occupied/payment lockers
-            if (renterInfoSection) renterInfoSection.style.display = 'block';
-            if (rentalTimeSection) rentalTimeSection.style.display = 'block';
-            if (renterDivider) renterDivider.style.display = 'block';
-            if (rentalDivider2) rentalDivider2.style.display = 'block';
+        // ── STEP 4: Fetch active transaction (DIRECT — no payments join) ──
+        // The transactions table FK list: customer_id, rate_id, locker_id
+        // There is NO payments FK, so we NEVER join payments here.
+        let tx = null;
 
-            // Populate customer information
-            if (customerData) {
-                console.log('✓ Populating customer info from database');
-                const customerName = customerData.name || customerData.full_name || customerData.customer_name || 'N/A';
-                const customerEmail = customerData.email || 'N/A';
-                const customerPhone = customerData.phone || customerData.contact_number || customerData.phone_number || 'N/A';
-                
-                document.getElementById('detail-customer-name').textContent = customerName;
-                document.getElementById('detail-customer-email').textContent = customerEmail;
-                document.getElementById('detail-customer-phone').textContent = customerPhone;
-                
-                console.log('Customer info populated:', { customerName, customerEmail, customerPhone });
-            } else {
-                console.log('⚠️ No customer data available');
-                document.getElementById('detail-customer-name').textContent = 'N/A';
-                document.getElementById('detail-customer-email').textContent = 'N/A';
-                document.getElementById('detail-customer-phone').textContent = 'N/A';
-            }
+        // In some schemas, the primary key of lockers is `locker_id` (integer) or `id` (UUID).
+        // In other schemas, transactions references lockers via the alphanumeric string (e.g. "S2").
+        // We collect all possible locker identifier fields to query transactions.locker_id.
+        const lockerIdentifiers = [
+            lockerData?.locker_id,
+            lockerData?.id,
+            lockerData?.locker_number,
+            lockerId // The alphanumeric code passed to this function
+        ].filter(val => val !== null && val !== undefined && val !== '');
 
-            // Populate rental information
-            if (rentalData) {
-                console.log('✓ Populating rental info from database');
-                
-                // Format start time
-                const startTime = rentalData.start_time ? formatForDisplay(rentalData.start_time) : 'N/A';
-                document.getElementById('detail-start-time').textContent = startTime;
+        if (lockerIdentifiers.length > 0) {
+            console.log('🔍 Querying transactions using potential locker identifiers:', lockerIdentifiers);
+            for (const ident of lockerIdentifiers) {
+                const { data: txRows, error: txErr } = await supabase
+                    .from('transactions')
+                    .select('transaction_id, customer_id, rate_id, locker_id, start_time, duration_minutes, status')
+                    .eq('locker_id', ident)
+                    .eq('status', 'Active')
+                    .order('start_time', { ascending: false })
+                    .limit(1);
 
-                // Calculate duration
-                let durationText = 'N/A';
-                if (rentalData.start_time) {
-                    const start = new Date(rentalData.start_time);
-                    const now = new Date();
-                    const diffMs = now - start;
-                    const diffMins = Math.floor(diffMs / 60000);
-                    const hours = Math.floor(diffMins / 60);
-                    const mins = diffMins % 60;
-                    durationText = `${hours}h ${mins}m`;
+                if (txErr) {
+                    console.error(`❌ transactions query error for identifier ${ident}:`, txErr);
+                } else if (txRows && txRows.length > 0) {
+                    tx = txRows[0];
+                    console.log(`✓ Active transaction found using identifier ${ident}:`, tx);
+                    break;
                 }
-                document.getElementById('detail-duration').textContent = durationText;
+            }
+        } else {
+            console.warn('⚠️ No locker identifier available — cannot query transactions');
+        }
 
-                // Amount paid
-                const amount = rentalData.amount_paid || rentalData.total_amount || rentalData.amount || 0;
-                document.getElementById('detail-amount').textContent = `₱${Number(amount).toFixed(2)}`;
-                
-                console.log('Rental info populated:', { startTime, durationText, amount });
+        // ── STEP 5: Fetch customer ─────────────────────────────────────────
+        let customerData = null;
+        if (tx?.customer_id) {
+            const { data: cust, error: custErr } = await supabase
+                .from('customers')
+                .select('full_name, email, contact_number')
+                .eq('customer_id', tx.customer_id)
+                .single();
+
+            if (!custErr && cust) {
+                customerData = cust;
+                console.log('step5 customer:', customerData);
             } else {
-                console.log('⚠️ No rental data available');
-                document.getElementById('detail-start-time').textContent = 'N/A';
-                document.getElementById('detail-duration').textContent = 'N/A';
-                document.getElementById('detail-amount').textContent = '₱0.00';
+                console.error('❌ customers query error:', custErr);
             }
         }
 
-        // Show modal using both methods for compatibility
-        modal.classList.add('active');
-        modal.style.display = 'flex';
-        console.log('✓ Modal displayed');
-        console.log('=== END RENTAL DETAILS ===');
+        set('detail-customer-name', customerData?.full_name || 'N/A');
+        set('detail-customer-email', customerData?.email || 'N/A');
+        set('detail-customer-phone', customerData?.contact_number || 'N/A');
+
+        // ── STEP 6: Rental time & duration ────────────────────────────────
+        if (tx?.start_time) {
+            set('detail-start-time', formatForDisplay(tx.start_time));
+
+            if (tx.duration_minutes > 0) {
+                const h = Math.floor(tx.duration_minutes / 60);
+                const m = tx.duration_minutes % 60;
+                set('detail-duration', h > 0 ? `${h}h ${m}m` : `${m}m`);
+            } else {
+                // Compute elapsed time since rental started
+                const mins = Math.max(0, Math.floor((Date.now() - new Date(tx.start_time)) / 60000));
+                const h = Math.floor(mins / 60);
+                const m = mins % 60;
+                set('detail-duration', h > 0 ? `${h}h ${m}m` : `${m}m`);
+            }
+        } else {
+            set('detail-start-time', 'N/A');
+            set('detail-duration', 'N/A');
+        }
+
+        // ── STEP 7: Fetch payment amount from payments table ─────────────
+        let price = null;
+        if (tx?.transaction_id) {
+            const { data: payRows, error: payErr } = await supabase
+                .from('payments')
+                .select('amount')
+                .eq('transaction_id', tx.transaction_id)
+                .limit(1);
+
+            if (!payErr && payRows && payRows.length > 0) {
+                price = payRows[0].amount;
+                console.log('step7 price from payments table:', price);
+            } else {
+                if (payErr) console.error('❌ payments query error:', payErr);
+            }
+        }
+
+        // If no payment record is found, fall back to the rates table price
+        if ((price === null || price === undefined) && tx?.rate_id != null) {
+            const { data: rateRow, error: rateErr } = await supabase
+                .from('rates')
+                .select('price')
+                .eq('rate_id', tx.rate_id)
+                .single();
+
+            if (!rateErr && rateRow) {
+                price = rateRow.price;
+                console.log('step7 price fallback from rates table:', price);
+            } else {
+                console.error('❌ rates query error:', rateErr);
+            }
+        }
+
+        if (amountEl) {
+            amountEl.textContent = (price !== null && price !== undefined)
+                ? `₱${Number(price).toFixed(2)}`
+                : '₱0.00';
+        }
+
+        console.log('✓ Modal fully populated');
+        console.log('=== END RENTAL DETAILS MODAL ===');
+
     } catch (error) {
-        console.error('❌ Error loading rental details:', error);
-        console.error('Error stack:', error.stack);
-        alert('Failed to load rental details. Check the console for more information.');
+        console.error('❌ showRentalDetailsModal error:', error);
+        set('detail-locker-size', 'N/A');
+        set('detail-locker-module', 'N/A');
+        set('detail-customer-name', 'N/A');
+        set('detail-customer-email', 'N/A');
+        set('detail-customer-phone', 'N/A');
+        set('detail-start-time', 'N/A');
+        set('detail-duration', 'N/A');
+        if (amountEl) amountEl.textContent = '₱0.00';
     }
 }
 
@@ -747,10 +826,10 @@ function closeRentalDetailsModal() {
 
 // Set up rental details modal close on outside click
 if (typeof window !== 'undefined') {
-    window.addEventListener('DOMContentLoaded', function() {
+    window.addEventListener('DOMContentLoaded', function () {
         const rentalModal = document.getElementById('rentalDetailsModal');
         if (rentalModal) {
-            rentalModal.addEventListener('click', function(e) {
+            rentalModal.addEventListener('click', function (e) {
                 if (e.target === this) {
                     closeRentalDetailsModal();
                 }
@@ -868,7 +947,7 @@ async function updateUserProfile() {
         const authData = JSON.parse(localStorage.getItem('coincubby_auth') || '{}');
         const email = authData.email || 'Admin';
         let displayName = email;
-        
+
         // Try to load full name from database
         if (typeof window.supabase !== 'undefined' && window.supabase) {
             try {
@@ -877,7 +956,7 @@ async function updateUserProfile() {
                     .select('full_name')
                     .eq('email', email)
                     .single();
-                
+
                 if (!error && data && data.full_name) {
                     displayName = data.full_name;
                     // Store in localStorage for quick access
@@ -960,7 +1039,7 @@ async function initializeLockerManagement() {
             const mods = await dbOps.fetchAllModules();
             if (mods && Array.isArray(mods)) {
                 moduleRecords = mods;
-                
+
                 // Initialize module counter based on existing modules
                 initializeModuleCounter();
             }
@@ -1399,7 +1478,7 @@ function addLockerRow(lockerData) {
     newRow.setAttribute('data-locker-row', lockerData.dbLockerId ? lockerData.dbLockerId : `${lockerData.moduleId || lockerData.module}-${lockerData.code}`);
     newRow.setAttribute('data-locker-code', lockerData.code);
     newRow.setAttribute('data-locker-status', lockerData.status);
-    
+
     // Make the row clickable (except when clicking action buttons)
     newRow.style.cursor = 'pointer';
 
@@ -1417,15 +1496,15 @@ function addLockerRow(lockerData) {
     `;
 
     // Add click event to show rental details (except when clicking buttons)
-    newRow.addEventListener('click', async function(e) {
+    newRow.addEventListener('click', async function (e) {
         // Don't trigger if clicking action buttons
         if (e.target.closest('.actions-cell')) {
             return;
         }
-        
+
         const lockerCode = this.getAttribute('data-locker-code');
         const status = this.getAttribute('data-locker-status');
-        
+
         if (lockerCode) {
             await showRentalDetailsModal(lockerCode, status);
         }
@@ -1447,13 +1526,13 @@ function renderLockersTable() {
             const bNum = parseInt(String(b.name || b.module_id).replace(/\D/g, '')) || 0;
             return aNum - bNum;
         });
-        
+
         // Assign display numbers sequentially (1, 2, 3...)
         modulesList = sortedModules.map((m, index) => {
             const displayNumber = index + 1; // Sequential display number
             const displayLabel = `M${displayNumber}`;
-            return { 
-                id: String(m.module_id || m.id), 
+            return {
+                id: String(m.module_id || m.id),
                 name: displayLabel,
                 dbName: m.name // Keep original DB name for reference
             };
@@ -1589,9 +1668,9 @@ function openAddModuleModal() {
         // Remove old event listeners
         const newBtn = regenerateBtn.cloneNode(true);
         regenerateBtn.parentNode.replaceChild(newBtn, regenerateBtn);
-        
+
         // Add new event listener
-        newBtn.addEventListener('click', function() {
+        newBtn.addEventListener('click', function () {
             const newId = generateRandomId(16);
             const moduleIdInput = document.getElementById('generated-module-id');
             if (moduleIdInput) {
@@ -1696,11 +1775,11 @@ async function handleAddModuleSubmit() {
 
         // Get the next module number for DATABASE storage (persistent counter)
         const nextModuleNumber = getNextModuleNumber();
-        
+
         // Get the next module number for UI DISPLAY (sequential)
         const displayNumber = getNextModuleDisplayNumber();
         const moduleName = `M${displayNumber}`;
-        
+
         // Generate default device ID using display number for user-friendly naming
         const deviceId = `DEV-${String(displayNumber).padStart(2, '0')}`;
 
@@ -1745,7 +1824,7 @@ async function handleAddModuleSubmit() {
 
         // Create locker records
         const moduleLockers = [];
-        
+
         // Add small lockers
         for (let i = 1; i <= smallCount; i++) {
             const code = `S${i}`;
@@ -1830,7 +1909,7 @@ async function addDefaultModule() {
         try {
             // Generate random 16-character module_id
             const generatedModuleId = generateRandomId(16);
-            
+
             const moduleResult = await dbOps.createModule({
                 module_id: generatedModuleId,
                 // modules.name is a smallint column — send the integer, not a string
@@ -1897,18 +1976,18 @@ async function addDefaultModule() {
  */
 function getModuleDisplayNumber(module, allModules) {
     if (!allModules || allModules.length === 0) return 1;
-    
+
     // Sort modules by their actual name/ID to maintain consistent order
     const sorted = [...allModules].sort((a, b) => {
         const aNum = parseInt(String(a.name || a.module_id).replace(/\D/g, '')) || 0;
         const bNum = parseInt(String(b.name || b.module_id).replace(/\D/g, '')) || 0;
         return aNum - bNum;
     });
-    
+
     // Find the index (position) of this module
     const moduleId = module.module_id || module.id;
     const index = sorted.findIndex(m => (m.module_id || m.id) === moduleId);
-    
+
     return index >= 0 ? index + 1 : 1; // 1-based numbering
 }
 
@@ -1931,7 +2010,7 @@ function getNextModuleDisplayNumber() {
  */
 function initializeModuleCounter() {
     const MODULE_COUNTER_KEY = 'coincubby_module_counter';
-    
+
     try {
         if (Array.isArray(moduleRecords) && moduleRecords.length > 0) {
             const nums = moduleRecords.map(m => {
@@ -1966,11 +2045,11 @@ function initializeModuleCounter() {
 function getNextModuleNumber() {
     // Use a persistent counter that never resets, even if modules are deleted
     const MODULE_COUNTER_KEY = 'coincubby_module_counter';
-    
+
     try {
         // Get the current counter from localStorage
         let counter = localStorage.getItem(MODULE_COUNTER_KEY);
-        
+
         if (counter === null) {
             // Initialize counter based on existing modules in DB
             if (Array.isArray(moduleRecords) && moduleRecords.length > 0) {
@@ -1984,15 +2063,15 @@ function getNextModuleNumber() {
                 const modules = (lockerRecords || []).map(l => parseInt((l.module || '').replace('M', ''), 10)).filter(n => !isNaN(n));
                 counter = modules.length ? Math.max(...modules) : 0;
             }
-            
+
             // Save the initialized counter
             localStorage.setItem(MODULE_COUNTER_KEY, counter);
         }
-        
+
         // Increment and save the counter
         counter = parseInt(counter) + 1;
         localStorage.setItem(MODULE_COUNTER_KEY, counter);
-        
+
         return counter;
     } catch (error) {
         console.error('Error getting next module number:', error);
@@ -2016,7 +2095,7 @@ function getNextModuleNumber() {
  */
 function resetModuleCounter() {
     const MODULE_COUNTER_KEY = 'coincubby_module_counter';
-    
+
     try {
         if (Array.isArray(moduleRecords) && moduleRecords.length > 0) {
             const nums = moduleRecords.map(m => {
@@ -2274,4 +2353,82 @@ document.addEventListener('keydown', function (event) {
         console.log('Show customer details view');
     }
 });
+
+/**
+ * Visual Dropdown Upgrade Helper
+ * Converts any native .filter-combo select visually into a fully CSS-stylable menu.
+ */
+function initializeCustomDropdowns() {
+    const filterCombos = document.querySelectorAll('.filter-combo');
+
+    filterCombos.forEach(combo => {
+        const select = combo.querySelector('select');
+        if (!select || select.classList.contains('custom-hidden')) return;
+
+        // Hide original native select
+        select.classList.add('custom-hidden');
+
+        // Create custom visual trigger
+        const trigger = document.createElement('div');
+        trigger.className = 'custom-select-trigger';
+
+        const selectedOption = select.options[select.selectedIndex];
+        const label = document.createElement('span');
+        label.textContent = selectedOption ? selectedOption.textContent : 'Select Range';
+        trigger.appendChild(label);
+        combo.appendChild(trigger);
+
+        // Create custom options dropdown list container
+        const menu = document.createElement('div');
+        menu.className = 'custom-options-menu';
+
+        // Convert options to custom menu items
+        Array.from(select.options).forEach(opt => {
+            const item = document.createElement('div');
+            item.className = 'custom-option-item';
+            if (opt.selected) item.classList.add('selected');
+            item.textContent = opt.textContent;
+            item.setAttribute('data-value', opt.value);
+
+            item.addEventListener('click', function (e) {
+                e.stopPropagation();
+
+                // Toggle active selected classes
+                menu.querySelectorAll('.custom-option-item').forEach(i => i.classList.remove('selected'));
+                item.classList.add('selected');
+
+                // Update trigger label
+                label.textContent = opt.textContent;
+
+                // Hide menu
+                combo.classList.remove('active');
+
+                // Update original select and fire its change listener
+                select.value = opt.value;
+                select.dispatchEvent(new Event('change'));
+            });
+
+            menu.appendChild(item);
+        });
+
+        combo.appendChild(menu);
+
+        // Open/Close menu handlers
+        trigger.addEventListener('click', function (e) {
+            e.stopPropagation();
+
+            // Close other open combos
+            document.querySelectorAll('.filter-combo').forEach(c => {
+                if (c !== combo) c.classList.remove('active');
+            });
+
+            combo.classList.toggle('active');
+        });
+    });
+
+    // Close all menus when clicking outside
+    document.addEventListener('click', function () {
+        document.querySelectorAll('.filter-combo').forEach(c => c.classList.remove('active'));
+    });
+}
 

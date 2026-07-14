@@ -3,6 +3,7 @@
    ======================================== */
 
 /* Header with Actions */
+
 .header {
     display: flex;
     justify-content: space-between;
@@ -16,10 +17,14 @@
 }
 
 .header h1 {
+    background: linear-gradient(135deg, var(--color-dark) 30%, var(--color-primary) 100%) !important;
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+    background-clip: text !important;
+    color: transparent !important;
     font-size: 32px;
     font-weight: 700;
     margin-bottom: 8px;
-    color: #1f2937;
 }
 
 .subtitle {
@@ -79,12 +84,33 @@
     border: 1.5px solid #e5e7eb;
     border-radius: 8px;
     background: white;
+    position: relative;
     transition: border-color 0.18s, box-shadow 0.18s;
 }
 
 .filter-combo:focus-within {
     border-color: var(--color-primary);
     box-shadow: 0 0 0 3px rgba(77, 170, 99, 0.12);
+}
+
+.filter-combo::after {
+    content: "";
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 0;
+    height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 5px solid #6b7280;
+    pointer-events: none;
+    transition: border-top-color 0.25s ease;
+}
+
+.filter-combo:hover::after,
+.filter-combo:focus-within::after {
+    border-top-color: var(--color-primary);
 }
 
 .filter-icon {
@@ -94,14 +120,20 @@
 }
 
 .filter-combo select {
-    border: none;
-    outline: none;
-    background: transparent;
-    font-size: 13px;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    font-size: 13.5px;
     font-weight: 600;
     color: #1f2937;
     cursor: pointer;
-    min-width: 130px;
+    min-width: 140px;
+    font-family: inherit;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    padding-right: 28px;
 }
 
 /* Custom date range strip (below header) */
@@ -164,8 +196,15 @@
 }
 
 @keyframes slideIn {
-    from { opacity: 0; transform: translateY(-6px); }
-    to   { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(-6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* Reports Stats */
@@ -309,6 +348,10 @@
 
     .header h1 {
         font-size: 24px;
+        background: linear-gradient(135deg, var(--color-dark) 30%, var(--color-primary) 100%) !important;
+        -webkit-background-clip: text !important;
+        -webkit-text-fill-color: transparent !important;
+        background-clip: text !important;
     }
 
     .header-actions {
@@ -364,6 +407,10 @@
 @media (max-width: 480px) {
     .header h1 {
         font-size: 20px;
+        background: linear-gradient(135deg, var(--color-dark) 30%, var(--color-primary) 100%) !important;
+        -webkit-background-clip: text !important;
+        -webkit-text-fill-color: transparent !important;
+        background-clip: text !important;
     }
 
     .header-actions {

@@ -56,27 +56,28 @@ async function loadRentalsFromSupabase() {
                 *,
                 customers (full_name),
                 lockers (locker_number),
-                payments (amount)
+                payments (amount),
+                rates (rate_id, price_per_hour)
             `)
             .eq('status', 'Active')
             .order('start_time', { ascending: false });
-        
-        // Filter to show only active transactions (locked lockers currently in use)
-        const activeTransactions = transactions.filter(tx => tx.status === 'Active');
 
         if (error) throw error;
+
+        // Filter to show only active transactions (locked lockers currently in use)
+        const activeTransactions = (transactions || []).filter(tx => tx && tx.status === 'Active');
 
         // Map Supabase data to rental format
         const mapped = (activeTransactions || []).map(tx => {
             const startDate = new Date(tx.start_time);
             const endDate = tx.end_time ? new Date(tx.end_time) : null;
-            
+
             // Calculate duration in minutes if we have both start and end times
             let durationMinutes = tx.duration_minutes || 0;
             if (endDate && startDate) {
                 durationMinutes = Math.round((endDate - startDate) / (1000 * 60));
             }
-            
+
             let duration = 'Active';
             if (endDate) {
                 const hours = Math.floor(durationMinutes / 60);
@@ -91,30 +92,38 @@ async function loadRentalsFromSupabase() {
                 });
             }
 
+            // Extract hourly rate from the joined rates table
+            let hourlyRate = 0;
+            if (tx.rates) {
+                hourlyRate = parseFloat(tx.rates.price_per_hour || 0);
+            }
+
             return {
                 id: tx.transaction_id,
                 customer: tx.customers ? tx.customers.full_name : 'Unknown',
                 locker: tx.lockers ? tx.lockers.locker_number : 'N/A',
                 // FORMAT FOR DISPLAY: Use formatForDisplay since data is already in SGT from database
-                startDate: formatForDisplay(startDate, { 
-                    month: 'short', 
-                    day: 'numeric', 
+                startDate: formatForDisplay(startDate, {
+                    month: 'short',
+                    day: 'numeric',
                     year: 'numeric',
                     hour: '2-digit',
                     minute: '2-digit'
                 }),
-                endDate: endDate ? formatForDisplay(endDate, { 
-                    month: 'short', 
-                    day: 'numeric', 
+                endDate: endDate ? formatForDisplay(endDate, {
+                    month: 'short',
+                    day: 'numeric',
                     year: 'numeric',
                     hour: '2-digit',
                     minute: '2-digit'
                 }) : 'Ongoing',
                 endTime: tx.end_time, // Keep raw end time for countdown
+                startTimeRaw: tx.start_time, // Keep raw start time for count-up
                 durationMinutes: durationMinutes, // Store duration in minutes
                 duration: duration,
                 status: tx.status || 'Active',
-                amount: totalAmount
+                amount: totalAmount,
+                hourlyRate: hourlyRate
             };
         });
 
@@ -169,7 +178,15 @@ function addRentalRow(rentalData) {
     newRow.setAttribute('data-rental-id', rentalData.id);
 
     const statusBadgeClass = rentalData.status === 'Active' ? 'status-badge occupied' : 'status-badge available';
-    
+
+    // Check if this is an active Open Hour rental
+    const isOngoingOpenHour = rentalData.status === 'Active' && !rentalData.endTime;
+
+    // Calculate initial dynamic amount for active Open Hour, otherwise use mapped database amount
+    const initialAmount = isOngoingOpenHour
+        ? calculateOpenHourAmount(Math.max(0, (new Date() - new Date(rentalData.startTimeRaw)) / 1000 / 60), rentalData.hourlyRate)
+        : rentalData.amount;
+
     newRow.innerHTML = `
         <td class="customer-cell">
             <div class="customer-info">
@@ -181,14 +198,18 @@ function addRentalRow(rentalData) {
         <td class="date-cell">${rentalData.endDate}</td>
         <td class="date-cell"><span data-duration-id="${rentalData.id}" class="duration-countdown" style="font-weight: 600; font-family: monospace;">--:--:--</span></td>
         <td class="status-cell"><span class="${statusBadgeClass}">${rentalData.status}</span></td>
-        <td class="amount-cell">₱${parseFloat(rentalData.amount).toFixed(2)}</td>
+        <td class="amount-cell"><span data-amount-id="${rentalData.id}">₱${parseFloat(initialAmount).toFixed(2)}</span></td>
     `;
 
     tbody.appendChild(newRow);
 
-    // Always start countdown for active rentals with end time
-    if (rentalData.status === 'Active' && rentalData.endTime) {
-        startCountdown(rentalData.id, rentalData.endTime, rentalData.durationMinutes);
+    // Start timer/countdown appropriately
+    if (rentalData.status === 'Active') {
+        if (rentalData.endTime) {
+            startCountdown(rentalData.id, rentalData.endTime, rentalData.durationMinutes);
+        } else {
+            startOpenHourTimer(rentalData.id, rentalData.startTimeRaw, rentalData.hourlyRate);
+        }
     }
 }
 
@@ -279,7 +300,7 @@ function initializeRentalsSearch() {
         rows.forEach(row => {
             const customer = row.querySelector('.customer-name')?.textContent.toLowerCase() || '';
             const locker = row.querySelector('.locker-cell')?.textContent.toLowerCase() || '';
-            
+
             const matches = customer.includes(searchTerm) || locker.includes(searchTerm);
 
             row.style.display = matches || searchTerm === '' ? '' : 'none';
@@ -304,7 +325,7 @@ function initializeRentalsSearch() {
  * Initialize auto-refresh for real-time updates (every 20 seconds)
  */
 function initializeRentalsAutoRefresh() {
-    autoRefreshRentalsInterval = setInterval(async function() {
+    autoRefreshRentalsInterval = setInterval(async function () {
         try {
             await loadRentalsFromSupabase();
             console.log('✓ Rentals data auto-refreshed');
@@ -341,7 +362,7 @@ function initializeRentalsInfiniteScroll() {
     const container = document.querySelector('.transactions-table-wrapper');
     if (!container) return;
 
-    container.addEventListener('scroll', function() {
+    container.addEventListener('scroll', function () {
         if (container.scrollTop + container.clientHeight >= container.scrollHeight - 100) {
             loadMoreRentals();
         }
@@ -353,10 +374,10 @@ function initializeRentalsInfiniteScroll() {
  */
 function loadMoreRentals() {
     if (isLoadingMoreRentals) return;
-    
+
     isLoadingMoreRentals = true;
     const tbody = document.getElementById('rentals-tbody');
-    
+
     if (!tbody) return;
 
     const allRows = tbody.querySelectorAll('tr:not(#no-rentals-results)');
@@ -377,4 +398,63 @@ function loadMoreRentals() {
         isLoadingMoreRentals = false;
         console.log(`✓ Loaded ${nextBatch.length} more rentals`);
     }, 300);
+}
+
+/**
+ * Calculates dynamic Open Hour rental amount based on billing rules:
+ * - Minimum of ₱5.00
+ * - Charged in 30-minute steps
+ * - amount = MAX(5.00, CEIL(elapsedMinutes / 30) * (hourlyRate / 2))
+ */
+function calculateOpenHourAmount(elapsedMinutes, hourlyRate) {
+    const halfRate = hourlyRate / 2;
+    const calculatedAmount = Math.ceil(elapsedMinutes / 30) * halfRate;
+    return Math.max(5.00, calculatedAmount);
+}
+
+/**
+ * Starts a count-up timer and dynamic amount updates for an active Open Hour rental
+ */
+function startOpenHourTimer(rentalId, startTimeRaw, hourlyRate) {
+    // Clear any existing countdown/timer interval for this rental ID
+    if (countdownIntervals[rentalId]) {
+        clearInterval(countdownIntervals[rentalId]);
+    }
+
+    const updateTimer = () => {
+        const start = new Date(startTimeRaw);
+        const now = new Date();
+        const diff = Math.max(0, now - start); // Milliseconds elapsed
+
+        const durationElement = document.querySelector(`[data-duration-id="${rentalId}"]`);
+        const amountElement = document.querySelector(`[data-amount-id="${rentalId}"]`);
+
+        if (!durationElement) return;
+
+        // Calculate elapsed time components
+        const totalMinutes = diff / (1000 * 60);
+        const elapsedSeconds = Math.floor(diff / 1000) % 60;
+        const elapsedMinutes = Math.floor(diff / (1000 * 60)) % 60;
+        const elapsedHours = Math.floor(diff / (1000 * 60 * 60));
+
+        // Format duration display as HH:MM:SS
+        const timeString = `${String(elapsedHours).padStart(2, '0')}:${String(elapsedMinutes).padStart(2, '0')}:${String(elapsedSeconds).padStart(2, '0')}`;
+        durationElement.textContent = timeString;
+
+        // Active Open Hour timer styling - blue color for running status
+        durationElement.style.color = '#3b82f6';
+        durationElement.style.fontWeight = '600';
+
+        // Calculate and update the dynamic running amount
+        if (amountElement) {
+            const currentAmount = calculateOpenHourAmount(totalMinutes, hourlyRate);
+            amountElement.textContent = `₱${currentAmount.toFixed(2)}`;
+        }
+    };
+
+    // Run first update immediately
+    updateTimer();
+
+    // Update once every second
+    countdownIntervals[rentalId] = setInterval(updateTimer, 1000);
 }

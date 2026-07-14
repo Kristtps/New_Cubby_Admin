@@ -156,7 +156,7 @@ async function fetchCustomerById(customerId) {
     try {
         const supabase = getSupabaseClient();
         console.log('🔍 Fetching customer by ID:', customerId);
-        
+
         const { data, error } = await supabase
             .from('customers')
             .select('*')
@@ -167,9 +167,9 @@ async function fetchCustomerById(customerId) {
             console.error('❌ Error fetching customer:', error);
             throw error;
         }
-        
+
         console.log('✓ Customer data from DB:', data);
-        
+
         // Map database columns to expected UI properties
         if (data) {
             const mappedData = {
@@ -195,15 +195,48 @@ async function fetchCustomerById(customerId) {
 async function fetchLockerByCode(lockerNumber) {
     try {
         const supabase = getSupabaseClient();
-        const { data, error } = await supabase
-            .from('lockers')
-            .select('*, modules(name)')
-            .eq('locker_number', lockerNumber)
-            .single();
+        console.log('🔍 fetchLockerByCode searching for:', lockerNumber);
 
-        if (error) throw error;
-        console.log('✓ Locker fetched by number:', data);
-        return data;
+        // We will try querying locker_number first, then locker_id.
+        // We also try with modules join, and fallback to simple select if join fails.
+        const columnsToTry = ['locker_number', 'locker_id'];
+
+        for (const col of columnsToTry) {
+            try {
+                // Try with modules join
+                const { data, error } = await supabase
+                    .from('lockers')
+                    .select('*, modules(*)')
+                    .eq(col, lockerNumber)
+                    .limit(1);
+
+                if (!error && data && data.length > 0) {
+                    console.log(`✓ Locker fetched by ${col} (with modules join):`, data[0]);
+                    return data[0];
+                }
+            } catch (err) {
+                console.warn(`Join query failed on column ${col}:`, err);
+            }
+
+            try {
+                // Try without join
+                const { data, error } = await supabase
+                    .from('lockers')
+                    .select('*')
+                    .eq(col, lockerNumber)
+                    .limit(1);
+
+                if (!error && data && data.length > 0) {
+                    console.log(`✓ Locker fetched by ${col} (without join):`, data[0]);
+                    return data[0];
+                }
+            } catch (err) {
+                console.warn(`Simple query failed on column ${col}:`, err);
+            }
+        }
+
+        console.warn('⚠️ Locker not found by any identifier:', lockerNumber);
+        return null;
     } catch (error) {
         console.error('Error fetching locker by number:', error);
         return null;
@@ -217,9 +250,9 @@ async function fetchLockerByCode(lockerNumber) {
 async function fetchActiveRentalByLocker(lockerNumber) {
     try {
         const supabase = getSupabaseClient();
-        
+
         console.log('🔍 Fetching active rental for locker:', lockerNumber);
-        
+
         // First get the locker_id from locker_number
         const { data: lockerData, error: lockerError } = await supabase
             .from('lockers')
@@ -236,40 +269,77 @@ async function fetchActiveRentalByLocker(lockerNumber) {
         console.log('✓ Locker found:', lockerData);
 
         // Fetch active transaction with payment information
-        // Join with payments table to get amount
-        const { data, error } = await supabase
-            .from('transactions')
-            .select(`
-                *,
-                payments(amount, payment_method, payment_date)
-            `)
-            .eq('locker_id', lockerData.locker_id)
-            .eq('status', 'Active')
-            .order('start_time', { ascending: false })
-            .limit(1);
+        // Join with payments table to get amount. Since payments table references transactions,
+        // we can query payments(amount, payment_method, payment_date).
+        let transaction = null;
 
-        if (error) {
-            // PGRST116 means no rows returned (no active rental)
-            if (error.code === 'PGRST116') {
-                console.log('ℹ️ No active rental found for locker:', lockerNumber);
-                return null;
+        try {
+            const { data, error } = await supabase
+                .from('transactions')
+                .select(`
+                    *,
+                    payments(amount, payment_method, payment_date)
+                `)
+                .eq('locker_id', lockerData.locker_id)
+                .eq('status', 'Active')
+                .order('start_time', { ascending: false })
+                .limit(1);
+
+            if (error) {
+                // If it's a join/relation error (e.g. PGRST200 or PGRST116), try fetching transaction without join
+                console.warn('⚠️ Join query failed, falling back to separate queries:', error);
+                throw error;
             }
-            console.error('❌ Error fetching transaction:', error);
-            throw error;
+
+            if (data && data.length > 0) {
+                transaction = data[0];
+                if (transaction.payments && transaction.payments.length > 0) {
+                    transaction.amount_paid = transaction.payments[0].amount;
+                    transaction.payment_method = transaction.payments[0].payment_method;
+                    transaction.payment_date = transaction.payments[0].payment_date;
+                } else {
+                    transaction.amount_paid = null;
+                }
+            }
+        } catch (fallbackError) {
+            // Fallback: Query transaction first, then query payments separately
+            const { data, error } = await supabase
+                .from('transactions')
+                .select('*')
+                .eq('locker_id', lockerData.locker_id)
+                .eq('status', 'Active')
+                .order('start_time', { ascending: false })
+                .limit(1);
+
+            if (error) {
+                if (error.code === 'PGRST116') {
+                    console.log('ℹ️ No active rental found for locker:', lockerNumber);
+                    return null;
+                }
+                throw error;
+            }
+
+            if (data && data.length > 0) {
+                transaction = data[0];
+
+                // Fetch payment separately
+                const { data: payData, error: payError } = await supabase
+                    .from('payments')
+                    .select('amount, payment_method, payment_date')
+                    .eq('transaction_id', transaction.transaction_id)
+                    .limit(1);
+
+                if (!payError && payData && payData.length > 0) {
+                    transaction.amount_paid = payData[0].amount;
+                    transaction.payment_method = payData[0].payment_method;
+                    transaction.payment_date = payData[0].payment_date;
+                } else {
+                    transaction.amount_paid = null;
+                }
+            }
         }
 
-        if (data && data.length > 0) {
-            const transaction = data[0];
-            
-            // Flatten payment data into transaction object
-            if (transaction.payments && transaction.payments.length > 0) {
-                transaction.amount_paid = transaction.payments[0].amount;
-                transaction.payment_method = transaction.payments[0].payment_method;
-                transaction.payment_date = transaction.payments[0].payment_date;
-            } else {
-                transaction.amount_paid = 0;
-            }
-            
+        if (transaction) {
             console.log('✓ Active rental found:', transaction);
             return transaction;
         }
@@ -278,6 +348,162 @@ async function fetchActiveRentalByLocker(lockerNumber) {
         return null;
     } catch (error) {
         console.error('❌ Error fetching active rental by locker:', error);
+        return null;
+    }
+}
+
+/**
+ * Fetch all data needed for the Rental Details modal.
+ * Uses explicit separate queries per table to avoid FK join failures.
+ *
+ * Tables touched: lockers, storage_size_type, modules,
+ *                 transactions, customers, rates
+ *
+ * @param {string} lockerNumber - e.g. "S1", "M2"
+ * @returns {Promise<Object|null>}
+ *   {
+ *     locker_number, status, size_name, module_name,
+ *     transaction_id?, start_time?, duration_minutes?,
+ *     customer_full_name?, customer_email?, customer_phone?,
+ *     rate_price?
+ *   }
+ */
+async function fetchLockerRentalDetails(lockerNumber) {
+    try {
+        const supabase = getSupabaseClient();
+        console.log('🔍 [fetchLockerRentalDetails] locker:', lockerNumber);
+
+        // ── Step 1: Fetch the locker row (with modules join — confirmed working) ──
+        const { data: locker, error: lockerErr } = await supabase
+            .from('lockers')
+            .select('locker_id, locker_number, status, size_type_id, module_id, modules(name)')
+            .eq('locker_number', lockerNumber)
+            .single();
+
+        if (lockerErr) {
+            console.error('❌ [fetchLockerRentalDetails] locker error:', lockerErr);
+            return null;
+        }
+        if (!locker) {
+            console.warn('⚠️ [fetchLockerRentalDetails] locker not found:', lockerNumber);
+            return null;
+        }
+        console.log('✓ locker row:', locker);
+
+        // ── Step 2: Resolve size name ────────────────────────────────────────
+        // Try FK join first; fall back to direct lookup; then manual mapping.
+        let sizeName = locker.storage_size_type?.size_name || null;
+
+        if (!sizeName && locker.size_type_id != null) {
+            // Try a direct lookup on storage_size_type
+            const { data: sizeRow } = await supabase
+                .from('storage_size_type')
+                .select('size_name')
+                .eq('size_type_id', locker.size_type_id)
+                .single();
+
+            sizeName = sizeRow?.size_name || null;
+            console.log('✓ size lookup:', sizeName);
+        }
+
+        // Last resort manual mapping (1=Small, 2=Medium, 3=Large)
+        if (!sizeName) {
+            const sizeMap = { 1: 'Small', 2: 'Medium', 3: 'Large' };
+            sizeName = sizeMap[locker.size_type_id] || null;
+        }
+
+        const result = {
+            locker_number: locker.locker_number,
+            status: locker.status,
+            size_name: sizeName,
+            module_name: locker.modules?.name || null,
+        };
+        console.log('✓ base result:', result);
+
+        // ── Step 3: Fetch the active transaction for this locker ─────────────
+        const { data: txRows, error: txErr } = await supabase
+            .from('transactions')
+            .select('transaction_id, start_time, duration_minutes, status, customer_id, rate_id')
+            .eq('locker_id', locker.locker_id)
+            .eq('status', 'Active')
+            .order('start_time', { ascending: false })
+            .limit(1);
+
+        if (txErr) {
+            console.warn('⚠️ [fetchLockerRentalDetails] tx error (non-fatal):', txErr);
+            return result;
+        }
+        if (!txRows || txRows.length === 0) {
+            console.log('ℹ️ no active transaction for locker:', lockerNumber);
+            return result;
+        }
+
+        const tx = txRows[0];
+        console.log('✓ transaction row:', tx);
+        result.transaction_id = tx.transaction_id;
+        result.start_time = tx.start_time;
+        result.duration_minutes = tx.duration_minutes;
+
+        // ── Step 4: Fetch customer ───────────────────────────────────────────
+        if (tx.customer_id) {
+            const { data: customer, error: custErr } = await supabase
+                .from('customers')
+                .select('full_name, email, contact_number')
+                .eq('customer_id', tx.customer_id)
+                .single();
+
+            if (!custErr && customer) {
+                console.log('✓ customer:', customer);
+                result.customer_full_name = customer.full_name || null;
+                result.customer_email = customer.email || null;
+                result.customer_phone = customer.contact_number || null;
+            } else {
+                console.warn('⚠️ customer lookup error:', custErr);
+            }
+        }
+
+        // ── Step 5: Fetch rate price ─────────────────────────────────────────
+        if (tx.rate_id != null) {
+            const { data: rate, error: rateErr } = await supabase
+                .from('rates')
+                .select('price')
+                .eq('rate_id', tx.rate_id)
+                .single();
+
+            if (!rateErr && rate) {
+                console.log('✓ rate:', rate);
+                result.rate_price = rate.price;
+            } else {
+                console.warn('⚠️ rate lookup error:', rateErr);
+            }
+        }
+
+        console.log('✓ [fetchLockerRentalDetails] final result:', result);
+        return result;
+    } catch (error) {
+        console.error('❌ [fetchLockerRentalDetails] unexpected error:', error);
+        return null;
+    }
+}
+
+/**
+ * Fetch a rate row by its integer rate_id.
+ * @param {number} rateId
+ * @returns {Promise<Object|null>}  e.g. { rate_id, price, ... }
+ */
+async function fetchRateById(rateId) {
+    try {
+        const supabase = getSupabaseClient();
+        const { data, error } = await supabase
+            .from('rates')
+            .select('*')
+            .eq('rate_id', rateId)
+            .single();
+        if (error) throw error;
+        console.log('✓ Rate fetched:', data);
+        return data;
+    } catch (error) {
+        console.error('Error fetching rate by ID:', error);
         return null;
     }
 }
@@ -697,12 +923,13 @@ async function fetchAllTransactions() {
                 *,
                 customers (full_name, email, contact_number),
                 lockers (locker_number),
-                payments (amount, payment_method, payment_date)
+                payments (amount, payment_method, payment_date),
+                rates (rate_id, price_per_hour)
             `)
             .order('start_time', { ascending: false });
 
         if (error) throw error;
-        
+
         // Flatten payment data into transaction objects
         if (data) {
             data.forEach(transaction => {
@@ -714,7 +941,7 @@ async function fetchAllTransactions() {
                 }
             });
         }
-        
+
         console.log('✓ Transactions fetched:', data);
         return data;
     } catch (error) {
@@ -743,7 +970,7 @@ async function fetchTodayTransactions() {
             .order('start_time', { ascending: false });
 
         if (error) throw error;
-        
+
         // Flatten payment data into transaction objects
         if (data) {
             data.forEach(transaction => {
@@ -755,7 +982,7 @@ async function fetchTodayTransactions() {
                 }
             });
         }
-        
+
         return data;
     } catch (error) {
         console.error('Error fetching today transactions:', error);
@@ -1382,7 +1609,7 @@ window.dbOps = {
     // Rates
     fetchRates,
     updateRates,
-    
+
     // Rates History
     createRateHistory,
     fetchRateHistory,
@@ -1505,7 +1732,7 @@ async function fetchAdminByEmail(email) {
             }
             throw error;
         }
-        
+
         console.log('✓ Admin account fetched:', data);
         return data;
     } catch (error) {
@@ -1611,7 +1838,7 @@ async function upsertAdminAccount(adminData) {
 async function createRateHistory(historyData) {
     try {
         const supabase = getSupabaseClient();
-        const { data, error} = await supabase
+        const { data, error } = await supabase
             .from('rates_history')
             .insert([{
                 changed_by: historyData.changedBy,
@@ -1670,9 +1897,9 @@ async function clearRateHistory() {
             .neq('history_id', 0); // Delete all records
 
         if (error) throw error;
-        
+
         await logConfigChangeEvent('Rates History Cleared', 'All rate change history was cleared from the database.', {});
-        
+
         console.log('✓ Rate history cleared from database');
         return true;
     } catch (error) {

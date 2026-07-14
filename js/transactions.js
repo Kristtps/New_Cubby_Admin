@@ -1,39 +1,45 @@
 // Transaction data (initially empty)
 const transactionData = [];
 
+// Live amount ticker interval reference
+let liveAmountTickerInterval = null;
+
 /**
  * Returns a colored badge HTML string for a transaction type/status
  */
 function typeBadgeHtml(typeStr) {
     const t = (typeStr || 'Active').toLowerCase();
     let cls = 'type-other';
-    if (t === 'active')       cls = 'type-active';
+    if (t === 'active') cls = 'type-active';
     else if (t === 'completed') cls = 'type-completed';
-    else if (t === 'payment')   cls = 'type-payment';
+    else if (t === 'payment') cls = 'type-payment';
     else if (t.includes('wallet')) cls = 'type-wallet';
     else if (t.includes('cash') || t.includes('collection')) cls = 'type-cash';
     return `<span class="type-badge ${cls}">${typeStr || 'Active'}</span>`;
 }
 
 // Initialize the page
-document.addEventListener('DOMContentLoaded', async function() {
+document.addEventListener('DOMContentLoaded', async function () {
     // Check authentication
     if (typeof isUserAuthenticated !== 'undefined' && !isUserAuthenticated()) {
         console.log('User not authenticated, redirecting to login...');
         window.location.href = 'login.html';
         return;
     }
-    
+
     // Initialize search and filter
     initializeTransactionSearch();
     initializeTransactionFilter();
-    
+
     // Try to load transactions from database
     await loadTransactions();
-    
+
     // Initialize AJAX features (auto-refresh and infinite scroll)
     initializeAutoRefresh();
     initializeInfiniteScroll();
+
+    // Start the live amount ticker for active open-hour rentals
+    startLiveAmountTicker();
 });
 
 /**
@@ -45,7 +51,7 @@ async function loadTransactions() {
             console.log('Loading transactions from Supabase...');
             if (typeof dbOps !== 'undefined' && dbOps.fetchAllTransactions) {
                 const transactions = await dbOps.fetchAllTransactions();
-                
+
                 // Store in global array for filtering/searching
                 transactionData.length = 0; // Clear existing
                 transactions.forEach(tx => {
@@ -59,6 +65,15 @@ async function loadTransactions() {
                             }
                         });
                     }
+
+                    // Extract hourly rate from the joined rates table
+                    let hourlyRate = 0;
+                    if (tx.rates) {
+                        hourlyRate = parseFloat(tx.rates.price_per_hour || 0);
+                    }
+
+                    // Determine if this is an active open-hour rental (end_time is NULL)
+                    const isActiveOpenHour = !tx.end_time && tx.start_time;
 
                     const mappedTx = {
                         id: tx.transaction_id || tx.id,
@@ -75,8 +90,13 @@ async function loadTransactions() {
                         type: tx.status || tx.type || 'Active',
                         method: methods.length > 0 ? methods.join(', ') : (tx.qr_token ? 'QR Token' : (tx.payment_method || '-')),
                         locker: tx.lockers ? tx.lockers.locker_number : (tx.locker_id || '-'),
-                        amount: totalPaid,
-                        timestamp: new Date(tx.start_time || tx.created_at).getTime()
+                        amount: isActiveOpenHour ? calculateLiveAmount(tx.start_time || tx.created_at, hourlyRate) : totalPaid,
+                        timestamp: new Date(tx.start_time || tx.created_at).getTime(),
+                        // New fields for live running amount
+                        startTimeISO: tx.start_time || tx.created_at,
+                        endTimeISO: tx.end_time || null,
+                        hourlyRate: hourlyRate,
+                        isActiveOpenHour: isActiveOpenHour
                     };
                     transactionData.push(mappedTx);
                 });
@@ -101,19 +121,6 @@ async function loadTransactions() {
 /**
  * Load fallback/sample data
  */
-function loadFallbackData() {
-    // Generate sample transaction data if empty
-    if (transactionData.length === 0) {
-        const sampleData = [
-            { id: 1, date: 'Oct 24, 08:32 AM', customerName: 'Juan Dela Cruz', customerEmail: 'juan@example.com', userId: 'A1B2C3D4', type: 'Completed', method: 'Cash', locker: 'S1', amount: 20.00, timestamp: Date.now() },
-            { id: 2, date: 'Oct 24, 09:15 AM', customerName: 'Maria Santos', customerEmail: 'maria@example.com', userId: 'E5F6G7H8', type: 'Active', method: 'G-Cash', locker: 'M1', amount: 40.00, timestamp: Date.now() },
-            { id: 3, date: 'Oct 24, 10:05 AM', customerName: 'Pedro Penduko', customerEmail: 'pedro@example.com', userId: 'I9J0K1L2', type: 'Completed', method: 'PayMaya', locker: 'L1', amount: 60.00, timestamp: Date.now() }
-        ];
-        transactionData.push(...sampleData);
-    }
-    refreshTransactionTable(transactionData);
-    updateSummaryStats();
-}
 
 /**
  * Update summary stats cards from transactionData
@@ -134,7 +141,7 @@ function updateSummaryStats() {
     const todayTotal = transactionData
         .filter(tx => tx.timestamp >= today.getTime())
         .reduce((sum, tx) => sum + tx.amount, 0);
-    
+
     if (todayTotalElem) todayTotalElem.textContent = `₱${todayTotal.toFixed(2)}`;
 
     // 3. Coins on Hand (Heuristic based on amount for demo)
@@ -156,13 +163,13 @@ function openResetCoinsModal() {
     const modal = document.getElementById('resetCoinsModal');
     const coinsOnHandElem = document.getElementById('coins-on-hand');
     const modalAmountElem = document.getElementById('modal-coins-amount');
-    
+
     if (modal) {
         // Update modal with current amount
         if (modalAmountElem && coinsOnHandElem) {
             modalAmountElem.textContent = coinsOnHandElem.textContent;
         }
-        
+
         modal.classList.add('active');
         document.body.style.overflow = 'hidden';
     }
@@ -185,22 +192,22 @@ function closeResetCoinsModal() {
 function confirmResetCoins() {
     // Calculate current coins total
     const coinsTotal = transactionData.reduce((sum, tx) => sum + (tx.amount <= 20 ? tx.amount : 0), 0);
-    
+
     // Store the offset (cumulative reset amount)
     const currentOffset = parseFloat(localStorage.getItem('coins_on_hand_offset') || '0');
     const newOffset = currentOffset + (coinsTotal - currentOffset);
     localStorage.setItem('coins_on_hand_offset', newOffset.toString());
-    
+
     // Update display
     const coinsOnHandElem = document.getElementById('coins-on-hand');
     if (coinsOnHandElem) {
         coinsOnHandElem.textContent = '₱0.00';
         coinsOnHandElem.setAttribute('data-value', '0.00');
     }
-    
+
     // Close modal
     closeResetCoinsModal();
-    
+
     // Show success message
     showResetNotification('Coins on Hand has been reset to ₱0.00');
 }
@@ -220,10 +227,10 @@ function showResetNotification(message) {
         <span>${message}</span>
     `;
     document.body.appendChild(notification);
-    
+
     // Trigger animation
     setTimeout(() => notification.classList.add('show'), 10);
-    
+
     // Remove after 3 seconds
     setTimeout(() => {
         notification.classList.remove('show');
@@ -232,7 +239,7 @@ function showResetNotification(message) {
 }
 
 // Close modal when clicking outside
-document.addEventListener('click', function(e) {
+document.addEventListener('click', function (e) {
     const modal = document.getElementById('resetCoinsModal');
     if (e.target === modal) {
         closeResetCoinsModal();
@@ -247,7 +254,7 @@ function refreshTransactionTable(data) {
     if (!tableBody) return;
 
     tableBody.innerHTML = '';
-    
+
     // Load initial batch
     const initialBatch = data.slice(0, Math.min(ITEMS_PER_LOAD, data.length));
     if (initialBatch.length === 0) {
@@ -268,7 +275,7 @@ function refreshTransactionTable(data) {
             <td class="type-cell">${typeBadgeHtml(transaction.type)}</td>
             <td class="method-cell">${transaction.method}</td>
             <td class="locker-cell">${transaction.locker}</td>
-            <td class="amount-cell">₱${transaction.amount.toFixed(2)}</td>
+            ${renderAmountCell(transaction)}
         </tr>
     `).join('');
 }
@@ -279,8 +286,8 @@ function refreshTransactionTable(data) {
 function initializeTransactionSearch() {
     const searchInput = document.getElementById('transaction-search');
     if (!searchInput) return;
-    
-    searchInput.addEventListener('input', function(e) {
+
+    searchInput.addEventListener('input', function (e) {
         const searchTerm = e.target.value.toLowerCase().trim();
         applySearchAndFilter(searchTerm, null);
     });
@@ -292,8 +299,8 @@ function initializeTransactionSearch() {
 function initializeTransactionFilter() {
     const filterSelect = document.getElementById('transaction-filter');
     if (!filterSelect) return;
-    
-    filterSelect.addEventListener('change', function(e) {
+
+    filterSelect.addEventListener('change', function (e) {
         const filterValue = e.target.value;
         const searchInput = document.getElementById('transaction-search');
         const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
@@ -309,13 +316,13 @@ function initializeTransactionFilter() {
 function applySearchAndFilter(searchTerm, filterType) {
     const tableBody = document.getElementById('transactionTableBody');
     if (!tableBody) return;
-    
+
     // Get current filter value if not provided
     if (filterType === null) {
         const filterSelect = document.getElementById('transaction-filter');
         filterType = filterSelect ? filterSelect.value : 'all';
     }
-    
+
     // Filter transactions based on both search and filter
     let filtered = transactionData.filter(tx => {
         // Apply filter by type
@@ -326,28 +333,28 @@ function applySearchAndFilter(searchTerm, filterType) {
                 'wallet-load': ['Wallet Load', 'Wallet'],
                 'cash-collection': ['Cash Collection', 'Collection']
             };
-            
+
             const acceptedTypes = typeMap[filterType] || [];
-            passesFilter = acceptedTypes.some(type => 
+            passesFilter = acceptedTypes.some(type =>
                 tx.type && tx.type.toLowerCase().includes(type.toLowerCase())
             ) || acceptedTypes.some(type =>
                 tx.method && tx.method.toLowerCase().includes(type.toLowerCase())
             );
         }
-        
+
         // Apply search term
         let passesSearch = true;
         if (searchTerm) {
-            passesSearch = 
+            passesSearch =
                 (tx.customerName && tx.customerName.toLowerCase().includes(searchTerm)) ||
                 (tx.locker && String(tx.locker).toLowerCase().includes(searchTerm)) ||
                 (tx.type && tx.type.toLowerCase().includes(searchTerm)) ||
                 (tx.method && tx.method.toLowerCase().includes(searchTerm));
         }
-        
+
         return passesFilter && passesSearch;
     });
-    
+
     refreshTransactionTable(filtered);
 }
 
@@ -361,7 +368,7 @@ const ITEMS_PER_LOAD = 20;
  * Initialize auto-refresh for real-time updates (every 30 seconds)
  */
 function initializeAutoRefresh() {
-    autoRefreshInterval = setInterval(async function() {
+    autoRefreshInterval = setInterval(async function () {
         try {
             await loadTransactions();
             console.log('✓ Transaction data auto-refreshed via AJAX polling');
@@ -379,8 +386,8 @@ function initializeInfiniteScroll() {
     if (!tbody) return;
 
     const container = tbody.closest('.transactions-table-wrapper') || tbody.parentElement;
-    
-    container.addEventListener('scroll', function() {
+
+    container.addEventListener('scroll', function () {
         if (container.scrollTop + container.clientHeight >= container.scrollHeight - 100) {
             loadMoreTransactions();
         }
@@ -392,7 +399,7 @@ function initializeInfiniteScroll() {
  */
 function loadMoreTransactions() {
     if (isLoadingMore) return;
-    
+
     isLoadingMore = true;
     const tbody = document.getElementById('transactionTableBody');
     if (!tbody) return;
@@ -414,7 +421,7 @@ function loadMoreTransactions() {
                 'cash-collection': ['Cash Collection', 'Collection']
             };
             const acceptedTypes = typeMap[filterType] || [];
-            passesFilter = acceptedTypes.some(type => 
+            passesFilter = acceptedTypes.some(type =>
                 tx.type && tx.type.toLowerCase().includes(type.toLowerCase())
             ) || acceptedTypes.some(type =>
                 tx.method && tx.method.toLowerCase().includes(type.toLowerCase())
@@ -422,7 +429,7 @@ function loadMoreTransactions() {
         }
         let passesSearch = true;
         if (searchTerm) {
-            passesSearch = 
+            passesSearch =
                 (tx.customerName && tx.customerName.toLowerCase().includes(searchTerm)) ||
                 (tx.locker && String(tx.locker).toLowerCase().includes(searchTerm)) ||
                 (tx.type && tx.type.toLowerCase().includes(searchTerm)) ||
@@ -451,12 +458,78 @@ function loadMoreTransactions() {
                 <td class="type-cell">${typeBadgeHtml(transaction.type)}</td>
                 <td class="method-cell">${transaction.method}</td>
                 <td class="locker-cell">${transaction.locker}</td>
-                <td class="amount-cell">₱${transaction.amount.toFixed(2)}</td>
+                ${renderAmountCell(transaction)}
             </tr>
         `).join('');
-        
+
         tbody.insertAdjacentHTML('beforeend', rowsHtml);
         isLoadingMore = false;
         console.log(`✓ Loaded ${nextBatch.length} more transactions via infinite scroll`);
     }, 300);
+}
+
+/**
+ * Calculates the live rental amount for an active open-hour rental
+ * @param {string} startTimeISO - Start time of the rental
+ * @param {number} hourlyRate - Hourly rate for the locker type
+ * @returns {number} The calculated dynamic amount
+ */
+function calculateLiveAmount(startTimeISO, hourlyRate) {
+    if (!startTimeISO) return 0;
+    const start = new Date(startTimeISO);
+    const now = new Date();
+    const elapsedMinutes = Math.max(0, (now - start) / 1000 / 60);
+    return Math.ceil(elapsedMinutes / 30) * (hourlyRate / 2);
+}
+
+/**
+ * Renders the amount cell HTML. If the rental is active, it includes data attributes for live updates.
+ * @param {Object} transaction - The mapped transaction object
+ * @returns {string} The HTML string for the td element
+ */
+function renderAmountCell(transaction) {
+    if (transaction.isActiveOpenHour) {
+        const liveAmt = calculateLiveAmount(transaction.startTimeISO, transaction.hourlyRate);
+        return `<td class="amount-cell live-amount-cell" data-transaction-id="${transaction.id}" data-start-time="${transaction.startTimeISO}" data-hourly-rate="${transaction.hourlyRate}">₱${liveAmt.toFixed(2)}</td>`;
+    } else {
+        return `<td class="amount-cell">₱${transaction.amount.toFixed(2)}</td>`;
+    }
+}
+
+/**
+ * Starts the interval ticker to update live amount cells and summary stats dynamically.
+ */
+function startLiveAmountTicker() {
+    if (liveAmountTickerInterval) {
+        clearInterval(liveAmountTickerInterval);
+    }
+
+    liveAmountTickerInterval = setInterval(() => {
+        const liveCells = document.querySelectorAll('.live-amount-cell');
+        if (liveCells.length === 0) return;
+
+        let needsStatsUpdate = false;
+
+        liveCells.forEach(cell => {
+            const startTimeISO = cell.getAttribute('data-start-time');
+            const hourlyRate = parseFloat(cell.getAttribute('data-hourly-rate') || '0');
+            const txId = cell.getAttribute('data-transaction-id');
+
+            if (startTimeISO) {
+                const liveAmt = calculateLiveAmount(startTimeISO, hourlyRate);
+                cell.textContent = `₱${liveAmt.toFixed(2)}`;
+
+                // Keep the global transactionData updated for summary stats calculation
+                const tx = transactionData.find(t => String(t.id) === String(txId));
+                if (tx && tx.amount !== liveAmt) {
+                    tx.amount = liveAmt;
+                    needsStatsUpdate = true;
+                }
+            }
+        });
+
+        if (needsStatsUpdate) {
+            updateSummaryStats();
+        }
+    }, 1000);
 }
