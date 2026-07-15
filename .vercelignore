@@ -1,0 +1,33 @@
+# Ignore documentation files
+docs/
+*.md
+
+# Ignore backup files
+*_backup.*
+backup/
+temp_*
+script_backup.js
+lockers_backup.html
+
+# Ignore test files
+test-*.html
+
+# Ignore git files
+.git/
+.gitignore
+
+# Ignore IDE files
+.vscode/
+.qodo/
+
+# Ignore Python files (Raspberry Pi specific)
+raspberry-pi/
+*.py
+*.pyc
+
+# Ignore SQL files
+*.sql
+
+# Keep only production files
+!vercel.json
+!.vercelignore

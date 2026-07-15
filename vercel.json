@@ -1,0 +1,107 @@
+{
+  "version": 2,
+  "name": "coincubby-admin",
+  "builds": [
+    {
+      "src": "**/*.html",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "**/*.css",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "**/*.js",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "**/*.png",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "**/*.jpg",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "**/*.svg",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/login",
+      "dest": "/pages/login.html"
+    },
+    {
+      "src": "/dashboard",
+      "dest": "/pages/index.html"
+    },
+    {
+      "src": "/lockers",
+      "dest": "/pages/lockers.html"
+    },
+    {
+      "src": "/customers",
+      "dest": "/pages/customers.html"
+    },
+    {
+      "src": "/transactions",
+      "dest": "/pages/transactions.html"
+    },
+    {
+      "src": "/rentals",
+      "dest": "/pages/rentals.html"
+    },
+    {
+      "src": "/rates",
+      "dest": "/pages/rates.html"
+    },
+    {
+      "src": "/reports",
+      "dest": "/pages/reports.html"
+    },
+    {
+      "src": "/auditlog",
+      "dest": "/pages/auditlog.html"
+    },
+    {
+      "src": "/feedback",
+      "dest": "/pages/feedback.html"
+    },
+    {
+      "src": "/profile",
+      "dest": "/pages/profile.html"
+    },
+    {
+      "src": "/notifications",
+      "dest": "/pages/notifications.html"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/$1"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "X-XSS-Protection",
+          "value": "1; mode=block"
+        }
+      ]
+    }
+  ]
+}
