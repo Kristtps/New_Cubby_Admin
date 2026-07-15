@@ -1,88 +1,52 @@
 {
-  "version": 2,
-  "name": "coincubby-admin",
-  "builds": [
+  "rewrites": [
     {
-      "src": "**/*.html",
-      "use": "@vercel/static"
+      "source": "/login",
+      "destination": "/pages/login.html"
     },
     {
-      "src": "**/*.css",
-      "use": "@vercel/static"
+      "source": "/dashboard",
+      "destination": "/pages/index.html"
     },
     {
-      "src": "**/*.js",
-      "use": "@vercel/static"
+      "source": "/lockers",
+      "destination": "/pages/lockers.html"
     },
     {
-      "src": "**/*.png",
-      "use": "@vercel/static"
+      "source": "/customers",
+      "destination": "/pages/customers.html"
     },
     {
-      "src": "**/*.jpg",
-      "use": "@vercel/static"
+      "source": "/transactions",
+      "destination": "/pages/transactions.html"
     },
     {
-      "src": "**/*.svg",
-      "use": "@vercel/static"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/",
-      "dest": "/index.html"
+      "source": "/rentals",
+      "destination": "/pages/rentals.html"
     },
     {
-      "src": "/login",
-      "dest": "/pages/login.html"
+      "source": "/rates",
+      "destination": "/pages/rates.html"
     },
     {
-      "src": "/dashboard",
-      "dest": "/pages/index.html"
+      "source": "/reports",
+      "destination": "/pages/reports.html"
     },
     {
-      "src": "/lockers",
-      "dest": "/pages/lockers.html"
+      "source": "/auditlog",
+      "destination": "/pages/auditlog.html"
     },
     {
-      "src": "/customers",
-      "dest": "/pages/customers.html"
+      "source": "/feedback",
+      "destination": "/pages/feedback.html"
     },
     {
-      "src": "/transactions",
-      "dest": "/pages/transactions.html"
+      "source": "/profile",
+      "destination": "/pages/profile.html"
     },
     {
-      "src": "/rentals",
-      "dest": "/pages/rentals.html"
-    },
-    {
-      "src": "/rates",
-      "dest": "/pages/rates.html"
-    },
-    {
-      "src": "/reports",
-      "dest": "/pages/reports.html"
-    },
-    {
-      "src": "/auditlog",
-      "dest": "/pages/auditlog.html"
-    },
-    {
-      "src": "/feedback",
-      "dest": "/pages/feedback.html"
-    },
-    {
-      "src": "/profile",
-      "dest": "/pages/profile.html"
-    },
-    {
-      "src": "/notifications",
-      "dest": "/pages/notifications.html"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/$1"
+      "source": "/notifications",
+      "destination": "/pages/notifications.html"
     }
   ],
   "headers": [
