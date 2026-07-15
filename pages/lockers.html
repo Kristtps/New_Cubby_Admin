@@ -437,6 +437,18 @@
                         <span style="color: var(--color-text-muted);">Duration:</span>
                         <span id="detail-duration" style="color: var(--color-dark);">-</span>
 
+                        <span style="color: var(--color-text-muted);">Rental Type:</span>
+                        <span id="detail-rental-type" style="color: var(--color-dark);">-</span>
+
+                        <!-- These two detail rows are shown only while a fixed rental is overtime. -->
+                        <div id="detail-overtime-columns" style="display: none;">
+                            <span style="color: var(--color-text-muted);">Overtime:</span>
+                            <span id="detail-overtime" style="color: var(--color-dark);">-</span>
+
+                            <span style="color: var(--color-text-muted);">Additional Charge:</span>
+                            <span id="detail-additional-charge" style="font-weight: 600; color: var(--color-occupied);">₱0.00</span>
+                        </div>
+
                         <span style="color: var(--color-text-muted);">Amount Paid:</span>
                         <span id="detail-amount" style="font-weight: 600; color: var(--color-primary);">₱0.00</span>
                     </div>

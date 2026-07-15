@@ -12,6 +12,7 @@ let allRentalsData = [];
 let autoRefreshRentalsInterval = null;
 let isLoadingMoreRentals = false;
 let countdownIntervals = {}; // Store countdown intervals for each rental
+let showingRentalHistory = false;
 const RENTALS_PER_LOAD = 25;
 
 /**
@@ -31,6 +32,8 @@ async function initializeRentalsPage() {
 
     // Initialize search functionality
     initializeRentalsSearch();
+    initializeRentalDetailsModal();
+    initializeRentalHistoryToggle();
 
     // Initialize auto-refresh (every 20 seconds)
     initializeRentalsAutoRefresh();
@@ -59,16 +62,19 @@ async function loadRentalsFromSupabase() {
                 payments (amount),
                 rates (rate_id, price_per_hour)
             `)
-            .eq('status', 'Active')
             .order('start_time', { ascending: false });
 
         if (error) throw error;
 
-        // Filter to show only active transactions (locked lockers currently in use)
-        const activeTransactions = (transactions || []).filter(tx => tx && tx.status === 'Active');
+        // History is every non-active transaction. Use the stored status rather
+        // than assuming its casing so completed rentals are always included.
+        const displayedTransactions = (transactions || []).filter(tx => {
+            const isActive = String(tx?.status || '').trim().toLowerCase() === 'active';
+            return showingRentalHistory ? !isActive : isActive;
+        });
 
         // Map Supabase data to rental format
-        const mapped = (activeTransactions || []).map(tx => {
+        const mapped = displayedTransactions.map(tx => {
             const startDate = new Date(tx.start_time);
             const endDate = tx.end_time ? new Date(tx.end_time) : null;
 
@@ -130,7 +136,11 @@ async function loadRentalsFromSupabase() {
         if (mapped.length === 0) {
             const tbody = document.getElementById('rentals-tbody');
             if (tbody) {
-                tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 3rem;">No active rentals at the moment.</td></tr>`;
+                const emptyMessage = showingRentalHistory
+                    ? 'No rental history found.'
+                    : 'No active rentals at the moment.';
+                tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 3rem;">${emptyMessage}</td></tr>`;
+                allRentalsData = [];
             }
         } else {
             allRentalsData = mapped;
@@ -164,7 +174,7 @@ function refreshRentalsFromDatabase(rentalsData) {
         addRentalRow(rental);
     });
 
-    console.log(`✓ Loaded ${rentalsData.length} active rentals`);
+    console.log(`✓ Loaded ${rentalsData.length} ${showingRentalHistory ? 'historical' : 'active'} rentals`);
 }
 
 /**
@@ -176,16 +186,21 @@ function addRentalRow(rentalData) {
 
     const newRow = document.createElement('tr');
     newRow.setAttribute('data-rental-id', rentalData.id);
+    newRow.setAttribute('tabindex', '0');
+    newRow.setAttribute('role', 'button');
+    newRow.setAttribute('aria-label', `View details for rental ${rentalData.id}`);
+    newRow.style.cursor = 'pointer';
 
-    const statusBadgeClass = rentalData.status === 'Active' ? 'status-badge occupied' : 'status-badge available';
+    const isActiveRental = String(rentalData.status || '').trim().toLowerCase() === 'active';
+    const statusBadgeClass = isActiveRental ? 'status-badge occupied' : 'status-badge available';
 
-    // Check if this is an active Open Hour rental
-    const isOngoingOpenHour = rentalData.status === 'Active' && !rentalData.endTime;
-
-    // Calculate initial dynamic amount for active Open Hour, otherwise use mapped database amount
+    // An active rental without an end time is Open Hour.
+    const isOngoingOpenHour = isActiveRental && !rentalData.endTime;
+    const fixedPricing = isActiveRental && rentalData.endTime ? calculateRentalOvertime(rentalData) : null;
     const initialAmount = isOngoingOpenHour
         ? calculateOpenHourAmount(Math.max(0, (new Date() - new Date(rentalData.startTimeRaw)) / 1000 / 60), rentalData.hourlyRate)
-        : rentalData.amount;
+        : (fixedPricing ? fixedPricing.prepaidAmount : rentalData.amount);
+    const durationValue = isActiveRental ? '--:--:--' : rentalData.duration;
 
     newRow.innerHTML = `
         <td class="customer-cell">
@@ -196,17 +211,29 @@ function addRentalRow(rentalData) {
         <td class="locker-cell">${rentalData.locker}</td>
         <td class="date-cell">${rentalData.startDate}</td>
         <td class="date-cell">${rentalData.endDate}</td>
-        <td class="date-cell"><span data-duration-id="${rentalData.id}" class="duration-countdown" style="font-weight: 600; font-family: monospace;">--:--:--</span></td>
+        <td class="date-cell"><span data-duration-id="${rentalData.id}" class="duration-countdown" style="font-weight: 600; font-family: monospace;">${durationValue}</span></td>
         <td class="status-cell"><span class="${statusBadgeClass}">${rentalData.status}</span></td>
-        <td class="amount-cell"><span data-amount-id="${rentalData.id}">₱${parseFloat(initialAmount).toFixed(2)}</span></td>
+        <td class="amount-cell">
+            <span data-amount-id="${rentalData.id}">₱${parseFloat(initialAmount).toFixed(2)}</span>
+            <span data-overtime-id="${rentalData.id}" style="${fixedPricing && fixedPricing.isOvertime ? '' : 'display: none;'} margin-left: 6px; color: #b91c1c; font-size: 0.9rem; font-weight: 700;">+</span>
+            <span data-overtime-fee-id="${rentalData.id}" style="display: ${fixedPricing && fixedPricing.isOvertime ? 'block' : 'none'}; margin-top: 3px; color: #b91c1c; font-size: 0.75rem; font-weight: 600;">Additional: ₱${fixedPricing ? fixedPricing.additionalFee.toFixed(2) : '0.00'}</span>
+        </td>
     `;
 
     tbody.appendChild(newRow);
 
+    newRow.addEventListener('click', () => showRentalTableDetails(rentalData));
+    newRow.addEventListener('keydown', event => {
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            showRentalTableDetails(rentalData);
+        }
+    });
+
     // Start timer/countdown appropriately
-    if (rentalData.status === 'Active') {
+    if (isActiveRental) {
         if (rentalData.endTime) {
-            startCountdown(rentalData.id, rentalData.endTime, rentalData.durationMinutes);
+            startCountdown(rentalData);
         } else {
             startOpenHourTimer(rentalData.id, rentalData.startTimeRaw, rentalData.hourlyRate);
         }
@@ -217,7 +244,8 @@ function addRentalRow(rentalData) {
  * Start countdown timer for a rental
  * Uses end_time to calculate remaining time for active rentals
  */
-function startCountdown(rentalId, endTime, durationMinutes) {
+function startCountdown(rentalData) {
+    const { id: rentalId, endTime } = rentalData;
     // Clear existing countdown if any
     if (countdownIntervals[rentalId]) {
         clearInterval(countdownIntervals[rentalId]);
@@ -229,6 +257,8 @@ function startCountdown(rentalId, endTime, durationMinutes) {
         const diff = endDate - now;
 
         const durationElement = document.querySelector(`[data-duration-id="${rentalId}"]`);
+        const overtimeIndicator = document.querySelector(`[data-overtime-id="${rentalId}"]`);
+        const overtimeFeeElement = document.querySelector(`[data-overtime-fee-id="${rentalId}"]`);
         if (!durationElement) return;
 
         const row = durationElement.closest('tr');
@@ -248,6 +278,13 @@ function startCountdown(rentalId, endTime, durationMinutes) {
             durationElement.style.fontWeight = 'bold';
             if (row) row.style.backgroundColor = 'rgba(127, 29, 29, 0.06)';
 
+            if (overtimeIndicator) overtimeIndicator.style.display = 'inline';
+            const pricing = calculateRentalOvertime(rentalData);
+            if (overtimeFeeElement) {
+                overtimeFeeElement.textContent = `Additional: ₱${pricing.additionalFee.toFixed(2)}`;
+                overtimeFeeElement.style.display = 'block';
+            }
+
             // Continue counting up
             return;
         }
@@ -261,6 +298,8 @@ function startCountdown(rentalId, endTime, durationMinutes) {
         // Format as HH:MM:SS
         const timeString = `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
         durationElement.textContent = timeString;
+        if (overtimeIndicator) overtimeIndicator.style.display = 'none';
+        if (overtimeFeeElement) overtimeFeeElement.style.display = 'none';
 
         // Change color based on time remaining
         if (diff <= 1800000) { // 30 minutes or less
@@ -283,6 +322,105 @@ function startCountdown(rentalId, endTime, durationMinutes) {
 
     // Update every second
     countdownIntervals[rentalId] = setInterval(updateCountdown, 1000);
+}
+
+/** Toggle between currently active rentals and completed rental history. */
+function initializeRentalHistoryToggle() {
+    const button = document.getElementById('rentals-history-toggle');
+    if (!button) return;
+
+    button.addEventListener('click', async () => {
+        showingRentalHistory = !showingRentalHistory;
+        button.textContent = showingRentalHistory ? 'Active Rentals' : 'History';
+        button.setAttribute('aria-pressed', String(showingRentalHistory));
+
+        const title = document.getElementById('rentals-page-title');
+        const subtitle = document.getElementById('rentals-page-subtitle');
+        if (title) title.textContent = showingRentalHistory ? 'Rental History' : 'Rentals';
+        if (subtitle) subtitle.textContent = showingRentalHistory
+            ? 'View completed and past locker rentals.'
+            : 'Track active locker rentals.';
+
+        await loadRentalsFromSupabase();
+    });
+}
+
+/**
+ * Calculates the display-only overtime addition for a fixed-duration rental.
+ * The existing end time is the deadline; the first 10 late minutes are free,
+ * then each started 30-minute block costs half of the hourly rate.
+ */
+function calculateRentalOvertime(rentalData) {
+    const overtimeMinutes = Math.max(0, (new Date() - new Date(rentalData.endTime)) / 1000 / 60);
+    const hourlyRate = Math.max(0, Number(rentalData.hourlyRate) || 0);
+    const selectedHours = Math.max(0, Number(rentalData.durationMinutes) || 0) / 60;
+    const additionalFee = overtimeMinutes <= 10 || hourlyRate <= 0
+        ? 0
+        : Math.ceil((overtimeMinutes - 10) / 30) * (hourlyRate / 2);
+    const prepaidAmount = selectedHours * hourlyRate;
+
+    return {
+        isOvertime: overtimeMinutes > 0,
+        prepaidAmount,
+        additionalFee,
+    };
+}
+
+/**
+ * Opens the Rentals-table details modal using the rental data already loaded
+ * for the row. This keeps the table click action independent of schema changes.
+ */
+function showRentalTableDetails(rentalData) {
+    const modal = document.getElementById('rental-table-details-modal');
+    if (!modal) return;
+
+    const set = (id, value) => {
+        const element = document.getElementById(id);
+        if (element) element.textContent = value || 'N/A';
+    };
+    const visibleAmount = document.querySelector(`[data-amount-id="${rentalData.id}"]`)?.textContent;
+    const visibleDuration = document.querySelector(`[data-duration-id="${rentalData.id}"]`)?.textContent;
+    const pricing = rentalData.endTime ? calculateRentalOvertime(rentalData) : null;
+
+    set('rental-detail-customer', rentalData.customer);
+    set('rental-detail-locker', rentalData.locker);
+    set('rental-detail-start', rentalData.startDate);
+    set('rental-detail-end', rentalData.endDate);
+    set('rental-detail-duration', visibleDuration);
+    set('rental-detail-status', rentalData.status);
+    set('rental-detail-type', rentalData.endTime ? 'Fixed Duration' : 'Open Hour');
+    set('rental-detail-amount', visibleAmount);
+    set('rental-detail-overtime', pricing?.isOvertime ? 'Yes' : 'No');
+    set('rental-detail-additional-fee', `₱${(pricing?.additionalFee || 0).toFixed(2)}`);
+
+    modal.classList.add('active');
+    modal.style.display = 'flex';
+    modal.setAttribute('aria-hidden', 'false');
+}
+
+function closeRentalTableDetails() {
+    const modal = document.getElementById('rental-table-details-modal');
+    if (!modal) return;
+
+    modal.classList.remove('active');
+    modal.style.display = 'none';
+    modal.setAttribute('aria-hidden', 'true');
+}
+
+function initializeRentalDetailsModal() {
+    const modal = document.getElementById('rental-table-details-modal');
+    const closeButton = document.getElementById('rental-table-details-close');
+    if (!modal) return;
+
+    closeButton?.addEventListener('click', closeRentalTableDetails);
+    modal.addEventListener('click', event => {
+        if (event.target === modal) closeRentalTableDetails();
+    });
+    document.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && modal.classList.contains('active')) {
+            closeRentalTableDetails();
+        }
+    });
 }
 
 /**
@@ -402,14 +540,12 @@ function loadMoreRentals() {
 
 /**
  * Calculates dynamic Open Hour rental amount based on billing rules:
- * - Minimum of ₱5.00
  * - Charged in 30-minute steps
- * - amount = MAX(5.00, CEIL(elapsedMinutes / 30) * (hourlyRate / 2))
+ * - amount = CEIL(elapsedMinutes / 30) * (hourlyRate / 2)
  */
 function calculateOpenHourAmount(elapsedMinutes, hourlyRate) {
     const halfRate = hourlyRate / 2;
-    const calculatedAmount = Math.ceil(elapsedMinutes / 30) * halfRate;
-    return Math.max(5.00, calculatedAmount);
+    return Math.ceil(elapsedMinutes / 30) * halfRate;
 }
 
 /**

@@ -517,6 +517,9 @@ function refreshDashboardFromDatabase(dashboardData) {
                     ${mod.lockers.map(locker => {
                 const status = locker.status.toLowerCase();
                 const lockerId = locker.locker_number || locker.code;
+                // Keep data-locker-id as the display code for existing status
+                // updates, and carry the primary key separately for the modal.
+                const rentalLockerId = locker.locker_id || locker.id || lockerId;
                 const size = locker.size || (locker.size_type_id === 1 ? 'S' : locker.size_type_id === 2 ? 'M' : 'L');
                 const sizeLabel = locker.size || (locker.size_type_id === 1 ? 'Small' : locker.size_type_id === 2 ? 'Medium' : 'Large');
 
@@ -528,7 +531,7 @@ function refreshDashboardFromDatabase(dashboardData) {
                 }
 
                 return `
-                            <div class="locker ${status}" data-locker-id="${lockerId}" data-status="${status}" data-size="${size[0]}">
+                            <div class="locker ${status}" data-locker-id="${lockerId}" data-rental-locker-id="${rentalLockerId}" data-status="${status}" data-size="${size[0]}">
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     ${icon}
                                 </svg>
@@ -570,7 +573,7 @@ function attachLockerClickHandlers() {
 
         card.addEventListener('click', async function (e) {
             e.preventDefault();
-            const lockerId = this.getAttribute('data-locker-id');
+            const lockerId = this.getAttribute('data-rental-locker-id') || this.getAttribute('data-locker-id');
             const status = this.getAttribute('data-status');
 
             await showRentalDetailsModal(lockerId, status);
@@ -612,8 +615,14 @@ async function showRentalDetailsModal(lockerId, status) {
     set('detail-customer-phone', 'Loading…');
     set('detail-start-time', 'Loading…');
     set('detail-duration', 'Loading…');
+    set('detail-rental-type', 'Loading…');
+    set('detail-overtime', 'Loading…');
+    const overtimeColumnsEl = document.getElementById('detail-overtime-columns');
+    if (overtimeColumnsEl) overtimeColumnsEl.style.display = 'none';
     const amountEl = document.getElementById('detail-amount');
     if (amountEl) amountEl.textContent = '₱—';
+    const additionalChargeEl = document.getElementById('detail-additional-charge');
+    if (additionalChargeEl) additionalChargeEl.textContent = '₱—';
 
     console.log('=== RENTAL DETAILS MODAL ===', { lockerId, status });
 
@@ -624,6 +633,78 @@ async function showRentalDetailsModal(lockerId, status) {
 
         if (!supabase || typeof supabase.from !== 'function') {
             throw new Error('Supabase client not ready');
+        }
+
+        // Keep the modal data flow in one place. The caller passes the unique
+        // locker_id, which is then used to look up its transaction.
+        if (typeof fetchLockerRentalDetails !== 'function') {
+            throw new Error('fetchLockerRentalDetails is not available');
+        }
+        const details = await fetchLockerRentalDetails(lockerId);
+        console.log('Rental Details returned to modal:', details);
+
+        if (details) {
+            set('detail-locker-number', details.locker_number || lockerId);
+            set('detail-locker-size', details.size_name);
+            set('detail-locker-module', details.module_name);
+
+            const detailStatus = String(details.status || status || '').toLowerCase();
+            const statusEl = document.getElementById('detail-locker-status');
+            if (statusEl) {
+                statusEl.textContent = detailStatus
+                    ? detailStatus.charAt(0).toUpperCase() + detailStatus.slice(1)
+                    : 'N/A';
+                statusEl.style.color = getStatusColor(detailStatus);
+            }
+
+            const ids = ['renterInfoSection', 'rentalTimeSection', 'renterDivider', 'rentalDivider2'];
+            const hide = detailStatus === 'available' || detailStatus === 'maintenance';
+            ids.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.style.display = hide ? 'none' : 'block';
+            });
+
+            set('detail-customer-name', details.customer_full_name);
+            set('detail-customer-email', details.customer_email);
+            set('detail-customer-phone', details.customer_phone);
+            set('detail-start-time', details.start_time ? formatForDisplay(details.start_time) : null);
+
+            if (details.duration_minutes != null) {
+                const minutes = Number(details.duration_minutes) || 0;
+                const h = Math.floor(minutes / 60);
+                const m = minutes % 60;
+                set('detail-duration', h > 0 ? `${h}h ${m}m` : `${m}m`);
+            } else {
+                set('detail-duration', null);
+            }
+
+            const overtimeMinutes = Number(details.overtime_minutes) || 0;
+            const hasOvertime = Boolean(details.transaction_id && details.is_fixed_time && overtimeMinutes > 0);
+
+            if (!details.transaction_id) {
+                set('detail-rental-type', 'N/A');
+            } else if (details.is_fixed_time) {
+                set('detail-rental-type', 'Fixed Time');
+            } else {
+                set('detail-rental-type', 'Open Hour');
+            }
+
+            if (hasOvertime) {
+                const hours = Math.floor(overtimeMinutes / 60);
+                const minutes = overtimeMinutes % 60;
+                set('detail-overtime', hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`);
+                if (overtimeColumnsEl) overtimeColumnsEl.style.display = 'contents';
+            } else if (overtimeColumnsEl) {
+                overtimeColumnsEl.style.display = 'none';
+            }
+            if (additionalChargeEl) {
+                additionalChargeEl.textContent = `₱${Number(details.additional_charge || 0).toFixed(2)}`;
+            }
+
+            if (amountEl) amountEl.textContent = `₱${Number(details.amount_paid || 0).toFixed(2)}`;
+            console.log('✓ Modal fully populated');
+            console.log('=== END RENTAL DETAILS MODAL ===');
+            return;
         }
 
         // ── STEP 1: Fetch locker (uses fetchLockerByCode — confirmed working) ─
@@ -774,22 +855,6 @@ async function showRentalDetailsModal(lockerId, status) {
             }
         }
 
-        // If no payment record is found, fall back to the rates table price
-        if ((price === null || price === undefined) && tx?.rate_id != null) {
-            const { data: rateRow, error: rateErr } = await supabase
-                .from('rates')
-                .select('price')
-                .eq('rate_id', tx.rate_id)
-                .single();
-
-            if (!rateErr && rateRow) {
-                price = rateRow.price;
-                console.log('step7 price fallback from rates table:', price);
-            } else {
-                console.error('❌ rates query error:', rateErr);
-            }
-        }
-
         if (amountEl) {
             amountEl.textContent = (price !== null && price !== undefined)
                 ? `₱${Number(price).toFixed(2)}`
@@ -808,7 +873,10 @@ async function showRentalDetailsModal(lockerId, status) {
         set('detail-customer-phone', 'N/A');
         set('detail-start-time', 'N/A');
         set('detail-duration', 'N/A');
+        set('detail-rental-type', 'N/A');
+        if (overtimeColumnsEl) overtimeColumnsEl.style.display = 'none';
         if (amountEl) amountEl.textContent = '₱0.00';
+        if (additionalChargeEl) additionalChargeEl.textContent = '₱0.00';
     }
 }
 
@@ -1502,11 +1570,11 @@ function addLockerRow(lockerData) {
             return;
         }
 
-        const lockerCode = this.getAttribute('data-locker-code');
+        const lockerId = this.getAttribute('data-locker-row');
         const status = this.getAttribute('data-locker-status');
 
-        if (lockerCode) {
-            await showRentalDetailsModal(lockerCode, status);
+        if (lockerId) {
+            await showRentalDetailsModal(lockerId, status);
         }
     });
 

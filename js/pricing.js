@@ -32,32 +32,18 @@
  * @returns {Promise<Object>} Rates object { small, medium, large }
  */
 async function getRatesFromDatabase() {
-    try {
-        if (typeof dbOps !== 'undefined' && dbOps.fetchRates) {
-            const rates = await dbOps.fetchRates();
-            return {
-                small: rates.small?.rate || 10,
-                medium: rates.medium?.rate || 20,
-                large: rates.large?.rate || 35
-            };
+    if (typeof dbOps !== 'undefined' && dbOps.fetchRates) {
+        const rates = await dbOps.fetchRates();
+        if (!rates || !rates.small || !rates.medium || !rates.large) {
+            throw new Error('Incomplete rate data returned from database');
         }
-    } catch (error) {
-        console.error('Error fetching rates:', error);
-    }
-    
-    // Fallback to localStorage
-    const savedRates = localStorage.getItem('coincubby_rates');
-    if (savedRates) {
-        const rates = JSON.parse(savedRates);
         return {
-            small: rates.small?.rate || 10,
-            medium: rates.medium?.rate || 20,
-            large: rates.large?.rate || 35
+            small: rates.small.rate,
+            medium: rates.medium.rate,
+            large: rates.large.rate
         };
     }
-    
-    // Default rates
-    return { small: 10, medium: 20, large: 35 };
+    throw new Error('Database operation for fetching rates is unavailable');
 }
 
 /**
@@ -79,11 +65,11 @@ function calculateFixedDuration(hours, hourlyRate) {
 function calculateOpenHour(minutes, hourlyRate) {
     const breakdown = [];
     let totalFee = 0;
-    
+
     // Process in 30-minute blocks
     let remainingMinutes = minutes;
     let blockNumber = 1;
-    
+
     while (remainingMinutes > 0) {
         if (remainingMinutes <= 30) {
             // First 30 minutes of this block
@@ -109,7 +95,7 @@ function calculateOpenHour(minutes, hourlyRate) {
             remainingMinutes -= 30;
             blockNumber++;
         }
-        
+
         // Next 30 minutes (completes the hour)
         if (remainingMinutes > 0) {
             if (remainingMinutes <= 30) {
@@ -136,7 +122,7 @@ function calculateOpenHour(minutes, hourlyRate) {
             }
         }
     }
-    
+
     return { totalFee, breakdown };
 }
 
@@ -154,95 +140,79 @@ function calculateOvertime(minutesLate, hourlyRate) {
     let totalFee = 0;
     let remainingMinutes = minutesLate;
     let blockNumber = 1;
-    
-    while (remainingMinutes > 0) {
-        // Start of new 30-minute block
-        
-        if (remainingMinutes <= 10) {
-            // Within grace period - FREE
-            breakdown.push({
-                block: blockNumber,
-                minutes: remainingMinutes,
-                type: 'Grace Period',
-                fee: 0
-            });
-            remainingMinutes = 0;
-        } else if (remainingMinutes <= 30) {
-            // 10 min grace + charged time
-            breakdown.push({
-                block: blockNumber,
-                minutes: 10,
-                type: 'Grace Period',
-                fee: 0
-            });
-            
-            const chargedMinutes = remainingMinutes - 10;
-            const fee = hourlyRate / 2; // Half-rate for this block
-            totalFee += fee;
-            
-            breakdown.push({
-                block: blockNumber,
-                minutes: chargedMinutes,
-                type: 'Half-rate',
-                fee: fee
-            });
-            remainingMinutes = 0;
-        } else {
-            // Full 30-minute block
-            // 10 min grace + 20 min charged
-            breakdown.push({
-                block: blockNumber,
-                minutes: 10,
-                type: 'Grace Period',
-                fee: 0
-            });
-            
-            const fee = hourlyRate / 2; // Half-rate for this 30-min block
-            totalFee += fee;
-            
-            breakdown.push({
-                block: blockNumber,
-                minutes: 20,
-                type: 'Half-rate',
-                fee: fee
-            });
-            
-            remainingMinutes -= 30;
-            blockNumber++;
-        }
+
+    // If all minutes are within the 10‑minute grace period, nothing gets charged
+    if (remainingMinutes <= 10) {
+        breakdown.push({
+            block: blockNumber,
+            minutes: remainingMinutes,
+            type: 'Grace Period',
+            fee: 0
+        });
+        return { totalFee, breakdown };
     }
-    
+
+    // Apply a single 10‑minute grace block once
+
+    breakdown.push({
+        block: blockNumber,
+        minutes: 10,
+        type: 'Grace Period',
+        fee: 0
+    });
+    blockNumber++;
+    remainingMinutes -= 10;
+
+    // Charge remaining minutes in 30‑minute blocks at half‑rate
+    while (remainingMinutes > 0) {
+        const minutesInBlock = Math.min(30, remainingMinutes);
+        const fee = hourlyRate / 2;
+        breakdown.push({
+            block: blockNumber,
+            minutes: minutesInBlock,
+            type: 'Half-rate',
+            fee: fee
+        });
+        totalFee += fee;
+        remainingMinutes -= minutesInBlock;
+        blockNumber++;
+    }
+
     return { totalFee, breakdown };
 }
+
+
+
+
 
 /**
  * Calculate total rental fee
  * 
  * @param {Object} rental - Rental details
- * @param {string} rental.type - 'fixed' or 'open'
  * @param {number} rental.prepaidHours - Hours prepaid (for fixed)
  * @param {Date} rental.startTime - Rental start time
- * @param {Date} rental.endTime - Rental end time (or current time)
+ * @param {Date|null} rental.endTime - Scheduled fixed-rental end time; null for Open Hour
  * @param {number} rental.hourlyRate - Hourly rate from database
  * @returns {Object} { totalFee, prepaidFee, overtimeFee, breakdown }
  */
 function calculateRentalFee(rental) {
     const {
-        type,
         prepaidHours = 0,
         startTime,
-        endTime = new Date(),
+        endTime = null,
         hourlyRate
     } = rental;
-    
-    const actualMinutes = Math.floor((endTime - startTime) / 1000 / 60);
-    
-    if (type === 'fixed') {
+
+    const now = new Date();
+    const actualMinutes = Math.max(0, Math.floor((now - startTime) / 1000 / 60));
+    const isFixedDuration = endTime !== null && endTime !== undefined;
+
+    if (isFixedDuration) {
         // Fixed-Duration (Prepaid)
         const prepaidFee = calculateFixedDuration(prepaidHours, hourlyRate);
-        const prepaidMinutes = prepaidHours * 60;
-        
-        if (actualMinutes <= prepaidMinutes) {
+        const overtimeMinutes = Math.max(0, Math.floor((now - new Date(endTime)) / 1000 / 60));
+
+        if (overtimeMinutes === 0) {
             // No overtime
             return {
                 totalFee: prepaidFee,
@@ -258,9 +228,8 @@ function calculateRentalFee(rental) {
             };
         } else {
             // Has overtime
-            const overtimeMinutes = actualMinutes - prepaidMinutes;
             const overtime = calculateOvertime(overtimeMinutes, hourlyRate);
-            
+
             return {
                 totalFee: prepaidFee + overtime.totalFee,
                 prepaidFee: prepaidFee,
@@ -275,27 +244,19 @@ function calculateRentalFee(rental) {
                 }
             };
         }
-    } else if (type === 'open') {
-        // Open Hour (Pay-as-you-go)
-        const result = calculateOpenHour(actualMinutes, hourlyRate);
-        
-        return {
-            totalFee: result.totalFee,
-            prepaidFee: 0,
-            overtimeFee: 0,
-            breakdown: {
-                type: 'Open Hour',
-                actualMinutes: actualMinutes,
-                openHour: result
-            }
-        };
     }
-    
+
+    // Open Hour (Pay-as-you-go): end_time is NULL.
+    const result = calculateOpenHour(actualMinutes, hourlyRate);
     return {
-        totalFee: 0,
+        totalFee: result.totalFee,
         prepaidFee: 0,
         overtimeFee: 0,
-        breakdown: null
+        breakdown: {
+            type: 'Open Hour',
+            actualMinutes: actualMinutes,
+            openHour: result
+        }
     };
 }
 
@@ -315,14 +276,14 @@ function formatFee(fee) {
  */
 function getBreakdownText(breakdown) {
     if (!breakdown) return '';
-    
+
     let text = `Type: ${breakdown.type}\n`;
     text += `Actual Time: ${breakdown.actualMinutes} minutes\n`;
-    
+
     if (breakdown.prepaidFee) {
         text += `Prepaid (${breakdown.prepaidHours}hr): ${formatFee(breakdown.prepaidFee)}\n`;
     }
-    
+
     if (breakdown.overtime) {
         text += `\nOvertime Breakdown:\n`;
         breakdown.overtime.breakdown.forEach(item => {
@@ -330,14 +291,14 @@ function getBreakdownText(breakdown) {
         });
         text += `Total Overtime: ${formatFee(breakdown.overtime.totalFee)}\n`;
     }
-    
+
     if (breakdown.openHour) {
         text += `\nOpen Hour Breakdown:\n`;
         breakdown.openHour.breakdown.forEach(item => {
             text += `  Block ${item.block}: ${item.minutes} min - ${item.rate} - ${formatFee(item.fee)}\n`;
         });
     }
-    
+
     return text;
 }
 

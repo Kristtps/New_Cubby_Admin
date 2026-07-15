@@ -136,8 +136,8 @@
             <!-- Header -->
             <div class="header" style="display: flex; justify-content: space-between; align-items: flex-start;">
                 <div>
-                    <h1>Rentals</h1>
-                    <p class="subtitle">Track active and completed locker rentals.</p>
+                    <h1 id="rentals-page-title">Rentals</h1>
+                    <p class="subtitle" id="rentals-page-subtitle">Track active locker rentals.</p>
                 </div>
                 <div style="display: flex; gap: 12px; margin-top: 8px; align-items: center;">
                     <input type="text" id="rentals-search" placeholder="Search by customer, locker, or ID..."
@@ -195,6 +195,38 @@
                 </div>
             </div>
         </main>
+    </div>
+
+    <div class="modal-overlay" id="rental-table-details-modal" aria-hidden="true">
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="rental-table-details-title">
+            <div class="modal-header">
+                <h2 id="rental-table-details-title">Rental Details</h2>
+                <button class="modal-close" id="rental-table-details-close" type="button"
+                    aria-label="Close rental details">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 24px;">
+                <div style="display: grid; grid-template-columns: 130px 1fr; gap: 12px; font-size: 14px;">
+                    <span style="color: var(--color-text-muted);">Customer:</span><span id="rental-detail-customer"
+                        style="font-weight: 600;">-</span>
+                    <span style="color: var(--color-text-muted);">Locker:</span><span id="rental-detail-locker"
+                        style="font-weight: 600;">-</span>
+                    <span style="color: var(--color-text-muted);">Start Date:</span><span
+                        id="rental-detail-start">-</span>
+                    <span style="color: var(--color-text-muted);">End Date:</span><span id="rental-detail-end">-</span>
+                    <span style="color: var(--color-text-muted);">Duration:</span><span
+                        id="rental-detail-duration">-</span>
+                    <span style="color: var(--color-text-muted);">Rental Type:</span><span
+                        id="rental-detail-type">-</span>
+                    <span style="color: var(--color-text-muted);">Status:</span><span id="rental-detail-status">-</span>
+                    <span style="color: var(--color-text-muted);">Overtime:</span><span
+                        id="rental-detail-overtime">-</span>
+                    <span style="color: var(--color-text-muted);">Additional Fee:</span><span
+                        id="rental-detail-additional-fee">-</span>
+                    <span style="color: var(--color-text-muted);">Amount:</span><span id="rental-detail-amount"
+                        style="font-weight: 700; color: var(--color-primary);">-</span>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Database Scripts -->

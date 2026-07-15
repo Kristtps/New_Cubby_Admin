@@ -357,38 +357,54 @@ async function fetchActiveRentalByLocker(lockerNumber) {
  * Uses explicit separate queries per table to avoid FK join failures.
  *
  * Tables touched: lockers, storage_size_type, modules,
- *                 transactions, customers, rates
+ *                 transactions, customers, payments
  *
- * @param {string} lockerNumber - e.g. "S1", "M2"
+ * @param {string|number} lockerIdentifier - unique lockers.locker_id (or a legacy locker number)
  * @returns {Promise<Object|null>}
  *   {
  *     locker_number, status, size_name, module_name,
- *     transaction_id?, start_time?, duration_minutes?,
- *     customer_full_name?, customer_email?, customer_phone?,
- *     rate_price?
+ *     transaction_id?,
+ *     customer_full_name, customer_email, customer_phone,
+ *     start_time, duration_minutes,
+ *     amount_paid, payment_method, payment_date,
+ *     is_fixed_time, scheduled_end_time, overtime_minutes, additional_charge
  *   }
  */
-async function fetchLockerRentalDetails(lockerNumber) {
+async function fetchLockerRentalDetails(lockerIdentifier) {
     try {
         const supabase = getSupabaseClient();
-        console.log('🔍 [fetchLockerRentalDetails] locker:', lockerNumber);
+        console.log('🔍 [fetchLockerRentalDetails] locker:', lockerIdentifier);
 
-        // ── Step 1: Fetch the locker row (with modules join — confirmed working) ──
-        const { data: locker, error: lockerErr } = await supabase
+        // ── Step 1: Fetch the exact locker row by its unique database ID ────
+        // A displayed locker number can repeat across modules, so it is only a
+        // legacy fallback and must never be the primary transaction key.
+        let { data: locker, error: lockerErr } = await supabase
             .from('lockers')
             .select('locker_id, locker_number, status, size_type_id, module_id, modules(name)')
-            .eq('locker_number', lockerNumber)
+            .eq('locker_id', lockerIdentifier)
             .single();
+
+        if (lockerErr || !locker) {
+            const fallback = await supabase
+                .from('lockers')
+                .select('locker_id, locker_number, status, size_type_id, module_id, modules(name)')
+                .eq('locker_number', lockerIdentifier)
+                .limit(1);
+            locker = fallback.data?.[0] || null;
+            lockerErr = fallback.error;
+        }
 
         if (lockerErr) {
             console.error('❌ [fetchLockerRentalDetails] locker error:', lockerErr);
+            console.log('Locker:', null);
             return null;
         }
         if (!locker) {
-            console.warn('⚠️ [fetchLockerRentalDetails] locker not found:', lockerNumber);
+            console.warn('⚠️ [fetchLockerRentalDetails] locker not found:', lockerIdentifier);
+            console.log('Locker:', null);
             return null;
         }
-        console.log('✓ locker row:', locker);
+        console.log('Locker:', locker);
 
         // ── Step 2: Resolve size name ────────────────────────────────────────
         // Try FK join first; fall back to direct lookup; then manual mapping.
@@ -417,68 +433,130 @@ async function fetchLockerRentalDetails(lockerNumber) {
             status: locker.status,
             size_name: sizeName,
             module_name: locker.modules?.name || null,
+            customer_full_name: null,
+            customer_email: null,
+            customer_phone: null,
+            start_time: null,
+            duration_minutes: null,
+            amount_paid: 0,
+            payment_method: null,
+            payment_date: null,
+            is_fixed_time: false,
+            scheduled_end_time: null,
+            overtime_minutes: 0,
+            additional_charge: 0,
         };
         console.log('✓ base result:', result);
 
-        // ── Step 3: Fetch the active transaction for this locker ─────────────
+        // ── Step 3: Fetch transactions for this exact locker_id ─────────────
+        // Do not assume the stored casing of the transaction status.  Loading
+        // the locker rows first also makes the actual statuses visible in debug
+        // output before selecting the active one.
         const { data: txRows, error: txErr } = await supabase
             .from('transactions')
-            .select('transaction_id, start_time, duration_minutes, status, customer_id, rate_id')
+            .select('transaction_id, start_time, end_time, duration_minutes, status, customer_id, rate_id')
             .eq('locker_id', locker.locker_id)
-            .eq('status', 'Active')
-            .order('start_time', { ascending: false })
-            .limit(1);
+            .order('start_time', { ascending: false });
 
         if (txErr) {
             console.warn('⚠️ [fetchLockerRentalDetails] tx error (non-fatal):', txErr);
+            console.log('Transaction:', null);
+            console.log('Customer:', null);
+            console.log('Payment:', null);
+            console.log('Final Result:', result);
             return result;
         }
-        if (!txRows || txRows.length === 0) {
-            console.log('ℹ️ no active transaction for locker:', lockerNumber);
+        const transaction = (txRows || []).find(row =>
+            String(row.status || '').trim().toLowerCase() === 'active'
+        ) || null;
+        console.log('Transaction:', transaction, 'All locker transaction statuses:', (txRows || []).map(row => row.status));
+
+        if (!transaction) {
+            console.log('ℹ️ no active transaction for locker:', locker.locker_id);
+            console.log('Customer:', null);
+            console.log('Payment:', null);
+            console.log('Final Result:', result);
             return result;
         }
 
-        const tx = txRows[0];
-        console.log('✓ transaction row:', tx);
+        const tx = transaction;
         result.transaction_id = tx.transaction_id;
         result.start_time = tx.start_time;
         result.duration_minutes = tx.duration_minutes;
+        result.scheduled_end_time = tx.end_time || null;
+        result.is_fixed_time = Boolean(tx.end_time);
 
         // ── Step 4: Fetch customer ───────────────────────────────────────────
-        if (tx.customer_id) {
-            const { data: customer, error: custErr } = await supabase
+        let customer = null;
+        if (tx.customer_id != null) {
+            const { data: customerData, error: custErr } = await supabase
                 .from('customers')
                 .select('full_name, email, contact_number')
                 .eq('customer_id', tx.customer_id)
                 .single();
 
+            customer = customerData;
             if (!custErr && customer) {
-                console.log('✓ customer:', customer);
                 result.customer_full_name = customer.full_name || null;
                 result.customer_email = customer.email || null;
                 result.customer_phone = customer.contact_number || null;
             } else {
                 console.warn('⚠️ customer lookup error:', custErr);
             }
+            console.log('Customer:', customer);
+        } else {
+            console.warn('⚠️ transaction has no valid customer_id:', tx.customer_id);
+            console.log('Customer:', null);
         }
 
-        // ── Step 5: Fetch rate price ─────────────────────────────────────────
-        if (tx.rate_id != null) {
+        // ── Step 5: Calculate fixed-time overtime from the hourly rate ─────
+        // end_time is the scheduled deadline for a fixed-time rental. Open
+        // hour rentals have no deadline and therefore never incur overtime.
+        if (result.is_fixed_time && tx.rate_id != null) {
             const { data: rate, error: rateErr } = await supabase
                 .from('rates')
-                .select('price')
+                .select('price_per_hour')
                 .eq('rate_id', tx.rate_id)
                 .single();
 
-            if (!rateErr && rate) {
-                console.log('✓ rate:', rate);
-                result.rate_price = rate.price;
-            } else {
+            if (rateErr) {
                 console.warn('⚠️ rate lookup error:', rateErr);
+            } else {
+                const deadline = new Date(tx.end_time);
+                const overtimeMinutes = Number.isNaN(deadline.getTime())
+                    ? 0
+                    : Math.max(0, Math.floor((Date.now() - deadline.getTime()) / 60000));
+                const hourlyRate = Number(rate?.price_per_hour) || 0;
+
+                result.overtime_minutes = overtimeMinutes;
+                // Match the existing rental rule: 10 minutes free, then each
+                // started 30-minute block costs half the hourly rate.
+                result.additional_charge = overtimeMinutes <= 10 || hourlyRate <= 0
+                    ? 0
+                    : Math.ceil((overtimeMinutes - 10) / 30) * (hourlyRate / 2);
+                console.log('Rate:', rate);
             }
         }
 
-        console.log('✓ [fetchLockerRentalDetails] final result:', result);
+        // ── Step 6: Fetch payment (amount paid never comes from rates) ──────
+        const { data: paymentRows, error: paymentErr } = await supabase
+            .from('payments')
+            .select('amount, payment_method, payment_date')
+            .eq('transaction_id', tx.transaction_id)
+            .order('payment_date', { ascending: false })
+            .limit(1);
+
+        const payment = paymentRows?.[0] || null;
+        if (paymentErr) {
+            console.warn('⚠️ payment lookup error:', paymentErr);
+        } else if (payment) {
+            result.amount_paid = Number(payment.amount) || 0;
+            result.payment_method = payment.payment_method || null;
+            result.payment_date = payment.payment_date || null;
+        }
+        console.log('Payment:', payment);
+
+        console.log('Final Result:', result);
         return result;
     } catch (error) {
         console.error('❌ [fetchLockerRentalDetails] unexpected error:', error);
@@ -1575,6 +1653,7 @@ window.dbOps = {
     updateRentalStatus,
     completeActiveTransactionForLocker,
     fetchActiveRentalByLocker,
+    fetchLockerRentalDetails,
 
     // Customers
     fetchAllCustomers,
