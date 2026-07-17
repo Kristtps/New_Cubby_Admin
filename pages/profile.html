@@ -13,13 +13,253 @@
             const STORAGE_KEY = 'coincubby_theme';
             try {
                 const saved = localStorage.getItem(STORAGE_KEY);
-                const theme = (saved === 'light' || saved === 'dark') ? saved : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+                const theme = (saved === 'light' || saved === 'dark') ? saved : 'light';
                 document.documentElement.setAttribute('data-theme', theme);
             } catch (e) {
                 document.documentElement.setAttribute('data-theme', 'light');
             }
         })();
     </script>
+    <style>
+        /* ── Profile Page Specific Styles ── */
+
+        .profile-info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        @media (max-width: 600px) {
+            .profile-info-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .info-field {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .info-field .info-label {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--color-text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .info-field .info-value {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--color-dark);
+            padding: 10px 14px;
+            background: var(--color-gray-50);
+            border: 1px solid var(--color-border);
+            border-radius: 10px;
+            min-height: 42px;
+            display: flex;
+            align-items: center;
+        }
+
+        [data-theme="dark"] .info-field .info-value {
+            background: var(--dark-bg-tertiary);
+            border-color: var(--dark-border);
+            color: var(--dark-text-primary);
+        }
+
+        .info-field.full-width {
+            grid-column: 1 / -1;
+        }
+
+        /* ── Kiosk Credentials ── */
+        .kiosk-form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        @media (max-width: 600px) {
+            .kiosk-form-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .kiosk-form-grid .form-group {
+            margin-bottom: 0;
+        }
+
+        .kiosk-form-grid .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--color-text);
+            margin-bottom: 6px;
+        }
+
+        .kiosk-form-grid .form-input {
+            width: 100%;
+            padding: 10px 14px;
+            font-size: 14px;
+            border: 1.5px solid var(--color-border);
+            border-radius: 10px;
+            background: var(--color-panel-bg);
+            color: var(--color-text);
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            letter-spacing: 0.15em;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .kiosk-form-grid .form-input:focus {
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.12);
+            outline: none;
+        }
+
+        .kiosk-form-grid .form-input.input-error {
+            border-color: #ef4444;
+            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+        }
+
+        .input-hint {
+            font-size: 11px;
+            color: var(--color-text-muted);
+            margin-top: 4px;
+        }
+
+        .input-hint.error {
+            color: #ef4444;
+        }
+
+        .password-input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .password-input-wrapper .form-input {
+            padding-right: 44px;
+        }
+
+        .toggle-password-btn {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 4px;
+            color: var(--color-text-muted);
+            transition: color 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .toggle-password-btn:hover {
+            color: var(--color-primary);
+        }
+
+        .kiosk-save-row {
+            margin-top: 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .kiosk-save-row .btn-primary {
+            padding: 10px 24px;
+            font-size: 14px;
+            font-weight: 600;
+            border: none;
+            border-radius: 10px;
+            background: var(--color-primary);
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .kiosk-save-row .btn-primary:hover {
+            background: var(--color-primary-dark);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .kiosk-save-row .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .kiosk-save-msg {
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .kiosk-save-msg.success {
+            color: var(--color-available);
+        }
+
+        .kiosk-save-msg.error {
+            color: #ef4444;
+        }
+
+        /* ── Security Section ── */
+        .security-form .form-group {
+            margin-bottom: 16px;
+        }
+
+        .security-form .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--color-text);
+            margin-bottom: 6px;
+        }
+
+        .security-form .form-input {
+            width: 100%;
+            padding: 10px 14px;
+            font-size: 14px;
+            border: 1.5px solid var(--color-border);
+            border-radius: 10px;
+            background: var(--color-panel-bg);
+            color: var(--color-text);
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .security-form .form-input:focus {
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.12);
+            outline: none;
+        }
+
+        /* ── Toast notification ── */
+        @keyframes toastSlideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes toastSlideOut {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+        }
+    </style>
 </head>
 
 <body>
@@ -138,7 +378,8 @@
             <div class="header-with-action">
                 <div>
                     <h1 data-i18n="profile.title">Profile</h1>
-                    <p class="subtitle" data-i18n="profile.subtitle">Manage your account settings.</p>
+                    <p class="subtitle" data-i18n="profile.subtitle">Manage your account settings and kiosk credentials.
+                    </p>
                 </div>
             </div>
 
@@ -150,56 +391,107 @@
                         <div class="profile-header-info">
                             <h2 id="main-name">Admin User</h2>
                             <p id="main-email" class="profile-email">admin@coincubby.com</p>
-                            <div class="profile-badges">
-                                <span class="profile-badge role-badge">Administrator</span>
-                                <span class="profile-badge date-badge">Joined Jan 2026</span>
-                            </div>
                         </div>
                     </div>
                 </div>
 
                 <div class="profile-sections-grid">
-                    <!-- Edit Profile Form -->
+                    <!-- ═══ Account Information (read-only) ═══ -->
                     <div class="profile-section-card">
                         <div class="section-header">
-                            <h3 data-i18n="profile.personalInfo">Personal Information</h3>
-                            <button class="btn-edit-toggle" id="edit-profile-btn" data-i18n="profile.edit">Edit</button>
+                            <h3>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" style="vertical-align: -3px; margin-right: 6px; opacity: .6;">
+                                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                                    <circle cx="12" cy="7" r="4"></circle>
+                                </svg>
+                                Account Information
+                            </h3>
                         </div>
-                        <form id="profile-form" class="profile-form">
-                            <div class="form-group-avatar">
-                                <label data-i18n="profile.avatar">Avatar</label>
-                                <div class="avatar-upload-wrapper">
-                                    <div class="avatar-preview" id="avatar-preview">A</div>
-                                    <input type="file" id="avatar-upload" accept="image/png, image/jpeg"
-                                        style="display:none;" disabled>
-                                    <button type="button" class="btn-upload-avatar" id="btn-upload-avatar"
-                                        data-i18n="profile.changeAvatar" disabled>Change Avatar</button>
+                        <div class="profile-info-grid">
+                            <div class="info-field">
+                                <span class="info-label" data-i18n="profile.fullName">Full Name</span>
+                                <span class="info-value" id="info-full-name">—</span>
+                            </div>
+                            <div class="info-field">
+                                <span class="info-label" data-i18n="profile.emailAddress">Email Address</span>
+                                <span class="info-value" id="info-email">—</span>
+                            </div>
+                            <div class="info-field">
+                                <span class="info-label">Account Created</span>
+                                <span class="info-value" id="info-created-at">—</span>
+                            </div>
+                            <div class="info-field">
+                                <span class="info-label">Last Login</span>
+                                <span class="info-value" id="info-last-login">—</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ═══ Kiosk Credentials ═══ -->
+                    <div class="profile-section-card">
+                        <div class="section-header">
+                            <h3>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" style="vertical-align: -3px; margin-right: 6px; opacity: .6;">
+                                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                                </svg>
+                                Kiosk Credentials
+                            </h3>
+                        </div>
+                        <p style="font-size: 13px; color: var(--color-text-muted); margin-bottom: 16px;">
+                            These credentials are used to log in to the CoinCubby Kiosk. Both must be exactly 6 digits.
+                        </p>
+                        <form id="kiosk-form">
+                            <div class="kiosk-form-grid">
+                                <div class="form-group">
+                                    <label for="kiosk-admin-id">Kiosk Admin ID</label>
+                                    <input type="text" id="kiosk-admin-id" class="form-input" placeholder="000000"
+                                        maxlength="6" inputmode="numeric" pattern="[0-9]{6}" autocomplete="off">
+                                    <p class="input-hint" id="kiosk-id-hint">Must be exactly 6 digits (0-9).</p>
+                                </div>
+                                <div class="form-group">
+                                    <label for="kiosk-admin-password">Kiosk Admin Password</label>
+                                    <div class="password-input-wrapper">
+                                        <input type="password" id="kiosk-admin-password" class="form-input"
+                                            placeholder="••••••" maxlength="6" inputmode="numeric" pattern="[0-9]{6}"
+                                            autocomplete="off">
+                                        <button type="button" class="toggle-password-btn" id="toggle-kiosk-pw"
+                                            aria-label="Toggle kiosk password visibility" title="Show / Hide">
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                                                stroke="currentColor" stroke-width="2" id="kiosk-pw-eye-icon">
+                                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                                <circle cx="12" cy="12" r="3"></circle>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                    <p class="input-hint" id="kiosk-pw-hint">Must be exactly 6 digits (0-9).</p>
                                 </div>
                             </div>
-
-                            <div class="form-group">
-                                <label for="profile-name" data-i18n="profile.fullName">Full Name</label>
-                                <input type="text" id="profile-name" class="form-input" value="Admin User" readonly
-                                    required>
+                            <div class="kiosk-save-row">
+                                <button type="submit" class="btn-primary" id="save-kiosk-btn">Save Kiosk
+                                    Credentials</button>
+                                <span class="kiosk-save-msg" id="kiosk-save-msg"></span>
                             </div>
-
-                            <div class="form-group">
-                                <label for="profile-email" data-i18n="profile.emailAddress">Email Address</label>
-                                <input type="email" id="profile-email" class="form-input" value="admin@coincubby.com"
-                                    readonly required>
-                            </div>
-
-                            <button type="submit" class="btn-primary btn-save-profile" id="save-profile-btn"
-                                style="display: none;" data-i18n="profile.saveChanges">Save Changes</button>
                         </form>
                     </div>
 
-                    <!-- Change Password Form -->
+                    <!-- ═══ Security — Change Web Password ═══ -->
                     <div class="profile-section-card">
                         <div class="section-header">
-                            <h3 data-i18n="profile.changePassword">Change Password</h3>
+                            <h3>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" style="vertical-align: -3px; margin-right: 6px; opacity: .6;">
+                                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                                </svg>
+                                Security
+                            </h3>
                         </div>
-                        <form id="password-form" class="profile-form">
+                        <p style="font-size: 13px; color: var(--color-text-muted); margin-bottom: 16px;">
+                            Change the password you use to log in to this admin web application.
+                        </p>
+                        <form id="password-form" class="security-form">
                             <div class="form-group">
                                 <label for="current-password" data-i18n="profile.currentPassword">Current
                                     Password</label>
@@ -208,13 +500,13 @@
 
                             <div class="form-group">
                                 <label for="new-password" data-i18n="profile.newPassword">New Password</label>
-                                <input type="password" id="new-password" class="form-input" required>
+                                <input type="password" id="new-password" class="form-input" required minlength="6">
                             </div>
 
                             <div class="form-group">
                                 <label for="confirm-password" data-i18n="profile.confirmPassword">Confirm New
                                     Password</label>
-                                <input type="password" id="confirm-password" class="form-input" required>
+                                <input type="password" id="confirm-password" class="form-input" required minlength="6">
                             </div>
                             <p id="password-error" class="error-msg"
                                 style="display:none; color: var(--color-occupied); font-size: 13px; margin-top: -10px; margin-bottom: 10px;">
@@ -227,7 +519,7 @@
                         </form>
                     </div>
 
-                    <!-- Preferences & Danger Zone -->
+                    <!-- ═══ Preferences & Danger Zone ═══ -->
                     <div class="profile-section-card preferences-card">
                         <div class="section-header">
                             <h3 data-i18n="profile.preferences">Preferences</h3>
@@ -257,8 +549,8 @@
                             </div>
                             <div class="theme-toggle-container profile-theme-toggle">
                                 <label class="theme-toggle-label">
-                                    <span class="theme-toggle-icon" id="profile-theme-icon">🌙</span>
-                                    <span id="profile-theme-label" data-i18n="profile.dark">Dark</span>
+                                    <span class="theme-toggle-icon" id="profile-theme-icon">☀️</span>
+                                    <span id="profile-theme-label" data-i18n="profile.light">Light</span>
                                 </label>
                                 <button class="theme-toggle-switch" id="profile-theme-toggle-btn"
                                     aria-label="Toggle dark mode" aria-pressed="false"></button>

@@ -6,7 +6,7 @@
 let allNotifications = [];
 
 // Initialize notifications page
-document.addEventListener('DOMContentLoaded', async function() {
+document.addEventListener('DOMContentLoaded', async function () {
     if (!document.getElementById('notifications-container')) return;
 
     // Wait for Supabase to initialize
@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     await loadNotifications();
 
     // Auto-refresh notifications every 30 seconds
-    setInterval(async function() {
+    setInterval(async function () {
         try {
             await loadNotifications();
             console.log('✓ Notifications auto-refreshed');
@@ -32,7 +32,7 @@ document.addEventListener('DOMContentLoaded', async function() {
  */
 async function loadNotifications() {
     const container = document.getElementById('notifications-container');
-    
+
     try {
         // Check if Supabase is connected
         if (!window.supabase || typeof window.supabase.from !== 'function') {
@@ -67,7 +67,7 @@ async function loadNotifications() {
  */
 function renderNotifications() {
     const container = document.getElementById('notifications-container');
-    
+
     if (allNotifications.length === 0) {
         container.innerHTML = `
             <div class="empty-notifications">
@@ -87,27 +87,30 @@ function renderNotifications() {
         const timeAgo = getTimeAgo(notification.created_at);
         const icon = getNotificationIcon(notification.type);
         const iconClass = getNotificationIconClass(notification.type);
-        const priorityBadge = notification.priority !== 'normal' 
-            ? `<span class="notification-badge badge-${notification.priority}">${notification.priority}</span>` 
+        const priorityBadge = notification.priority !== 'normal'
+            ? `<span class="notification-badge badge-${notification.priority}">${notification.priority}</span>`
             : '';
 
         return `
+
             <div class="notification-item ${isUnread ? 'unread' : ''}" onclick="markAsRead('${notification.notification_id}')">
                 <div class="notification-content">
                     <div class="notification-icon ${iconClass}">
                         ${icon}
                     </div>
-                    <div class="notification-details">
+                    <div class="notification-body">
                         <div class="notification-header-row">
-                            <div>
-                                <div class="notification-title">${notification.title} ${priorityBadge}</div>
-                                <div class="notification-message">${notification.message}</div>
+                            <div class="notification-title">${notification.title}</div>
+                            <div class="notification-meta">
+                                ${priorityBadge}
+                                <span class="notification-time">${timeAgo}</span>
                             </div>
-                            <div class="notification-time">${timeAgo}</div>
                         </div>
+                        <div class="notification-message">${notification.message}</div>
                     </div>
                 </div>
             </div>
+        
         `;
     }).join('');
 }
@@ -155,7 +158,7 @@ function getTimeAgo(timestamp) {
     if (diffMins < 60) return `${diffMins}m ago`;
     if (diffHours < 24) return `${diffHours}h ago`;
     if (diffDays < 7) return `${diffDays}d ago`;
-    
+
     return past.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
@@ -170,7 +173,7 @@ async function markAsRead(notificationId) {
 
         const { error } = await window.supabase
             .from('notifications')
-            .update({ 
+            .update({
                 is_read: true,
                 read_at: new Date().toISOString()
             })
@@ -206,7 +209,7 @@ async function markAllAsRead() {
 
         const { error } = await window.supabase
             .from('notifications')
-            .update({ 
+            .update({
                 is_read: true,
                 read_at: new Date().toISOString()
             })
@@ -265,6 +268,39 @@ async function clearAllRead() {
     } catch (err) {
         console.error('Exception clearing read notifications:', err);
     }
+}
+let notificationChannel = null;
+
+async function initNotifications() {
+    if (window.supabasePromise) {
+        await window.supabasePromise;
+    }
+
+    await checkUnreadNotifications();
+
+    // Fallback polling in case realtime disconnects
+    setInterval(checkUnreadNotifications, NOTIFICATION_CHECK_INTERVAL);
+
+    subscribeToNotificationChanges();
+}
+
+function subscribeToNotificationChanges() {
+    if (!window.supabase || typeof window.supabase.channel !== 'function') {
+        return;
+    }
+    if (notificationChannel) return; // avoid duplicate subscriptions
+
+    notificationChannel = window.supabase
+        .channel('notifications-badge')
+        .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'notifications' },
+            () => {
+                // Any insert/update (new notification, or marked read) re-syncs the count
+                checkUnreadNotifications();
+            }
+        )
+        .subscribe();
 }
 
 // Make functions globally accessible

@@ -82,34 +82,20 @@
             background: var(--color-panel-bg);
             border: 1px solid var(--color-border);
             border-radius: 16px;
-            padding: 24px;
+            padding: 20px 24px;
             margin-bottom: 16px;
-            transition: all 0.3s ease;
+            transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.25s, box-shadow 0.25s, background-color 0.25s;
             cursor: pointer;
             position: relative;
             overflow: hidden;
-        }
-
-        .notification-item::before {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: 0;
-            bottom: 0;
-            width: 4px;
-            background: transparent;
-            transition: all 0.3s ease;
-        }
-
-        .notification-item:hover {
-            border-color: var(--color-primary);
-            box-shadow: 0 8px 24px rgba(16, 185, 129, 0.15);
-            transform: translateY(-2px);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+            /* subtle left highlight for unread */
         }
 
         .notification-item.unread {
-            background: linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, rgba(16, 185, 129, 0.02) 100%);
-            border-left: 4px solid var(--color-primary);
+            background: linear-gradient(135deg, var(--color-primary-bg) 0%, rgba(16, 185, 129, 0.03) 100%);
+            border-left: 5px solid var(--color-primary);
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.08);
         }
 
         .notification-item.unread::after {
@@ -142,7 +128,7 @@
         .notification-content {
             display: flex;
             align-items: flex-start;
-            gap: 16px;
+            gap: 20px;
         }
 
         .notification-icon {
@@ -176,6 +162,10 @@
             background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
         }
 
+        .icon-verification {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+        }
+
         .notification-details {
             flex: 1;
             min-width: 0;
@@ -193,11 +183,12 @@
             font-size: 16px;
             font-weight: 700;
             color: var(--color-dark);
-            margin-bottom: 6px;
+            margin-bottom: 8px;
             display: flex;
             align-items: center;
             gap: 8px;
             flex-wrap: wrap;
+            line-height: 1.4;
         }
 
         .notification-message {
@@ -207,21 +198,26 @@
         }
 
         .notification-time {
-            font-size: 12px;
+            font-size: 11px;
             color: var(--color-text-muted);
+            opacity: 0.75;
             white-space: nowrap;
-            font-weight: 500;
+            font-weight: 400;
+            margin-top: 4px;
         }
 
         .notification-badge {
             display: inline-flex;
             align-items: center;
-            padding: 4px 12px;
-            border-radius: 16px;
+            justify-content: center;
+            padding: 2px 10px;
+            border-radius: 12px;
             font-size: 10px;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.8px;
+            line-height: 1.2;
+            vertical-align: middle;
         }
 
         .badge-high {
@@ -278,8 +274,15 @@
             border-color: var(--dark-border);
         }
 
+        [data-theme="dark"] .notification-item:hover {
+            border-color: var(--color-primary);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+        }
+
         [data-theme="dark"] .notification-item.unread {
-            background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(16, 185, 129, 0.03) 100%);
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(16, 185, 129, 0.02) 100%);
+            border-left: 5px solid var(--color-primary);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
         }
 
         [data-theme="dark"] .notification-title {
