@@ -51,7 +51,7 @@ async function loadProfileFromDatabase() {
 
         const { data, error } = await window.supabase
             .from('admin')
-            .select('id, email, full_name, created_at, last_login, kiosk_admin_id, kiosk_admin_password')
+            .select('id, email, full_name, role, created_at, last_login, kiosk_admin_id, kiosk_admin_password')
             .eq('email', userEmail)
             .single();
 
@@ -79,11 +79,16 @@ async function loadProfileFromDatabase() {
             mainEmail.textContent = data.email;
         }
 
-        // ── Account Information (read-only fields) ──
-        setField('info-full-name', data.full_name);
-        setField('info-email', data.email);
-        setField('info-created-at', formatDate(data.created_at));
-        setField('info-last-login', formatDate(data.last_login));
+        // ── Role badge ──
+        const headerRole = document.getElementById('header-role');
+        if (headerRole && data.role) {
+            const roleLabel = data.role.charAt(0).toUpperCase() + data.role.slice(1).toLowerCase();
+            headerRole.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:-1px;margin-right:4px;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>${roleLabel}`;
+        }
+
+        // ── Header stat values ──
+        setField('header-created-at', formatDate(data.created_at));
+        setField('header-last-login', formatDate(data.last_login));
 
         // ── Kiosk Credentials ──
         const kioskIdInput = document.getElementById('kiosk-admin-id');
@@ -256,11 +261,12 @@ function setupKioskForm() {
 
 async function setupPasswordForm() {
     const passwordForm = document.getElementById('password-form');
-    const currentPassword = document.getElementById('current-password');
-    const newPassword = document.getElementById('new-password');
-    const confirmPassword = document.getElementById('confirm-password');
+    const currentPasswordInput = document.getElementById('current-password');
+    const newPasswordInput = document.getElementById('new-password');
+    const confirmPasswordInput = document.getElementById('confirm-password');
     const errorMsg = document.getElementById('password-error');
     const successMsg = document.getElementById('password-success');
+    const submitBtn = passwordForm ? passwordForm.querySelector('button[type="submit"]') : null;
 
     if (!passwordForm) return;
 
@@ -269,15 +275,28 @@ async function setupPasswordForm() {
         errorMsg.style.display = 'none';
         successMsg.style.display = 'none';
 
-        if (newPassword.value !== confirmPassword.value) {
-            errorMsg.textContent = "New passwords do not match.";
-            errorMsg.style.display = 'block';
+        const currentPw = currentPasswordInput.value;
+        const newPw = newPasswordInput.value;
+        const confirmPw = confirmPasswordInput.value;
+
+        // ── Client-side validation ──
+        if (!currentPw) {
+            showPwError('Please enter your current password.');
             return;
         }
 
-        if (newPassword.value.length < 6) {
-            errorMsg.textContent = "Password must be at least 6 characters.";
-            errorMsg.style.display = 'block';
+        if (newPw.length < 6) {
+            showPwError('New password must be at least 6 characters.');
+            return;
+        }
+
+        if (newPw !== confirmPw) {
+            showPwError('New passwords do not match.');
+            return;
+        }
+
+        if (newPw === currentPw) {
+            showPwError('New password must be different from your current password.');
             return;
         }
 
@@ -285,48 +304,53 @@ async function setupPasswordForm() {
         const userEmail = auth.email;
 
         if (!userEmail) {
-            errorMsg.textContent = "Error: No user email found";
-            errorMsg.style.display = 'block';
+            showPwError('Session error: no user email found. Please sign in again.');
             return;
         }
 
+        // Ensure Supabase is ready
+        if (window.supabasePromise) await window.supabasePromise;
+
+        if (typeof window.supabase === 'undefined' || !window.supabase || typeof window.supabase.auth === 'undefined') {
+            showPwError('Service unavailable. Please refresh the page and try again.');
+            return;
+        }
+
+        setSubmitState(true);
+
         try {
-            if (typeof window.supabase !== 'undefined' && window.supabase && typeof window.supabase.from === 'function') {
-                const { data: adminRow, error: verifyError } = await window.supabase
-                    .from('admin')
-                    .select('password')
-                    .eq('email', userEmail)
-                    .single();
+            // Step 1 — Re-authenticate with the current password to verify it is correct.
+            // This uses Supabase Auth (the same system that handles the login page).
+            const { error: signInError } = await window.supabase.auth.signInWithPassword({
+                email: userEmail,
+                password: currentPw
+            });
 
-                if (verifyError || !adminRow) {
-                    errorMsg.textContent = "Error verifying current password.";
-                    errorMsg.style.display = 'block';
-                    return;
+            if (signInError) {
+                // Distinguish wrong password from other errors
+                if (signInError.message.toLowerCase().includes('invalid') ||
+                    signInError.message.toLowerCase().includes('credentials') ||
+                    signInError.message.toLowerCase().includes('password')) {
+                    showPwError('Current password is incorrect.');
+                } else {
+                    showPwError('Could not verify current password: ' + signInError.message);
                 }
-
-                if (adminRow.password !== currentPassword.value) {
-                    errorMsg.textContent = "Current password is incorrect.";
-                    errorMsg.style.display = 'block';
-                    return;
-                }
-
-                const { error: updateError } = await window.supabase
-                    .from('admin')
-                    .update({
-                        password: newPassword.value,
-                        updated_at: new Date().toISOString()
-                    })
-                    .eq('email', userEmail);
-
-                if (updateError) {
-                    errorMsg.textContent = "Error updating password: " + updateError.message;
-                    errorMsg.style.display = 'block';
-                    return;
-                }
-
-                console.log('✓ Password updated in database');
+                return;
             }
 
+            // Step 2 — Update the password through Supabase Auth.
+            const { error: updateError } = await window.supabase.auth.updateUser({
+                password: newPw
+            });
+
+            if (updateError) {
+                showPwError('Failed to update password: ' + updateError.message);
+                return;
+            }
+
+            console.log('✓ Password updated via Supabase Auth');
+
+            // Step 3 — Show success, clear the form.
             successMsg.style.display = 'block';
             passwordForm.reset();
             showToast('Password updated successfully!', 'success');
@@ -335,10 +359,22 @@ async function setupPasswordForm() {
                 successMsg.style.display = 'none';
             }, 4000);
 
-        } catch (error) {
-            console.error('Error updating password:', error);
-            errorMsg.textContent = "Error updating password. Please try again.";
+        } catch (err) {
+            console.error('Unexpected error updating password:', err);
+            showPwError('An unexpected error occurred. Please try again.');
+        } finally {
+            setSubmitState(false);
+        }
+
+        function showPwError(msg) {
+            errorMsg.textContent = msg;
             errorMsg.style.display = 'block';
+        }
+
+        function setSubmitState(loading) {
+            if (!submitBtn) return;
+            submitBtn.disabled = loading;
+            submitBtn.textContent = loading ? 'Updating…' : 'Update Password';
         }
     });
 }

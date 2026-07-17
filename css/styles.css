@@ -1500,7 +1500,8 @@ label {
     background: var(--color-error, #e53935);
     color: #fff;
     vertical-align: middle;
-    display: none; /* hidden by default */
+    display: none;
+    /* hidden by default */
 }
 
 .badge-high {
@@ -2712,7 +2713,7 @@ label {
 
 .profile-theme-toggle .theme-toggle-switch::after {
     background-color: white;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 .profile-theme-toggle .theme-toggle-switch:hover {
@@ -3125,7 +3126,8 @@ textarea:focus {
     font-size: 10px;
     font-weight: 700;
     line-height: 1;
-    display: none; /* hidden until count >0 */
+    display: none;
+    /* hidden until count >0 */
 }
 
 

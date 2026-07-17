@@ -32,7 +32,7 @@
                         style="border-radius: 50%;">
                     <span>CoinCubby</span>
                 </div>
-                <p class="text-muted">Admin Panel</p>
+                <p class="text-muted" data-i18n="sidebar.adminPanel">Admin Panel</p>
             </div>
 
             <nav class="nav-menu">
@@ -45,7 +45,7 @@
                             <rect x="14" y="14" width="7" height="7"></rect>
                             <rect x="3" y="14" width="7" height="7"></rect>
                         </svg>
-                        <span>Overview</span>
+                        <span data-i18n="nav.overview">Overview</span>
                     </a>
                     <a href="lockers.html" class="nav-item">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -53,7 +53,7 @@
                             <rect x="3" y="11" width="18" height="11"></rect>
                             <path d="M7 11V7a4 4 0 0 1 4-4h2a4 4 0 0 1 4 4v4"></path>
                         </svg>
-                        <span>Lockers</span>
+                        <span data-i18n="nav.lockers">Lockers</span>
                     </a>
                     <a href="customers.html" class="nav-item">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -61,7 +61,7 @@
                             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
                             <circle cx="12" cy="7" r="4"></circle>
                         </svg>
-                        <span>Customers</span>
+                        <span data-i18n="nav.customers">Customers</span>
                     </a>
                     <a href="transactions.html" class="nav-item">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -69,7 +69,7 @@
                             <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"></path>
                             <path d="M12 6v6l4 2"></path>
                         </svg>
-                        <span>Transactions</span>
+                        <span data-i18n="nav.transactions">Transactions</span>
                     </a>
                     <a href="rentals.html" class="nav-item">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -79,7 +79,7 @@
                                 d="M12 1v6m0 6v6M4.22 4.22l4.24 4.24m2.12 2.12l4.24 4.24M1 12h6m6 0h6m-17.78 7.78l4.24-4.24m2.12-2.12l4.24-4.24">
                             </path>
                         </svg>
-                        <span>Rentals</span>
+                        <span data-i18n="nav.rentals">Rentals</span>
                     </a>
                     <a href="rates.html" class="nav-item">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -88,7 +88,7 @@
                                 d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2zM22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z">
                             </path>
                         </svg>
-                        <span>Rates</span>
+                        <span data-i18n="nav.rates">Rates</span>
                     </a>
                     <a href="reports.html" class="nav-item">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -96,7 +96,7 @@
                             <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
                             <polyline points="9 22 9 12 15 12 15 22"></polyline>
                         </svg>
-                        <span>Reports</span>
+                        <span data-i18n="nav.reports">Reports</span>
                     </a>
 
                     <a href="feedback.html" class="nav-item">
@@ -116,7 +116,7 @@
                                 d="M12 1v6m0 6v6M4.22 4.22l4.24 4.24m2.12 2.12l4.24 4.24M1 12h6m6 0h6m-17.78 7.78l4.24-4.24m2.12-2.12l4.24-4.24">
                             </path>
                         </svg>
-                        <span>Audit Log</span>
+                        <span data-i18n="nav.auditlog">Audit Log</span>
                     </a>
                 </div>
             </nav>
@@ -139,8 +139,8 @@
             <!-- Header -->
             <div class="header">
                 <div class="header-content">
-                    <h1>Admin Overview</h1>
-                    <p class="subtitle">Real-time status of your CoinCubby network.</p>
+                    <h1 data-i18n="overview.title">Admin Overview</h1>
+                    <p class="subtitle" data-i18n="overview.subtitle">Real-time status of your CoinCubby network.</p>
                 </div>
                 <div class="header-actions">
                     <!-- Notification Bell -->
@@ -162,11 +162,11 @@
                             <line x1="3" y1="10" x2="21" y2="10"></line>
                         </svg>
                         <select id="rangeSelect" onchange="handleRangeSelect(this.value)">
-                            <option value="7">Last 7 Days</option>
-                            <option value="14" selected>Last 14 Days</option>
-                            <option value="30">Last 30 Days</option>
-                            <option value="month">This Month</option>
-                            <option value="custom">Custom Range</option>
+                            <option value="7" data-i18n="overview.last7days">Last 7 Days</option>
+                            <option value="14" selected data-i18n="overview.last14days">Last 14 Days</option>
+                            <option value="30" data-i18n="overview.last30days">Last 30 Days</option>
+                            <option value="month" data-i18n="overview.thisMonth">This Month</option>
+                            <option value="custom" data-i18n="overview.customRange">Custom Range</option>
                         </select>
                     </div>
                 </div>
@@ -179,16 +179,16 @@
                     <rect x="3" y="4" width="18" height="18" rx="2"></rect>
                     <line x1="3" y1="10" x2="21" y2="10"></line>
                 </svg>
-                <label>From <input type="date" id="dateFrom" onchange="applyCustomFilter()"></label>
+                <label><span data-i18n="overview.from">From</span> <input type="date" id="dateFrom" onchange="applyCustomFilter()"></label>
                 <span class="range-sep">—</span>
-                <label>To <input type="date" id="dateTo" onchange="applyCustomFilter()"></label>
+                <label><span data-i18n="overview.to">To</span> <input type="date" id="dateTo" onchange="applyCustomFilter()"></label>
             </div>
 
             <!-- Stats Cards -->
             <div class="stats-grid" id="stats-container">
                 <div class="stat-card" data-stat="total-lockers">
                     <div class="stat-header">
-                        <p class="stat-label">TOTAL LOCKERS</p>
+                        <p class="stat-label" data-i18n="stat.totalLockers">TOTAL LOCKERS</p>
                         <div class="stat-icon stat-icon-blue">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                 stroke-width="2">
@@ -204,7 +204,7 @@
 
                 <div class="stat-card" data-stat="active-rentals">
                     <div class="stat-header">
-                        <p class="stat-label">ACTIVE RENTALS</p>
+                        <p class="stat-label" data-i18n="stat.activeRentals">ACTIVE RENTALS</p>
                         <div class="stat-icon stat-icon-green">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                 stroke-width="2">
@@ -218,7 +218,7 @@
 
                 <div class="stat-card" data-stat="total-customers">
                     <div class="stat-header">
-                        <p class="stat-label">CUSTOMERS</p>
+                        <p class="stat-label" data-i18n="stat.customers">CUSTOMERS</p>
                         <div class="stat-icon stat-icon-orange">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                 stroke-width="2">
@@ -232,7 +232,7 @@
 
                 <div class="stat-card" data-stat="today-revenue">
                     <div class="stat-header">
-                        <p class="stat-label">TOTAL REVENUE</p>
+                        <p class="stat-label" data-i18n="stat.totalRevenue">TOTAL REVENUE</p>
                         <div class="stat-icon stat-icon-yellow">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                 stroke-width="2">
@@ -431,6 +431,7 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../js/language.js"></script>
     <script src="../js/theme.js"></script>
     <script src="../js/supabase-client.js"></script>
     <script src="../js/db-operations.js"></script>
