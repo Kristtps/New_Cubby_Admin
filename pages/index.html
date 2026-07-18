@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CoinCubby - Admin Panel</title>
+    <title>CoinCubby - Admin</title>
     <link rel="stylesheet" href="../css/styles.css">
     <script>
         // Apply saved theme synchronously before page renders (prevents white flash)
@@ -32,7 +32,7 @@
                         style="border-radius: 50%;">
                     <span>CoinCubby</span>
                 </div>
-                <p class="text-muted" data-i18n="sidebar.adminPanel">Admin Panel</p>
+                <p class="text-muted" data-i18n="sidebar.adminPanel">Admin</p>
             </div>
 
             <nav class="nav-menu">
@@ -179,9 +179,11 @@
                     <rect x="3" y="4" width="18" height="18" rx="2"></rect>
                     <line x1="3" y1="10" x2="21" y2="10"></line>
                 </svg>
-                <label><span data-i18n="overview.from">From</span> <input type="date" id="dateFrom" onchange="applyCustomFilter()"></label>
+                <label><span data-i18n="overview.from">From</span> <input type="date" id="dateFrom"
+                        onchange="applyCustomFilter()"></label>
                 <span class="range-sep">—</span>
-                <label><span data-i18n="overview.to">To</span> <input type="date" id="dateTo" onchange="applyCustomFilter()"></label>
+                <label><span data-i18n="overview.to">To</span> <input type="date" id="dateTo"
+                        onchange="applyCustomFilter()"></label>
             </div>
 
             <!-- Stats Cards -->

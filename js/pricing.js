@@ -23,7 +23,7 @@
  *    - Example (₱15/hr):
  *      0-10 min late: ₱0 (Free)
  *      11-30 min late: ₱7.50 (Half-rate)
- *      31-40 min late: ₱7.50 (Free grace again)
+ *      31-40 min late: ₱7.50 
  *      41-60 min late: ₱15.00 (Full-rate)
  */
 

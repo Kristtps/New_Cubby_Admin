@@ -99,12 +99,13 @@ function renderNotifications() {
                     </div>
                     <div class="notification-details">
                         <div class="notification-header-row">
-                            <div>
-                                <div class="notification-title">${notification.title} ${priorityBadge}</div>
-                                <div class="notification-message">${notification.message}</div>
+                            <div class="notification-title">${notification.title}</div>
+                            <div class="notification-meta">
+                                ${priorityBadge}
+                                <span class="notification-time">${timeAgo}</span>
                             </div>
-                            <div class="notification-time">${timeAgo}</div>
                         </div>
+                        <div class="notification-message">${notification.message}</div>
                     </div>
                 </div>
             </div>
