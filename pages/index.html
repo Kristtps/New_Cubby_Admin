@@ -32,7 +32,7 @@
                         style="border-radius: 50%;">
                     <span>CoinCubby</span>
                 </div>
-                <p class="text-muted">Admin Panel</p>
+                <p class="text-muted" data-i18n="sidebar.adminPanel">Admin Panel</p>
             </div>
 
             <nav class="nav-menu">
@@ -116,7 +116,7 @@
                                 d="M12 1v6m0 6v6M4.22 4.22l4.24 4.24m2.12 2.12l4.24 4.24M1 12h6m6 0h6m-17.78 7.78l4.24-4.24m2.12-2.12l4.24-4.24">
                             </path>
                         </svg>
-                        <span>Audit Log</span>
+                        <span data-i18n="nav.auditlog">Audit Log</span>
                     </a>
                 </div>
             </nav>
@@ -139,8 +139,8 @@
             <!-- Header -->
             <div class="header">
                 <div class="header-content">
-                    <h1>Admin Overview</h1>
-                    <p class="subtitle">Real-time status of your CoinCubby network.</p>
+                    <h1 data-i18n="overview.title">Admin Overview</h1>
+                    <p class="subtitle" data-i18n="overview.subtitle">Real-time status of your CoinCubby network.</p>
                 </div>
                 <div class="header-actions">
                     <!-- Notification Bell -->
@@ -162,11 +162,11 @@
                             <line x1="3" y1="10" x2="21" y2="10"></line>
                         </svg>
                         <select id="rangeSelect" onchange="handleRangeSelect(this.value)">
-                            <option value="7">Last 7 Days</option>
-                            <option value="14" selected>Last 14 Days</option>
-                            <option value="30">Last 30 Days</option>
-                            <option value="month">This Month</option>
-                            <option value="custom">Custom Range</option>
+                            <option value="7" data-i18n="overview.last7days">Last 7 Days</option>
+                            <option value="14" selected data-i18n="overview.last14days">Last 14 Days</option>
+                            <option value="30" data-i18n="overview.last30days">Last 30 Days</option>
+                            <option value="month" data-i18n="overview.thisMonth">This Month</option>
+                            <option value="custom" data-i18n="overview.customRange">Custom Range</option>
                         </select>
                     </div>
                 </div>
@@ -179,16 +179,16 @@
                     <rect x="3" y="4" width="18" height="18" rx="2"></rect>
                     <line x1="3" y1="10" x2="21" y2="10"></line>
                 </svg>
-                <label>From <input type="date" id="dateFrom" onchange="applyCustomFilter()"></label>
+                <label><span data-i18n="overview.from">From</span> <input type="date" id="dateFrom" onchange="applyCustomFilter()"></label>
                 <span class="range-sep">—</span>
-                <label>To <input type="date" id="dateTo" onchange="applyCustomFilter()"></label>
+                <label><span data-i18n="overview.to">To</span> <input type="date" id="dateTo" onchange="applyCustomFilter()"></label>
             </div>
 
             <!-- Stats Cards -->
             <div class="stats-grid" id="stats-container">
                 <div class="stat-card" data-stat="total-lockers">
                     <div class="stat-header">
-                        <p class="stat-label">TOTAL LOCKERS</p>
+                        <p class="stat-label" data-i18n="stat.totalLockers">TOTAL LOCKERS</p>
                         <div class="stat-icon stat-icon-blue">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                 stroke-width="2">
@@ -204,7 +204,7 @@
 
                 <div class="stat-card" data-stat="active-rentals">
                     <div class="stat-header">
-                        <p class="stat-label">ACTIVE RENTALS</p>
+                        <p class="stat-label" data-i18n="stat.activeRentals">ACTIVE RENTALS</p>
                         <div class="stat-icon stat-icon-green">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                 stroke-width="2">
@@ -218,7 +218,7 @@
 
                 <div class="stat-card" data-stat="total-customers">
                     <div class="stat-header">
-                        <p class="stat-label">CUSTOMERS</p>
+                        <p class="stat-label" data-i18n="stat.customers">CUSTOMERS</p>
                         <div class="stat-icon stat-icon-orange">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                 stroke-width="2">
@@ -232,7 +232,7 @@
 
                 <div class="stat-card" data-stat="today-revenue">
                     <div class="stat-header">
-                        <p class="stat-label">TOTAL REVENUE</p>
+                        <p class="stat-label" data-i18n="stat.totalRevenue">TOTAL REVENUE</p>
                         <div class="stat-icon stat-icon-yellow">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                 stroke-width="2">
@@ -402,6 +402,21 @@
                                         <span id="detail-duration"
                                             style="font-weight: 500; color: var(--color-dark);">-</span>
 
+                                        <span style="color: var(--color-text-muted);">Rental Type:</span>
+                                        <span id="detail-rental-type"
+                                            style="font-weight: 500; color: var(--color-dark);">-</span>
+
+                                        <!-- These two detail rows are shown only while a fixed rental is overtime. -->
+                                        <div id="detail-overtime-columns" style="display: none;">
+                                            <span style="color: var(--color-text-muted);">Overtime:</span>
+                                            <span id="detail-overtime"
+                                                style="font-weight: 500; color: var(--color-dark);">-</span>
+
+                                            <span style="color: var(--color-text-muted);">Additional Charge:</span>
+                                            <span id="detail-additional-charge"
+                                                style="font-weight: 700; color: var(--color-occupied);">₱0.00</span>
+                                        </div>
+
                                         <span style="color: var(--color-text-muted);">Amount Paid:</span>
                                         <span id="detail-amount"
                                             style="font-weight: 700; font-size: 16px; color: var(--color-primary);">-</span>
@@ -429,6 +444,7 @@
             }
         })();
     </script>
+    <script src="../js/notifications.js"></script>
     <script src="../js/script.js"></script>
 </body>
 

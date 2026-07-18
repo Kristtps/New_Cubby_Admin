@@ -32,7 +32,7 @@
                         style="border-radius: 50%;">
                     <span>CoinCubby</span>
                 </div>
-                <p class="text-muted">Admin Panel</p>
+                <p class="text-muted" data-i18n="sidebar.adminPanel">Admin Panel</p>
             </div>
 
             <nav class="nav-menu">
@@ -45,7 +45,7 @@
                             <rect x="14" y="14" width="7" height="7"></rect>
                             <rect x="3" y="14" width="7" height="7"></rect>
                         </svg>
-                        <span>Overview</span>
+                        <span data-i18n="nav.overview">Overview</span>
                     </a>
                     <a href="lockers.html" class="nav-item">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -53,7 +53,7 @@
                             <rect x="3" y="11" width="18" height="11"></rect>
                             <path d="M7 11V7a4 4 0 0 1 4-4h2a4 4 0 0 1 4 4v4"></path>
                         </svg>
-                        <span>Lockers</span>
+                        <span data-i18n="nav.lockers">Lockers</span>
                     </a>
                     <a href="customers.html" class="nav-item">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -61,7 +61,7 @@
                             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
                             <circle cx="12" cy="7" r="4"></circle>
                         </svg>
-                        <span>Customers</span>
+                        <span data-i18n="nav.customers">Customers</span>
                     </a>
                     <a href="transactions.html" class="nav-item">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -69,7 +69,7 @@
                             <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"></path>
                             <path d="M12 6v6l4 2"></path>
                         </svg>
-                        <span>Transactions</span>
+                        <span data-i18n="nav.transactions">Transactions</span>
                     </a>
                     <a href="rentals.html" class="nav-item">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -79,7 +79,7 @@
                                 d="M12 1v6m0 6v6M4.22 4.22l4.24 4.24m2.12 2.12l4.24 4.24M1 12h6m6 0h6m-17.78 7.78l4.24-4.24m2.12-2.12l4.24-4.24">
                             </path>
                         </svg>
-                        <span>Rentals</span>
+                        <span data-i18n="nav.rentals">Rentals</span>
                     </a>
                     <a href="rates.html" class="nav-item active">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -96,7 +96,7 @@
                             <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
                             <polyline points="9 22 9 12 15 12 15 22"></polyline>
                         </svg>
-                        <span>Reports</span>
+                        <span data-i18n="nav.reports">Reports</span>
                     </a>
 
                     <a href="feedback.html" class="nav-item">
@@ -106,7 +106,7 @@
                                 d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z">
                             </path>
                         </svg>
-                        <span>Feedback</span>
+                        <span data-i18n="nav.feedback">Feedback</span>
                     </a>
                     <a href="auditlog.html" class="nav-item">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -116,7 +116,7 @@
                                 d="M12 1v6m0 6v6M4.22 4.22l4.24 4.24m2.12 2.12l4.24 4.24M1 12h6m6 0h6m-17.78 7.78l4.24-4.24m2.12-2.12l4.24-4.24">
                             </path>
                         </svg>
-                        <span>Audit Log</span>
+                        <span data-i18n="nav.auditlog">Audit Log</span>
                     </a>
                 </div>
             </nav>
@@ -135,8 +135,8 @@
         <!-- Main Content -->
         <main class="main-content">
             <div class="header">
-                <h1>Payment Rates</h1>
-                <p class="subtitle">Configure hourly rates displayed on the machine.</p>
+                <h1 data-i18n="rates.title">Payment Rates</h1>
+                <p class="subtitle" data-i18n="rates.subtitle">Configure hourly rates displayed on the machine.</p>
             </div>
 
             <!-- Side by Side Layout -->
@@ -149,12 +149,12 @@
                             <!-- Small Locker Rate -->
                             <div class="rate-section">
                                 <div class="rate-title-section">
-                                    <h3 class="rate-title">Small</h3>
-                                    <p class="rate-description">shoes / small pack</p>
+                                    <h3 class="rate-title" data-i18n="rates.small">Small</h3>
+                                    <p class="rate-description" data-i18n="rates.smallDesc">shoes / small pack</p>
                                 </div>
                                 <div class="rate-inputs">
                                     <div class="input-group">
-                                        <label for="smallRate">Rate per hour (₱)</label>
+                                        <label for="smallRate" data-i18n="rates.ratePerHour">Rate per hour (₱)</label>
                                         <input type="number" id="smallRate" name="smallRate" class="form-input"
                                             value="10" min="0" step="0.01">
                                     </div>
@@ -164,12 +164,12 @@
                             <!-- Medium Locker Rate -->
                             <div class="rate-section">
                                 <div class="rate-title-section">
-                                    <h3 class="rate-title">Medium</h3>
-                                    <p class="rate-description">helmet / backpack</p>
+                                    <h3 class="rate-title" data-i18n="rates.medium">Medium</h3>
+                                    <p class="rate-description" data-i18n="rates.mediumDesc">helmet / backpack</p>
                                 </div>
                                 <div class="rate-inputs">
                                     <div class="input-group">
-                                        <label for="mediumRate">Rate per hour (₱)</label>
+                                        <label for="mediumRate" data-i18n="rates.ratePerHour">Rate per hour (₱)</label>
                                         <input type="number" id="mediumRate" name="mediumRate" class="form-input"
                                             value="20" min="0" step="0.01">
                                     </div>
@@ -179,12 +179,12 @@
                             <!-- Large Locker Rate -->
                             <div class="rate-section">
                                 <div class="rate-title-section">
-                                    <h3 class="rate-title">Large</h3>
-                                    <p class="rate-description">blue jug / luggage</p>
+                                    <h3 class="rate-title" data-i18n="rates.large">Large</h3>
+                                    <p class="rate-description" data-i18n="rates.largeDesc">blue jug / luggage</p>
                                 </div>
                                 <div class="rate-inputs">
                                     <div class="input-group">
-                                        <label for="largeRate">Rate per hour (₱)</label>
+                                        <label for="largeRate" data-i18n="rates.ratePerHour">Rate per hour (₱)</label>
                                         <input type="number" id="largeRate" name="largeRate" class="form-input"
                                             value="35" min="0" step="0.01">
                                     </div>
@@ -200,7 +200,7 @@
                                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                             </svg>
-                            <span id="btnText">Edit Rates</span>
+                            <span id="btnText" data-i18n="rates.editRates">Edit Rates</span>
                         </button>
                     </form>
                 </div>
@@ -214,17 +214,12 @@
                                 <circle cx="12" cy="12" r="10"></circle>
                                 <polyline points="12 6 12 12 16 14"></polyline>
                             </svg>
-                            <h2 class="rates-history-title">Rate Change History</h2>
+                            <h2 class="rates-history-title" data-i18n="rates.history">Rate Change History</h2>
                             <span class="rates-history-count" id="historyCount">0 records</span>
                         </div>
                         <button class="btn-clear-history" id="btnClearHistory" onclick="clearRatesHistory()">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="2">
-                                <polyline points="3 6 5 6 21 6"></polyline>
-                                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
-                                <path d="M10 11v6M14 11v6"></path>
-                            </svg>
-                            Clear History
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6M14 11v6"></path></svg>
+                            <span data-i18n="rates.clearHistory">Clear History</span>
                         </button>
                     </div>
 

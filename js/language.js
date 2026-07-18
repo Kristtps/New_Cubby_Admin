@@ -3,7 +3,7 @@
 
 const translations = {
     en: {
-        // Sidebar
+        // ── Sidebar ──────────────────────────────────────────────────────────
         'nav.overview': 'Overview',
         'nav.lockers': 'Lockers',
         'nav.customers': 'Customers',
@@ -14,6 +14,7 @@ const translations = {
         'nav.feedback': 'Feedback',
         'nav.notifications': 'Notifications',
         'nav.auditlog': 'Audit Log',
+        'nav.notifications': 'Notifications',
         'sidebar.adminPanel': 'Admin Panel',
         
         // Login Page
@@ -55,8 +56,8 @@ const translations = {
         'status.occupied': 'Occupied',
         'status.payment': 'Payment Required',
         'status.maintenance': 'Maintenance',
-        
-        // Lockers Page
+
+        // ── Lockers Page ──────────────────────────────────────────────────────
         'lockers.title': 'Locker Management',
         'lockers.subtitle': 'Control compartments, toggle maintenance, and configure modules.',
         'lockers.addModule': 'Add Module',
@@ -103,8 +104,8 @@ const translations = {
         'customers.totalSpent': 'TOTAL SPENT',
         'customers.joined': 'JOINED',
         'customers.loading': 'Loading customers...',
-        
-        // Transactions Page
+
+        // ── Transactions Page ─────────────────────────────────────────────────
         'transactions.title': 'Transactions',
         'transactions.subtitle': 'View all payment and transaction history.',
         'transactions.id': 'TRANSACTION ID',
@@ -116,8 +117,14 @@ const translations = {
         'transactions.amount': 'AMOUNT',
         'transactions.status': 'STATUS',
         'transactions.loading': 'Loading transactions...',
-        
-        // Rentals Page
+        'transactions.resetTitle': 'Reset Coins on Hand',
+        'transactions.currentCoins': 'Current Coins on Hand',
+        'transactions.whatIsReset': 'What is Reset For?',
+        'transactions.resetDesc': 'Use this reset function when you have physically collected the coins from your device. This will set the counter to ₱0.00 and start tracking from zero again. Your transaction history will remain unchanged.',
+        'transactions.cancel': 'Cancel',
+        'transactions.resetTo': 'Reset to ₱0.00',
+
+        // ── Rentals Page ──────────────────────────────────────────────────────
         'rentals.title': 'Active Rentals',
         'rentals.subtitle': 'Monitor all ongoing locker rentals.',
         'rentals.locker': 'LOCKER',
@@ -174,15 +181,15 @@ const translations = {
         
         // Profile Page
         'profile.title': 'Profile',
-        'profile.subtitle': 'Manage your account settings.',
-        'profile.personalInfo': 'Personal Information',
-        'profile.edit': 'Edit',
-        'profile.avatar': 'Avatar',
-        'profile.changeAvatar': 'Change Avatar',
-        'profile.fullName': 'Full Name',
-        'profile.emailAddress': 'Email Address',
-        'profile.saveChanges': 'Save Changes',
-        'profile.changePassword': 'Change Password',
+        'profile.subtitle': 'Manage your account settings and kiosk credentials.',
+        'profile.kioskCredentials': 'Kiosk Credentials',
+        'profile.kioskDesc': 'These credentials are used to log in to the CoinCubby Kiosk. Both must be exactly 6 digits.',
+        'profile.kioskAdminId': 'Kiosk Admin ID',
+        'profile.kioskAdminPassword': 'Kiosk Admin Password',
+        'profile.kioskHint': 'Must be exactly 6 digits (0-9).',
+        'profile.saveKiosk': 'Save Kiosk Credentials',
+        'profile.security': 'Security',
+        'profile.securityDesc': 'Change the password you use to log in to this admin web application.',
         'profile.currentPassword': 'Current Password',
         'profile.newPassword': 'New Password',
         'profile.confirmPassword': 'Confirm New Password',
@@ -228,9 +235,9 @@ const translations = {
         'common.search': 'Search',
         'common.sort': 'Sort',
     },
-    
+
     tl: {
-        // Sidebar (Tagalog)
+        // ── Sidebar ───────────────────────────────────────────────────────────
         'nav.overview': 'Pangkalahatang-Tanaw',
         'nav.lockers': 'Mga Locker',
         'nav.customers': 'Mga Customer',
@@ -241,6 +248,7 @@ const translations = {
         'nav.feedback': 'Feedback',
         'nav.notifications': 'Mga Abiso',
         'nav.auditlog': 'Talaan ng Audit',
+        'nav.notifications': 'Mga Abiso',
         'sidebar.adminPanel': 'Admin Panel',
         
         // Login Page (Tagalog)
@@ -282,8 +290,8 @@ const translations = {
         'status.occupied': 'May Laman',
         'status.payment': 'Kailangan Magbayad',
         'status.maintenance': 'Kinakaayos',
-        
-        // Lockers Page (Tagalog)
+
+        // ── Lockers Page ──────────────────────────────────────────────────────
         'lockers.title': 'Pamamahala ng Locker',
         'lockers.subtitle': 'Kontrolin ang mga compartment, i-toggle ang maintenance, at i-configure ang mga module.',
         'lockers.addModule': 'Magdagdag ng Module',
@@ -330,8 +338,8 @@ const translations = {
         'customers.totalSpent': 'KABUUANG GINASTOS',
         'customers.joined': 'SUMALI',
         'customers.loading': 'Nilo-load ang mga customer...',
-        
-        // Transactions Page (Tagalog)
+
+        // ── Transactions Page ─────────────────────────────────────────────────
         'transactions.title': 'Mga Transaksyon',
         'transactions.subtitle': 'Tingnan ang lahat ng bayad at kasaysayan ng transaksyon.',
         'transactions.id': 'TRANSACTION ID',
@@ -343,8 +351,14 @@ const translations = {
         'transactions.amount': 'HALAGA',
         'transactions.status': 'KALAGAYAN',
         'transactions.loading': 'Nilo-load ang mga transaksyon...',
-        
-        // Rentals Page (Tagalog)
+        'transactions.resetTitle': 'I-reset ang Piso sa Kamay',
+        'transactions.currentCoins': 'Kasalukuyang Piso sa Kamay',
+        'transactions.whatIsReset': 'Para Saan ang Reset?',
+        'transactions.resetDesc': 'Gamitin ang reset function na ito kapag nakolekta mo na ang mga piso mula sa iyong device. Itatakda nito ang counter sa ₱0.00 at magsisimulang mag-track muli. Ang kasaysayan ng transaksyon ay mananatiling hindi nagbabago.',
+        'transactions.cancel': 'Kanselahin',
+        'transactions.resetTo': 'I-reset sa ₱0.00',
+
+        // ── Rentals Page ──────────────────────────────────────────────────────
         'rentals.title': 'Aktibong Renta',
         'rentals.subtitle': 'Subaybayan ang lahat ng kasalukuyang renta ng locker.',
         'rentals.locker': 'LOCKER',
@@ -401,15 +415,15 @@ const translations = {
         
         // Profile Page (Tagalog)
         'profile.title': 'Profile',
-        'profile.subtitle': 'Pamahalaan ang iyong mga setting ng account.',
-        'profile.personalInfo': 'Personal na Impormasyon',
-        'profile.edit': 'I-edit',
-        'profile.avatar': 'Avatar',
-        'profile.changeAvatar': 'Palitan ang Avatar',
-        'profile.fullName': 'Buong Pangalan',
-        'profile.emailAddress': 'Email Address',
-        'profile.saveChanges': 'I-save ang mga Pagbabago',
-        'profile.changePassword': 'Palitan ang Password',
+        'profile.subtitle': 'Pamahalaan ang iyong mga setting ng account at kiosk credentials.',
+        'profile.kioskCredentials': 'Kiosk Credentials',
+        'profile.kioskDesc': 'Ginagamit ang mga credential na ito para mag-log in sa CoinCubby Kiosk. Dapat na eksaktong 6 digits ang bawat isa.',
+        'profile.kioskAdminId': 'Kiosk Admin ID',
+        'profile.kioskAdminPassword': 'Kiosk Admin Password',
+        'profile.kioskHint': 'Dapat na eksaktong 6 digits (0-9).',
+        'profile.saveKiosk': 'I-save ang Kiosk Credentials',
+        'profile.security': 'Seguridad',
+        'profile.securityDesc': 'Palitan ang password na ginagamit mo para mag-log in sa admin web application na ito.',
         'profile.currentPassword': 'Kasalukuyang Password',
         'profile.newPassword': 'Bagong Password',
         'profile.confirmPassword': 'Kumpirmahin ang Bagong Password',
@@ -457,96 +471,108 @@ const translations = {
     }
 };
 
-// Language Manager
+
 class LanguageManager {
     constructor() {
-        this.currentLang = this.getStoredLanguage() || 'en';
+        this.STORAGE_KEY = 'coincubby_language';
+        this.currentLang = this.getStoredLanguage();
         this.init();
     }
-    
+
     init() {
-        // Set initial language
         this.applyLanguage(this.currentLang);
-        
-        // Update HTML lang attribute
         document.documentElement.lang = this.currentLang === 'tl' ? 'tl' : 'en';
     }
-    
+
     getStoredLanguage() {
         try {
-            return localStorage.getItem('coincubby_language') || 'en';
+            const saved = localStorage.getItem(this.STORAGE_KEY);
+            return (saved === 'en' || saved === 'tl') ? saved : 'en';
         } catch (e) {
             return 'en';
         }
     }
-    
-    setLanguage(lang) {
-        if (lang !== 'en' && lang !== 'tl') {
-            console.error('Invalid language:', lang);
-            return;
-        }
-        
+
+    /**
+     * Set language: updates localStorage, DOM, and optionally persists to DB.
+     * @param {string} lang - 'en' or 'tl'
+     * @param {boolean} [saveToDb=false] - whether to write to admin table
+     */
+    setLanguage(lang, saveToDb = false) {
+        if (lang !== 'en' && lang !== 'tl') return;
         this.currentLang = lang;
-        
-        try {
-            localStorage.setItem('coincubby_language', lang);
-        } catch (e) {
-            console.error('Failed to save language preference:', e);
-        }
-        
+        try { localStorage.setItem(this.STORAGE_KEY, lang); } catch (e) {}
         this.applyLanguage(lang);
         document.documentElement.lang = lang === 'tl' ? 'tl' : 'en';
-        
-        // Dispatch custom event for language change
         window.dispatchEvent(new CustomEvent('languageChanged', { detail: { language: lang } }));
+        if (saveToDb) this._saveToDb(lang);
     }
-    
-    applyLanguage(lang) {
-        // Update all elements with data-i18n attribute
-        document.querySelectorAll('[data-i18n]').forEach(element => {
-            const key = element.getAttribute('data-i18n');
-            const translation = this.translate(key, lang);
-            
-            if (translation) {
-                // Check if element is input placeholder
-                if (element.tagName === 'INPUT' && element.hasAttribute('placeholder')) {
-                    element.placeholder = translation;
-                } else {
-                    element.textContent = translation;
+
+    /** Persist language preference to the admin table in Supabase */
+    async _saveToDb(lang) {
+        try {
+            if (typeof window.supabase === 'undefined' || typeof window.supabase.from !== 'function') return;
+            const auth = JSON.parse(localStorage.getItem('coincubby_auth') || '{}');
+            if (!auth.email) return;
+            await window.supabase.from('admin').update({ language: lang }).eq('email', auth.email);
+        } catch (e) {
+            console.warn('Could not save language to DB:', e);
+        }
+    }
+
+    /**
+     * Load language preference from DB and apply it.
+     * Falls back silently to localStorage value if DB unavailable.
+     */
+    async loadFromDb() {
+        try {
+            if (typeof window.supabase === 'undefined' || typeof window.supabase.from !== 'function') return;
+            const auth = JSON.parse(localStorage.getItem('coincubby_auth') || '{}');
+            if (!auth.email) return;
+            const { data } = await window.supabase
+                .from('admin').select('language').eq('email', auth.email).single();
+            if (data && (data.language === 'en' || data.language === 'tl')) {
+                if (data.language !== this.currentLang) {
+                    this.setLanguage(data.language, false);
                 }
             }
-        });
-        
-        // Update all elements with data-i18n-placeholder attribute
-        document.querySelectorAll('[data-i18n-placeholder]').forEach(element => {
-            const key = element.getAttribute('data-i18n-placeholder');
-            const translation = this.translate(key, lang);
-            
-            if (translation && element.tagName === 'INPUT') {
-                element.placeholder = translation;
+        } catch (e) {
+            console.warn('Could not load language from DB:', e);
+        }
+    }
+
+    applyLanguage(lang) {
+        document.querySelectorAll('[data-i18n]').forEach(el => {
+            const key = el.getAttribute('data-i18n');
+            const text = this.translate(key, lang);
+            if (!text) return;
+            if (el.tagName === 'INPUT' && el.hasAttribute('placeholder')) {
+                el.placeholder = text;
+            } else {
+                el.textContent = text;
             }
         });
+        document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+            const key = el.getAttribute('data-i18n-placeholder');
+            const text = this.translate(key, lang);
+            if (text && el.tagName === 'INPUT') el.placeholder = text;
+        });
     }
-    
-    translate(key, lang = null) {
-        const language = lang || this.currentLang;
-        return translations[language]?.[key] || translations['en']?.[key] || key;
+
+    translate(key, lang) {
+        const l = lang || this.currentLang;
+        return (translations[l] && translations[l][key]) || (translations.en && translations.en[key]) || key;
     }
-    
-    getCurrentLanguage() {
-        return this.currentLang;
-    }
+
+    getCurrentLanguage() { return this.currentLang; }
 }
 
-// Initialize language manager
+// Initialise immediately so every page gets translated on load
 const languageManager = new LanguageManager();
 
-// Helper function for easy access
-function t(key) {
-    return languageManager.translate(key);
-}
+// Convenience helper
+function t(key) { return languageManager.translate(key); }
 
-// Export for use in other scripts
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { LanguageManager, languageManager, t };
 }

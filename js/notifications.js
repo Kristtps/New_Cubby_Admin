@@ -17,7 +17,10 @@ async function initNotifications() {
     // Check for unread notifications
     await checkUnreadNotifications();
 
-    // Set up periodic checks
+    // Set up realtime listener for new notifications
+    setupRealtimeListener();
+
+    // Set up periodic checks (fallback)
     setInterval(checkUnreadNotifications, NOTIFICATION_CHECK_INTERVAL);
 }
 
@@ -101,9 +104,32 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// Export functions for use in other modules
-window.notificationSystem = {
-    getUnreadCount: getUnreadNotificationCount,
-    checkUnread: checkUnreadNotifications,
-    updateBadge: updateNotificationBadge
-};
+// Existing functions ... (no change)
+
+/**
+ * Set up Supabase realtime subscription to listen for new notifications.
+ * Increments badge count immediately when an unread notification is inserted.
+ */
+function setupRealtimeListener() {
+    if (!window.supabase) {
+        console.warn('Supabase not initialized, realtime listener not set');
+        return;
+    }
+    const channel = window.supabase.channel('public:notifications');
+    channel
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, payload => {
+            const newNotif = payload.new;
+            if (newNotif && newNotif.is_read === false) {
+                // Increment badge count
+                const badge = document.getElementById('notificationBadge');
+                if (!badge) return;
+                let current = parseInt(badge.textContent) || 0;
+                current += 1;
+                badge.textContent = current > 99 ? '99+' : current;
+                badge.style.display = 'flex';
+            }
+        })
+                .subscribe();
+        console.log('✅ Subscribed to real‑time notifications');
+}
+

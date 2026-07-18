@@ -1,361 +1,387 @@
 // ========================================
 // PROFILE PAGE - JAVASCRIPT FUNCTIONALITY
-// Connected to admin table in database
+// Connected to admin table in Supabase
 // ========================================
 
-document.addEventListener('DOMContentLoaded', async function() {
+// Cached admin data from the DB
+let adminData = null;
+
+document.addEventListener('DOMContentLoaded', async function () {
     // Check authentication
     if (typeof isUserAuthenticated !== 'undefined' && !isUserAuthenticated()) {
-        console.log('User not authenticated, redirecting to login...');
         window.location.href = 'login.html';
         return;
     }
-    
+
     await loadProfileFromDatabase();
-    setupProfileForm();
+    setupKioskForm();
     setupPasswordForm();
     setupProfileThemeToggle();
     setupLanguageSelector();
 });
 
+// ─────────────────────────────────────────
+// 1. LOAD PROFILE DATA
+// ─────────────────────────────────────────
+
 /**
- * Load profile data from admin table
+ * Load profile data from admin table and populate the UI
  */
 async function loadProfileFromDatabase() {
     try {
-        // Get logged in user email from localStorage
         const auth = JSON.parse(localStorage.getItem('coincubby_auth') || '{}');
         const userEmail = auth.email;
-        
+
         if (!userEmail) {
             console.warn('No user email found in auth');
             return;
         }
-        
-        // Check if Supabase is available
-        if (typeof window.supabase === 'undefined' || !window.supabase) {
-            console.warn('Supabase not initialized, using localStorage');
+
+        // Wait for supabase
+        if (window.supabasePromise) {
+            await window.supabasePromise;
+        }
+
+        if (typeof window.supabase === 'undefined' || !window.supabase || typeof window.supabase.from !== 'function') {
+            console.warn('Supabase not initialized');
             return;
         }
-        
+
         console.log('Loading profile from database for:', userEmail);
-        
-        // Fetch admin profile from database
+
         const { data, error } = await window.supabase
             .from('admin')
-            .select('*')
+            .select('id, email, full_name, role, created_at, last_login, kiosk_admin_id, kiosk_admin_password')
             .eq('email', userEmail)
             .single();
-        
+
         if (error) {
             console.error('Error loading profile:', error);
             return;
         }
-        
-        if (data) {
-            console.log('✓ Profile loaded from database:', data);
-            
-            // Update UI with database data
-            const nameInput = document.getElementById('profile-name');
-            const emailInput = document.getElementById('profile-email');
-            const mainName = document.getElementById('main-name');
-            const sidebarName = document.getElementById('sidebar-name');
-            const mainEmail = document.getElementById('main-email');
-            
-            if (data.full_name) {
-                nameInput.value = data.full_name;
-                mainName.textContent = data.full_name;
-                sidebarName.textContent = data.full_name;
-                setAvatarInitials(data.full_name);
-            }
-            
-            if (data.email) {
-                emailInput.value = data.email;
-                mainEmail.textContent = data.email;
-            }
-            
-            // Store in localStorage for quick access
-            localStorage.setItem('coincubby_admin_name', data.full_name || userEmail.split('@')[0]);
-            localStorage.setItem('coincubby_admin_email', data.email);
+
+        if (!data) return;
+
+        adminData = data;
+        console.log('✓ Profile loaded from database');
+
+        // ── Header Card ──
+        const mainName = document.getElementById('main-name');
+        const mainEmail = document.getElementById('main-email');
+        const sidebarName = document.getElementById('sidebar-name');
+
+        if (data.full_name) {
+            mainName.textContent = data.full_name;
+            sidebarName.textContent = data.full_name;
+            setAvatarInitials(data.full_name);
         }
-    } catch (error) {
-        console.error('Error in loadProfileFromDatabase:', error);
+        if (data.email) {
+            mainEmail.textContent = data.email;
+        }
+
+        // ── Role badge ──
+        const headerRole = document.getElementById('header-role');
+        if (headerRole && data.role) {
+            const roleLabel = data.role.charAt(0).toUpperCase() + data.role.slice(1).toLowerCase();
+            headerRole.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:-1px;margin-right:4px;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>${roleLabel}`;
+        }
+
+        // ── Header stat values ──
+        setField('header-created-at', formatDate(data.created_at));
+        setField('header-last-login', formatDate(data.last_login));
+
+        // ── Kiosk Credentials ──
+        const kioskIdInput = document.getElementById('kiosk-admin-id');
+        const kioskPwInput = document.getElementById('kiosk-admin-password');
+        if (data.kiosk_admin_id) kioskIdInput.value = data.kiosk_admin_id.trim();
+        if (data.kiosk_admin_password) kioskPwInput.value = data.kiosk_admin_password.trim();
+
+        // ── Persist to localStorage for sidebar, quick access ──
+        localStorage.setItem('coincubby_admin_name', data.full_name || userEmail.split('@')[0]);
+        localStorage.setItem('coincubby_admin_email', data.email);
+
+    } catch (err) {
+        console.error('Error in loadProfileFromDatabase:', err);
     }
 }
 
-function setupProfileForm() {
-    const editBtn = document.getElementById('edit-profile-btn');
-    const saveBtn = document.getElementById('save-profile-btn');
-    const profileForm = document.getElementById('profile-form');
-    
-    // Inputs
-    const nameInput = document.getElementById('profile-name');
-    const emailInput = document.getElementById('profile-email');
-    const avatarUpload = document.getElementById('avatar-upload');
-    const btnUploadAvatar = document.getElementById('btn-upload-avatar');
-    
-    // Preview
-    const avatarPreview = document.getElementById('avatar-preview');
-    const mainAvatar = document.getElementById('main-avatar');
-    const sidebarAvatar = document.getElementById('sidebar-avatar');
-    
-    const mainName = document.getElementById('main-name');
-    const sidebarName = document.getElementById('sidebar-name');
-    const mainEmail = document.getElementById('main-email');
+/** Helper to set an info-value span */
+function setField(id, value) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = value || '—';
+}
 
-    let isEditing = false;
-    let originalName = nameInput.value;
-    let originalEmail = emailInput.value;
+/** Format a timestamp nicely */
+function formatDate(ts) {
+    if (!ts) return '—';
+    const d = new Date(ts);
+    if (isNaN(d.getTime())) return '—';
+    return d.toLocaleDateString('en-US', {
+        year: 'numeric', month: 'short', day: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+    });
+}
 
-    // Toggle edit mode
-    editBtn.addEventListener('click', function(e) {
-        e.preventDefault();
-        isEditing = !isEditing;
-        
-        if (isEditing) {
-            // Store original values
-            originalName = nameInput.value;
-            originalEmail = emailInput.value;
-            
-            // Enable editing
-            editBtn.textContent = 'Cancel';
-            nameInput.removeAttribute('readonly');
-            // Email should stay readonly - can't change email
-            avatarUpload.removeAttribute('disabled');
-            btnUploadAvatar.removeAttribute('disabled');
-            saveBtn.style.display = 'block';
-            nameInput.focus();
+/** Set avatar initials across all avatar elements */
+function setAvatarInitials(name) {
+    const initial = name ? name.charAt(0).toUpperCase() : 'A';
+    ['main-avatar', 'sidebar-avatar'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.style.backgroundImage = '';
+            el.textContent = initial;
+        }
+    });
+}
+window.setAvatarInitials = setAvatarInitials;
+
+// ─────────────────────────────────────────
+// 2. KIOSK CREDENTIALS FORM
+// ─────────────────────────────────────────
+
+function setupKioskForm() {
+    const form = document.getElementById('kiosk-form');
+    const idInput = document.getElementById('kiosk-admin-id');
+    const pwInput = document.getElementById('kiosk-admin-password');
+    const idHint = document.getElementById('kiosk-id-hint');
+    const pwHint = document.getElementById('kiosk-pw-hint');
+    const saveMsg = document.getElementById('kiosk-save-msg');
+    const saveBtn = document.getElementById('save-kiosk-btn');
+    const togglePwBtn = document.getElementById('toggle-kiosk-pw');
+    const eyeIcon = document.getElementById('kiosk-pw-eye-icon');
+
+    if (!form) return;
+
+    // ── Show/Hide kiosk password ──
+    let pwVisible = false;
+    togglePwBtn.addEventListener('click', () => {
+        pwVisible = !pwVisible;
+        pwInput.type = pwVisible ? 'text' : 'password';
+        // Swap icon between eye-open and eye-off
+        if (pwVisible) {
+            eyeIcon.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line>';
         } else {
-            // Disable editing (cancel)
-            editBtn.textContent = 'Edit';
-            nameInput.setAttribute('readonly', 'readonly');
-            avatarUpload.setAttribute('disabled', 'disabled');
-            btnUploadAvatar.setAttribute('disabled', 'disabled');
-            saveBtn.style.display = 'none';
-            
-            // Revert changes
-            nameInput.value = originalName;
-            emailInput.value = originalEmail;
-            setAvatarInitials(nameInput.value);
+            eyeIcon.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>';
         }
     });
 
-    // Avatar upload preview
-    btnUploadAvatar.addEventListener('click', () => {
-        avatarUpload.click();
+    // ── Only allow digits ──
+    [idInput, pwInput].forEach(input => {
+        input.addEventListener('input', () => {
+            input.value = input.value.replace(/\D/g, '').slice(0, 6);
+        });
     });
 
-    avatarUpload.addEventListener('change', function(e) {
-        if (e.target.files && e.target.files[0]) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                setAvatarImage(e.target.result);
-            }
-            reader.readAsDataURL(e.target.files[0]);
-        }
-    });
+    // ── Validate helper ──
+    function validate6Digits(val) {
+        return /^[0-9]{6}$/.test(val);
+    }
 
-    // Save profile changes to DATABASE
-    profileForm.addEventListener('submit', async function(e) {
+    // ── Submit ──
+    form.addEventListener('submit', async (e) => {
         e.preventDefault();
-        
-        const auth = JSON.parse(localStorage.getItem('coincubby_auth') || '{}');
-        const userEmail = auth.email;
-        
-        if (!userEmail) {
-            alert('Error: No user email found');
-            return;
-        }
-        
-        try {
-            // Save to database
-            if (typeof window.supabase !== 'undefined' && window.supabase) {
-                console.log('Updating profile in database...');
-                
-                const { data, error } = await window.supabase
-                    .from('admin')
-                    .update({
-                        full_name: nameInput.value,
-                        updated_at: new Date().toISOString()
-                    })
-                    .eq('email', userEmail)
-                    .select();
-                
-                if (error) {
-                    console.error('Error updating profile:', error);
-                    alert('Error saving profile: ' + error.message);
-                    return;
-                }
-                
-                console.log('✓ Profile updated in database:', data);
-            }
-            
-            // Update localStorage
-            localStorage.setItem('coincubby_admin_name', nameInput.value);
-            localStorage.setItem('coincubby_admin_email', emailInput.value);
-            
-            // Update UI
-            mainName.textContent = nameInput.value;
-            sidebarName.textContent = nameInput.value;
-            mainEmail.textContent = emailInput.value;
-            setAvatarInitials(nameInput.value);
+        saveMsg.textContent = '';
+        saveMsg.className = 'kiosk-save-msg';
 
-            // Exit edit mode
-            isEditing = false;
-            editBtn.textContent = 'Edit';
-            nameInput.setAttribute('readonly', 'readonly');
-            avatarUpload.setAttribute('disabled', 'disabled');
-            btnUploadAvatar.setAttribute('disabled', 'disabled');
-            saveBtn.style.display = 'none';
-            
-            // Show success message
-            showSuccessMessage('Profile updated successfully!');
-        } catch (error) {
-            console.error('Error saving profile:', error);
-            alert('Error saving profile. Please try again.');
+        // Reset hints
+        idHint.textContent = 'Must be exactly 6 digits (0-9).';
+        idHint.classList.remove('error');
+        pwHint.textContent = 'Must be exactly 6 digits (0-9).';
+        pwHint.classList.remove('error');
+        idInput.classList.remove('input-error');
+        pwInput.classList.remove('input-error');
+
+        let valid = true;
+
+        if (!validate6Digits(idInput.value)) {
+            idHint.textContent = 'Kiosk Admin ID must be exactly 6 digits.';
+            idHint.classList.add('error');
+            idInput.classList.add('input-error');
+            valid = false;
+        }
+
+        if (!validate6Digits(pwInput.value)) {
+            pwHint.textContent = 'Kiosk Admin Password must be exactly 6 digits.';
+            pwHint.classList.add('error');
+            pwInput.classList.add('input-error');
+            valid = false;
+        }
+
+        if (!valid) return;
+
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saving…';
+
+        try {
+            const auth = JSON.parse(localStorage.getItem('coincubby_auth') || '{}');
+            const userEmail = auth.email;
+            if (!userEmail) throw new Error('No user email');
+
+            const { error } = await window.supabase
+                .from('admin')
+                .update({
+                    kiosk_admin_id: idInput.value,
+                    kiosk_admin_password: pwInput.value,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('email', userEmail);
+
+            if (error) throw error;
+
+            saveMsg.textContent = '✓ Kiosk credentials saved successfully.';
+            saveMsg.className = 'kiosk-save-msg success';
+            showToast('Kiosk credentials updated!', 'success');
+
+            // Update local cache
+            if (adminData) {
+                adminData.kiosk_admin_id = idInput.value;
+                adminData.kiosk_admin_password = pwInput.value;
+            }
+
+        } catch (err) {
+            console.error('Error saving kiosk credentials:', err);
+            const msg = err.message || 'Failed to save kiosk credentials.';
+            // Check for unique constraint violation on kiosk_admin_id
+            if (msg.includes('admin_kiosk_admin_id_key') || msg.includes('duplicate key')) {
+                saveMsg.textContent = '✕ That Kiosk Admin ID is already in use.';
+            } else {
+                saveMsg.textContent = '✕ ' + msg;
+            }
+            saveMsg.className = 'kiosk-save-msg error';
+        } finally {
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Save Kiosk Credentials';
         }
     });
-
-    function setAvatarImage(url) {
-        const bgUrl = `url("${url}")`;
-        avatarPreview.style.backgroundImage = bgUrl;
-        avatarPreview.textContent = '';
-        
-        mainAvatar.style.backgroundImage = bgUrl;
-        mainAvatar.textContent = '';
-        
-        sidebarAvatar.style.backgroundImage = bgUrl;
-        sidebarAvatar.textContent = '';
-    }
-
-    function setAvatarInitials(name) {
-        const initial = name ? name.charAt(0).toUpperCase() : 'A';
-        avatarPreview.style.backgroundImage = '';
-        avatarPreview.textContent = initial;
-        
-        mainAvatar.style.backgroundImage = '';
-        mainAvatar.textContent = initial;
-        
-        sidebarAvatar.style.backgroundImage = '';
-        sidebarAvatar.textContent = initial;
-    }
-    
-    // Make setAvatarInitials available globally for loadProfileFromDatabase
-    window.setAvatarInitials = setAvatarInitials;
 }
 
-/**
- * Show success message
- */
-function showSuccessMessage(message) {
-    const successDiv = document.createElement('div');
-    successDiv.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        background: #4caf50;
-        color: white;
-        padding: 15px 20px;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        z-index: 9999;
-        animation: slideIn 0.3s ease;
-    `;
-    successDiv.textContent = message;
-    document.body.appendChild(successDiv);
-    
-    setTimeout(() => {
-        successDiv.style.animation = 'slideOut 0.3s ease';
-        setTimeout(() => successDiv.remove(), 300);
-    }, 3000);
-}
+// ─────────────────────────────────────────
+// 3. SECURITY — CHANGE WEB PASSWORD
+// ─────────────────────────────────────────
 
 async function setupPasswordForm() {
     const passwordForm = document.getElementById('password-form');
-    const currentPassword = document.getElementById('current-password');
-    const newPassword = document.getElementById('new-password');
-    const confirmPassword = document.getElementById('confirm-password');
+    const currentPasswordInput = document.getElementById('current-password');
+    const newPasswordInput = document.getElementById('new-password');
+    const confirmPasswordInput = document.getElementById('confirm-password');
     const errorMsg = document.getElementById('password-error');
     const successMsg = document.getElementById('password-success');
+    const submitBtn = passwordForm ? passwordForm.querySelector('button[type="submit"]') : null;
 
-    passwordForm.addEventListener('submit', async function(e) {
+    if (!passwordForm) return;
+
+    passwordForm.addEventListener('submit', async function (e) {
         e.preventDefault();
         errorMsg.style.display = 'none';
         successMsg.style.display = 'none';
 
-        if (newPassword.value !== confirmPassword.value) {
-            errorMsg.textContent = "New passwords do not match.";
-            errorMsg.style.display = 'block';
+        const currentPw = currentPasswordInput.value;
+        const newPw = newPasswordInput.value;
+        const confirmPw = confirmPasswordInput.value;
+
+        // ── Client-side validation ──
+        if (!currentPw) {
+            showPwError('Please enter your current password.');
             return;
         }
 
-        if (newPassword.value.length < 6) {
-            errorMsg.textContent = "Password must be at least 6 characters.";
-            errorMsg.style.display = 'block';
+        if (newPw.length < 6) {
+            showPwError('New password must be at least 6 characters.');
             return;
         }
-        
-        // Get user email
+
+        if (newPw !== confirmPw) {
+            showPwError('New passwords do not match.');
+            return;
+        }
+
+        if (newPw === currentPw) {
+            showPwError('New password must be different from your current password.');
+            return;
+        }
+
         const auth = JSON.parse(localStorage.getItem('coincubby_auth') || '{}');
         const userEmail = auth.email;
-        
+
         if (!userEmail) {
-            errorMsg.textContent = "Error: No user email found";
-            errorMsg.style.display = 'block';
+            showPwError('Session error: no user email found. Please sign in again.');
             return;
         }
-        
+
+        // Ensure Supabase is ready
+        if (window.supabasePromise) await window.supabasePromise;
+
+        if (typeof window.supabase === 'undefined' || !window.supabase || typeof window.supabase.auth === 'undefined') {
+            showPwError('Service unavailable. Please refresh the page and try again.');
+            return;
+        }
+
+        setSubmitState(true);
+
         try {
-            // Verify current password
-            if (typeof window.supabase !== 'undefined' && window.supabase) {
-                const { data: adminData, error: verifyError } = await window.supabase
-                    .from('admin')
-                    .select('password')
-                    .eq('email', userEmail)
-                    .single();
-                
-                if (verifyError || !adminData) {
-                    errorMsg.textContent = "Error verifying current password";
-                    errorMsg.style.display = 'block';
-                    return;
+            // Step 1 — Re-authenticate with the current password to verify it is correct.
+            // This uses Supabase Auth (the same system that handles the login page).
+            const { error: signInError } = await window.supabase.auth.signInWithPassword({
+                email: userEmail,
+                password: currentPw
+            });
+
+            if (signInError) {
+                // Distinguish wrong password from other errors
+                if (signInError.message.toLowerCase().includes('invalid') ||
+                    signInError.message.toLowerCase().includes('credentials') ||
+                    signInError.message.toLowerCase().includes('password')) {
+                    showPwError('Current password is incorrect.');
+                } else {
+                    showPwError('Could not verify current password: ' + signInError.message);
                 }
-                
-                if (adminData.password !== currentPassword.value) {
-                    errorMsg.textContent = "Current password is incorrect";
-                    errorMsg.style.display = 'block';
-                    return;
-                }
-                
-                // Update password in database
-                const { error: updateError } = await window.supabase
-                    .from('admin')
-                    .update({ password: newPassword.value })
-                    .eq('email', userEmail);
-                
-                if (updateError) {
-                    errorMsg.textContent = "Error updating password: " + updateError.message;
-                    errorMsg.style.display = 'block';
-                    return;
-                }
-                
-                console.log('✓ Password updated in database');
+                return;
             }
-            
-            // Success
+
+            // Step 2 — Update the password through Supabase Auth.
+            const { error: updateError } = await window.supabase.auth.updateUser({
+                password: newPw
+            });
+
+            if (updateError) {
+                showPwError('Failed to update password: ' + updateError.message);
+                return;
+            }
+
+            console.log('✓ Password updated via Supabase Auth');
+
+            // Step 3 — Show success, clear the form.
             successMsg.style.display = 'block';
             passwordForm.reset();
-            
-            // Hide success message after 3 seconds
+            showToast('Password updated successfully!', 'success');
+
             setTimeout(() => {
                 successMsg.style.display = 'none';
-            }, 3000);
-        } catch (error) {
-            console.error('Error updating password:', error);
-            errorMsg.textContent = "Error updating password. Please try again.";
+            }, 4000);
+
+        } catch (err) {
+            console.error('Unexpected error updating password:', err);
+            showPwError('An unexpected error occurred. Please try again.');
+        } finally {
+            setSubmitState(false);
+        }
+
+        function showPwError(msg) {
+            errorMsg.textContent = msg;
             errorMsg.style.display = 'block';
+        }
+
+        function setSubmitState(loading) {
+            if (!submitBtn) return;
+            submitBtn.disabled = loading;
+            submitBtn.textContent = loading ? 'Updating…' : 'Update Password';
         }
     });
 }
+
+// ─────────────────────────────────────────
+// 4. THEME TOGGLE (Profile page version)
+// ─────────────────────────────────────────
 
 function setupProfileThemeToggle() {
     const profileToggleBtn = document.getElementById('profile-theme-toggle-btn');
@@ -368,7 +394,6 @@ function setupProfileThemeToggle() {
         return;
     }
 
-    // Helper to update the UI of the profile toggle to match current theme
     function updateProfileToggleUI(theme) {
         const isDark = theme === 'dark';
         profileToggleBtn.setAttribute('aria-pressed', isDark ? 'true' : 'false');
@@ -424,7 +449,6 @@ function setupProfileThemeToggle() {
         if (sidebarToggleBtn) {
             const sidebarIcon = document.getElementById('theme-icon');
             const sidebarLabel = document.getElementById('theme-label');
-            
             sidebarToggleBtn.setAttribute('aria-pressed', newTheme === 'dark' ? 'true' : 'false');
             if (sidebarIcon) sidebarIcon.textContent = newTheme === 'dark' ? '🌙' : '☀️';
             if (sidebarLabel) {
@@ -448,34 +472,58 @@ function setupProfileThemeToggle() {
 
 function setupLanguageSelector() {
     const languageSelect = document.getElementById('language-select');
-    
-    if (!languageSelect) {
-        console.log('Language selector not found');
-        return;
-    }
-    
-    // Check if languageManager exists (from language.js)
+    if (!languageSelect) return;
+
     if (typeof languageManager === 'undefined') {
         console.error('Language manager not loaded');
         return;
     }
-    
-    // Set initial value
+
     const currentLang = languageManager.getCurrentLanguage();
     languageSelect.value = currentLang;
-    
-    // Handle language change
-    languageSelect.addEventListener('change', function(e) {
+
+    languageSelect.addEventListener('change', function (e) {
         const selectedLang = e.target.value;
         console.log('Language changed to:', selectedLang);
         languageManager.setLanguage(selectedLang);
     });
-    
-    // Listen for language changes from other pages
-    window.addEventListener('languageChanged', function(e) {
+
+    window.addEventListener('languageChanged', function (e) {
         const newLang = e.detail.language;
         if (languageSelect.value !== newLang) {
             languageSelect.value = newLang;
         }
     });
+}
+
+// ─────────────────────────────────────────
+// 6. TOAST NOTIFICATIONS
+// ─────────────────────────────────────────
+
+function showToast(message, type = 'success') {
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+        position: fixed;
+        top: 24px;
+        right: 24px;
+        padding: 14px 22px;
+        border-radius: 12px;
+        font-size: 14px;
+        font-weight: 600;
+        color: white;
+        z-index: 9999;
+        animation: toastSlideIn 0.35s ease forwards;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+        max-width: 380px;
+    `;
+    toast.style.background = type === 'success'
+        ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
+        : 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
+    toast.textContent = message;
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+        toast.style.animation = 'toastSlideOut 0.35s ease forwards';
+        setTimeout(() => toast.remove(), 350);
+    }, 3500);
 }
