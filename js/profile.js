@@ -358,24 +358,35 @@ async function setupPasswordForm() {
 }
 
 function setupProfileThemeToggle() {
-    // Link the profile page toggle to the global theme.js functionality
     const profileToggleBtn = document.getElementById('profile-theme-toggle-btn');
     const profileThemeIcon = document.getElementById('profile-theme-icon');
     const profileThemeLabel = document.getElementById('profile-theme-label');
     const STORAGE_KEY = 'coincubby_theme';
 
-    if (!profileToggleBtn) return;
+    if (!profileToggleBtn) {
+        console.log('Profile theme toggle button not found');
+        return;
+    }
 
     // Helper to update the UI of the profile toggle to match current theme
     function updateProfileToggleUI(theme) {
-        if (theme === 'dark') {
-            profileToggleBtn.setAttribute('aria-pressed', 'true');
-            if (profileThemeIcon) profileThemeIcon.textContent = '🌙';
-            if (profileThemeLabel) profileThemeLabel.textContent = 'Dark';
-        } else {
-            profileToggleBtn.setAttribute('aria-pressed', 'false');
-            if (profileThemeIcon) profileThemeIcon.textContent = '☀️';
-            if (profileThemeLabel) profileThemeLabel.textContent = 'Light';
+        const isDark = theme === 'dark';
+        profileToggleBtn.setAttribute('aria-pressed', isDark ? 'true' : 'false');
+        profileToggleBtn.classList.toggle('active', isDark);
+        
+        if (profileThemeIcon) {
+            // Show current mode icon
+            profileThemeIcon.textContent = isDark ? '🌙' : '☀️';
+        }
+        if (profileThemeLabel) {
+            // Use i18n keys for translation support
+            const labelKey = isDark ? 'profile.dark' : 'profile.light';
+            if (typeof languageManager !== 'undefined') {
+                profileThemeLabel.textContent = languageManager.translate(labelKey);
+            } else {
+                profileThemeLabel.textContent = isDark ? 'Dark' : 'Light';
+            }
+            profileThemeLabel.setAttribute('data-i18n', labelKey);
         }
     }
 
@@ -383,18 +394,32 @@ function setupProfileThemeToggle() {
     const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
     updateProfileToggleUI(currentTheme);
 
+    // Click handler
     profileToggleBtn.addEventListener('click', function() {
-        const isDark = profileToggleBtn.getAttribute('aria-pressed') === 'true';
-        const newTheme = isDark ? 'light' : 'dark';
+        const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        
+        console.log('Profile theme toggle:', currentTheme, '->', newTheme);
         
         // Update DOM
         document.documentElement.setAttribute('data-theme', newTheme);
-        localStorage.setItem(STORAGE_KEY, newTheme);
+        
+        // Save to localStorage
+        try {
+            localStorage.setItem(STORAGE_KEY, newTheme);
+        } catch (e) {
+            console.error('Failed to save theme:', e);
+        }
         
         // Update Profile Toggle UI
         updateProfileToggleUI(newTheme);
         
-        // Sync with Sidebar Toggle if it exists (via global event or just direct selection)
+        // Dispatch theme change event
+        window.dispatchEvent(new CustomEvent('themechange', { 
+            detail: { theme: newTheme }
+        }));
+        
+        // Sync with Sidebar Toggle if it exists
         const sidebarToggleBtn = document.getElementById('theme-toggle-btn');
         if (sidebarToggleBtn) {
             const sidebarIcon = document.getElementById('theme-icon');
@@ -402,8 +427,21 @@ function setupProfileThemeToggle() {
             
             sidebarToggleBtn.setAttribute('aria-pressed', newTheme === 'dark' ? 'true' : 'false');
             if (sidebarIcon) sidebarIcon.textContent = newTheme === 'dark' ? '🌙' : '☀️';
-            if (sidebarLabel) sidebarLabel.textContent = newTheme === 'dark' ? 'Dark' : 'Light';
+            if (sidebarLabel) {
+                const labelKey = newTheme === 'dark' ? 'profile.dark' : 'profile.light';
+                if (typeof languageManager !== 'undefined') {
+                    sidebarLabel.textContent = languageManager.translate(labelKey);
+                } else {
+                    sidebarLabel.textContent = newTheme === 'dark' ? 'Dark' : 'Light';
+                }
+            }
         }
+    });
+    
+    // Listen for theme changes from other parts of the app
+    window.addEventListener('themechange', function(e) {
+        const newTheme = e.detail.theme;
+        updateProfileToggleUI(newTheme);
     });
 }
 

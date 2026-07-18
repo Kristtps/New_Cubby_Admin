@@ -1098,163 +1098,7 @@ function initializeActionButtons() {
 
     globalActionListenerAttached = true;
 
-    // Single delegated listener for ALL buttons in ALL modules and new lockers
-    tbody.addEventListener('click', function (e) {
-        const btn = e.target.closest('.action-btn');
-        if (!btn) return;
-
-        e.preventDefault();
-        e.stopPropagation();
-
-        const action = btn.getAttribute('data-action');
-        const row = btn.closest('tr');
-        const lockerIdentifier = row.getAttribute('data-locker-row');
-        // Resolve locker by database ID if present, otherwise by composite key (module-id + code)
-        let locker = lockerRecords.find(item => {
-            if (item.dbLockerId && String(item.dbLockerId) === lockerIdentifier) return true;
-            const composite = `${item.moduleId || item.module}-${item.code}`;
-            return composite === lockerIdentifier;
-        });
-
-        console.log('Action button clicked:', { lockerIdentifier, action });
-
-        // Find the locker in ALL lockerRecords (works for all modules)
-        if (!locker) {
-            console.error('Locker not found:', lockerIdentifier, 'Available:', lockerRecords.map(l => l.code));
-            return;
-        }
-
-        console.log('Locker found:', { code: locker.code, status: locker.status, module: locker.module });
-
-        if (action === 'maintenance') {
-            handleMaintenanceToggle(locker);
-        } else if (action === 'emergency-unlock') {
-            handleEmergencyUnlock(locker);
-        } else if (action === 'delete') {
-            handleDeleteAction(locker);
-        }
-    });
-}
-
-/**
- * Handle maintenance toggle button click - cycles between available and maintenance
- */
-async function handleMaintenanceToggle(locker) {
-    const lockerId = locker.code;
-    const oldStatus = locker.status;
-    const newStatus = oldStatus === 'maintenance' ? 'available' : 'maintenance';
-
-    console.log('Toggling maintenance:', { code: lockerId, oldStatus, newStatus, dbId: locker.dbLockerId });
-
-    // Immediately update the UI for instant feedback
-    // Use the same identifier used in the row's data-locker-row attribute
-    const lockerIdentifier = locker.dbLockerId ? locker.dbLockerId : `${locker.moduleId || locker.module}-${locker.code}`;
-    const statusCell = document.querySelector(`tr[data-locker-row="${lockerIdentifier}"] .status-badge`);
-    if (statusCell) {
-        statusCell.classList.remove(oldStatus);
-        statusCell.classList.add(newStatus);
-        statusCell.textContent = newStatus;
-        console.log('Updated UI immediately:', { code: lockerId, newStatus });
-    }
-
-    // Optimistically update status in memory
-    locker.status = newStatus;
-
-    // Persist to backend (ignore result to avoid UI flicker)
-    persistLockerStatus(locker).catch(err => {
-        console.error('Failed to persist locker status:', err);
-    });
-
-    console.log('Maintenance toggled successfully:', { code: lockerId, newStatus });
-
-    if (typeof dbOps !== 'undefined' && dbOps.logConfigChangeEvent) {
-        await dbOps.logConfigChangeEvent('Maintenance Toggle', `Locker ${lockerId} toggled maintenance mode (from ${oldStatus} to ${newStatus}).`, { lockerId, oldStatus, newStatus });
-    }
-}
-
-/**
- * Emergency unlock always returns the locker to available.
- */
-async function handleEmergencyUnlock(locker) {
-    if (!confirm(`Emergency unlock ${locker.code}?`)) return;
-
-    const lockerId = locker.code;
-    const oldStatus = locker.status;
-    const newStatus = 'available';
-
-    console.log('Emergency unlocking:', { code: lockerId, oldStatus, newStatus });
-
-    // Immediately update the UI for instant feedback
-    const lockerIdentifier = locker.dbLockerId ? locker.dbLockerId : `${locker.moduleId || locker.module}-${locker.code}`;
-    const statusCell = document.querySelector(`tr[data-locker-row="${lockerIdentifier}"] .status-badge`);
-    if (statusCell) {
-        statusCell.classList.remove(oldStatus);
-        statusCell.classList.add(newStatus);
-        statusCell.textContent = newStatus;
-        console.log('Updated UI immediately:', { code: lockerId, newStatus });
-    }
-
-    locker.status = newStatus;
-
-    // Wait for database update
-    const success = await persistLockerStatus(locker);
-
-    if (!success) {
-        console.error('Failed to persist locker status');
-        locker.status = oldStatus;
-        if (statusCell) {
-            statusCell.classList.remove(newStatus);
-            statusCell.classList.add(oldStatus);
-            statusCell.textContent = oldStatus;
-        }
-        return;
-    }
-
-    // Complete any active transactions for this locker
-    if (typeof isSupabaseConnected !== 'undefined' && isSupabaseConnected() &&
-        typeof dbOps !== 'undefined' && dbOps.completeActiveTransactionForLocker && locker.dbLockerId) {
-        try {
-            await dbOps.completeActiveTransactionForLocker(locker.dbLockerId);
-            console.log('✓ Completed active transaction in database for locker:', locker.code);
-        } catch (error) {
-            console.error('Error completing active transaction:', error);
-        }
-    }
-
-    console.log('Emergency unlock completed:', { code: lockerId, newStatus });
-
-    if (typeof dbOps !== 'undefined' && dbOps.logConfigChangeEvent) {
-        await dbOps.logConfigChangeEvent('Emergency Unlock', `Locker ${lockerId} was emergency unlocked (Status: ${oldStatus} -> ${newStatus}).`, { lockerId, oldStatus, newStatus });
-    }
-}
-
-/**
- * Handle delete button click
- */
-async function handleDeleteAction(locker) {
-    if (!confirm(`Are you sure you want to delete locker ${locker.code}?`)) return;
-
-    if (typeof isSupabaseConnected !== 'undefined' && isSupabaseConnected() &&
-        typeof dbOps !== 'undefined' && dbOps.deleteLocker && locker.dbLockerId) {
-        try {
-            const success = await dbOps.deleteLocker(locker.dbLockerId);
-            if (!success) {
-                alert(`Failed to delete locker ${locker.code} from database.`);
-                return;
-            }
-        } catch (error) {
-            console.error('Error deleting locker:', error);
-            alert(`Error deleting locker ${locker.code}.`);
-            return;
-        }
-    }
-
-    if (typeof dbOps !== 'undefined' && dbOps.logConfigChangeEvent) {
-        await dbOps.logConfigChangeEvent('Locker Deleted', `Locker ${locker.code} was removed from the system.`, { lockerId: locker.code, lastStatus: locker.status });
-    }
-
-    lockerRecords = lockerRecords.filter(item => item.code !== locker.code);
-    renderLockersTable();
+    // Action buttons removed - locker rows are clickable to show rental details
 }
 
 /**
@@ -1488,20 +1332,10 @@ function addLockerRow(lockerData) {
         <td class="module-cell"><span data-field="module">${lockerData.module}</span></td>
         <td class="device-cell"><span data-field="device">${lockerData.device}</span></td>
         <td class="status-cell"><span class="status-badge ${lockerData.status}" data-field="status">${lockerData.status}</span></td>
-        <td class="actions-cell">
-            <button class="action-btn maintenance-btn" title="Toggle Maintenance" data-action="maintenance">Maintenance</button>
-            <button class="action-btn emergency-btn" title="Emergency Unlock" data-action="emergency-unlock">Emergency Unlock</button>
-            <button class="action-btn delete-btn" title="Delete" data-action="delete">Delete</button>
-        </td>
     `;
 
-    // Add click event to show rental details (except when clicking buttons)
+    // Add click event to show rental details
     newRow.addEventListener('click', async function (e) {
-        // Don't trigger if clicking action buttons
-        if (e.target.closest('.actions-cell')) {
-            return;
-        }
-
         const lockerCode = this.getAttribute('data-locker-code');
         const status = this.getAttribute('data-locker-status');
 

@@ -1145,46 +1145,36 @@ label {
 .lockers-table {
     width: 100%;
     border-collapse: collapse;
-    table-layout: fixed;
+    table-layout: auto;
 }
 
-/* Column widths */
+/* Column widths - Optimized for 5 columns (removed Actions) */
 .lockers-table th:nth-child(1),
 .lockers-table td:nth-child(1) {
-    width: 8%;
+    width: 12%;
 }
 
 .lockers-table th:nth-child(2),
 .lockers-table td:nth-child(2) {
-    width: 10%;
+    width: 15%;
 }
 
 .lockers-table th:nth-child(3),
 .lockers-table td:nth-child(3) {
-    width: 10%;
+    width: 18%;
 }
 
 .lockers-table th:nth-child(4),
 .lockers-table td:nth-child(4) {
-    width: 12%;
+    width: 25%;
 }
 
 .lockers-table th:nth-child(5),
 .lockers-table td:nth-child(5) {
-    width: 15%;
+    width: 30%;
     min-width: 120px;
 }
-
-.lockers-table th:nth-child(6),
-.lockers-table td:nth-child(6) {
-    width: 28%;
     min-width: 110px;
-}
-
-.lockers-table th:nth-child(7),
-.lockers-table td:nth-child(7) {
-    width: 27%;
-    min-width: 200px;
 }
 
 .lockers-table thead {
@@ -1447,108 +1437,6 @@ label {
 .role-badge.moderator {
     background: rgba(139, 92, 246, 0.12);
     color: #6d28d9;
-}
-
-/* ==================== LOCKER ACTION BUTTONS ==================== */
-.actions-cell {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: nowrap;
-}
-
-.action-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 5px 10px;
-    font-size: 10.5px;
-    font-weight: 700;
-    border-radius: 7px;
-    cursor: pointer;
-    letter-spacing: 0.5px;
-    transition: all 0.18s ease-in-out;
-    white-space: nowrap;
-    box-shadow: none;
-}
-
-.action-btn:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.10);
-}
-
-.action-btn:active {
-    transform: translateY(0);
-    box-shadow: none;
-}
-
-.maintenance-btn {
-    background-color: transparent;
-    color: var(--color-text-muted);
-    border: 1.5px solid var(--color-border);
-}
-
-.maintenance-btn:hover {
-    background-color: rgba(245, 158, 11, 0.1);
-    color: #b45309;
-    border-color: rgba(245, 158, 11, 0.5);
-}
-
-[data-theme="dark"] .maintenance-btn {
-    border-color: rgba(255, 255, 255, 0.12);
-    color: var(--color-text-muted);
-}
-
-[data-theme="dark"] .maintenance-btn:hover {
-    background-color: rgba(245, 158, 11, 0.15);
-    color: #fbbf24;
-    border-color: rgba(245, 158, 11, 0.5);
-}
-
-.emergency-btn {
-    background-color: transparent;
-    color: var(--color-text-muted);
-    border: 1.5px solid var(--color-border);
-}
-
-.emergency-btn:hover {
-    background-color: rgba(59, 130, 246, 0.1);
-    color: #1d4ed8;
-    border-color: rgba(59, 130, 246, 0.5);
-}
-
-[data-theme="dark"] .emergency-btn {
-    border-color: rgba(255, 255, 255, 0.12);
-    color: var(--color-text-muted);
-}
-
-[data-theme="dark"] .emergency-btn:hover {
-    background-color: rgba(59, 130, 246, 0.15);
-    color: #60a5fa;
-    border-color: rgba(59, 130, 246, 0.5);
-}
-
-.delete-btn {
-    background-color: transparent;
-    color: #b91c1c;
-    border: 1.5px solid rgba(239, 68, 68, 0.35);
-}
-
-.delete-btn:hover {
-    background-color: rgba(239, 68, 68, 0.1);
-    color: #dc2626;
-    border-color: rgba(239, 68, 68, 0.65);
-}
-
-[data-theme="dark"] .delete-btn {
-    color: #f87171;
-    border-color: rgba(248, 113, 113, 0.25);
-}
-
-[data-theme="dark"] .delete-btn:hover {
-    background-color: rgba(239, 68, 68, 0.15);
-    color: #fca5a5;
-    border-color: rgba(248, 113, 113, 0.55);
 }
 
 /* ==================== TRANSACTIONS SECTION ==================== */

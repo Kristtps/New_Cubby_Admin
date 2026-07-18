@@ -11,8 +11,22 @@ const translations = {
         'nav.rentals': 'Rentals',
         'nav.rates': 'Rates',
         'nav.reports': 'Reports',
+        'nav.feedback': 'Feedback',
+        'nav.notifications': 'Notifications',
         'nav.auditlog': 'Audit Log',
         'sidebar.adminPanel': 'Admin Panel',
+        
+        // Login Page
+        'login.title': 'Admin Login',
+        'login.subtitle': 'Sign in to your CoinCubby admin panel',
+        'login.email': 'Email Address',
+        'login.emailPlaceholder': 'Enter your email',
+        'login.password': 'Password',
+        'login.passwordPlaceholder': 'Enter your password',
+        'login.rememberMe': 'Remember me',
+        'login.signIn': 'Sign In',
+        'login.welcome': 'Welcome to',
+        'login.desc': 'Manage your locker rental system efficiently',
         
         // Overview Page
         'overview.title': 'Admin Overview',
@@ -24,6 +38,7 @@ const translations = {
         'overview.customRange': 'Custom Range',
         'overview.from': 'From',
         'overview.to': 'To',
+        'overview.apply': 'Apply',
         'stat.totalLockers': 'TOTAL LOCKERS',
         'stat.activeRentals': 'ACTIVE RENTALS',
         'stat.customers': 'CUSTOMERS',
@@ -33,6 +48,7 @@ const translations = {
         'overview.recentRentals': 'Recent Rentals',
         'overview.noRecentRentals': 'No recent rentals.',
         'overview.loading': 'Loading modules and lockers...',
+        'overview.available': 'available',
         
         // Status Legend
         'status.available': 'Available',
@@ -45,12 +61,31 @@ const translations = {
         'lockers.subtitle': 'Control compartments, toggle maintenance, and configure modules.',
         'lockers.addModule': 'Add Module',
         'lockers.deleteModule': 'Delete Module',
-        'lockers.code': 'Code',
-        'lockers.size': 'Size',
-        'lockers.module': 'Module',
-        'lockers.device': 'Device',
-        'lockers.status': 'Status',
-        'lockers.actions': 'Actions',
+        'lockers.allModules': 'All Modules',
+        'lockers.code': 'CODE',
+        'lockers.size': 'SIZE',
+        'lockers.module': 'MODULE',
+        'lockers.device': 'DEVICE',
+        'lockers.status': 'STATUS',
+        'lockers.actions': 'ACTIONS',
+        'lockers.lockers': 'LOCKERS',
+        
+        // Rental Details Modal
+        'modal.rentalDetails': 'Rental Details',
+        'modal.lockerInfo': 'Locker Information',
+        'modal.lockerNumber': 'Locker Number',
+        'modal.size': 'Size',
+        'modal.module': 'Module',
+        'modal.status': 'Status',
+        'modal.renterInfo': 'Renter Information',
+        'modal.customerName': 'Customer Name',
+        'modal.email': 'Email',
+        'modal.phone': 'Phone',
+        'modal.rentalTime': 'Rental Time',
+        'modal.startTime': 'Start Time',
+        'modal.duration': 'Duration',
+        'modal.amount': 'Amount',
+        'modal.close': 'Close',
         
         // Customers Page
         'customers.title': 'Customers',
@@ -60,38 +95,82 @@ const translations = {
         'customers.oldest': 'Oldest First',
         'customers.nameAsc': 'Name (A-Z)',
         'customers.nameDesc': 'Name (Z-A)',
-        'customers.name': 'Name',
-        'customers.email': 'Email',
-        'customers.userId': 'User ID',
-        'customers.wallet': 'Wallet',
-        'customers.rentals': 'Rentals',
-        'customers.totalSpent': 'Total Spent',
-        'customers.joined': 'Joined',
+        'customers.name': 'NAME',
+        'customers.email': 'EMAIL',
+        'customers.userId': 'USER ID',
+        'customers.wallet': 'WALLET',
+        'customers.rentals': 'RENTALS',
+        'customers.totalSpent': 'TOTAL SPENT',
+        'customers.joined': 'JOINED',
         'customers.loading': 'Loading customers...',
         
         // Transactions Page
         'transactions.title': 'Transactions',
         'transactions.subtitle': 'View all payment and transaction history.',
-        'transactions.id': 'Transaction ID',
-        'transactions.date': 'Date & Time',
-        'transactions.customer': 'Customer',
-        'transactions.type': 'Type',
-        'transactions.method': 'Method',
-        'transactions.locker': 'Locker',
-        'transactions.amount': 'Amount',
+        'transactions.id': 'TRANSACTION ID',
+        'transactions.date': 'DATE & TIME',
+        'transactions.customer': 'CUSTOMER',
+        'transactions.type': 'TYPE',
+        'transactions.method': 'METHOD',
+        'transactions.locker': 'LOCKER',
+        'transactions.amount': 'AMOUNT',
+        'transactions.status': 'STATUS',
         'transactions.loading': 'Loading transactions...',
         
         // Rentals Page
         'rentals.title': 'Active Rentals',
         'rentals.subtitle': 'Monitor all ongoing locker rentals.',
-        'rentals.locker': 'Locker',
-        'rentals.customer': 'Customer',
-        'rentals.startTime': 'Start Time',
-        'rentals.duration': 'Duration',
-        'rentals.cost': 'Cost',
-        'rentals.status': 'Status',
-        'rentals.actions': 'Actions',
+        'rentals.locker': 'LOCKER',
+        'rentals.customer': 'CUSTOMER',
+        'rentals.startTime': 'START TIME',
+        'rentals.duration': 'DURATION',
+        'rentals.cost': 'COST',
+        'rentals.status': 'STATUS',
+        'rentals.actions': 'ACTIONS',
         'rentals.loading': 'Loading rentals...',
+        
+        // Rates Page
+        'rates.title': 'Pricing & Rates',
+        'rates.subtitle': 'Configure pricing for different locker sizes.',
+        'rates.addRate': 'Add New Rate',
+        'rates.size': 'SIZE',
+        'rates.rate': 'RATE',
+        'rates.duration': 'DURATION',
+        'rates.description': 'DESCRIPTION',
+        'rates.actions': 'ACTIONS',
+        
+        // Reports Page
+        'reports.title': 'Reports & Analytics',
+        'reports.subtitle': 'View comprehensive reports and insights.',
+        'reports.dateRange': 'Date Range',
+        'reports.generate': 'Generate Report',
+        'reports.export': 'Export',
+        'reports.revenue': 'Revenue',
+        'reports.rentals': 'Rentals',
+        'reports.customers': 'Customers',
+        
+        // Feedback Page
+        'feedback.title': 'Customer Feedback',
+        'feedback.subtitle': 'View and manage customer feedback.',
+        'feedback.filter': 'Filter by Status',
+        'feedback.all': 'All',
+        'feedback.pending': 'Pending',
+        'feedback.resolved': 'Resolved',
+        
+        // Notifications Page
+        'notifications.title': 'Notifications',
+        'notifications.subtitle': 'Manage system notifications.',
+        'notifications.markAllRead': 'Mark All as Read',
+        'notifications.new': 'New',
+        'notifications.earlier': 'Earlier',
+        
+        // Audit Log Page
+        'auditlog.title': 'Audit Log',
+        'auditlog.subtitle': 'Track all system activities and changes.',
+        'auditlog.action': 'ACTION',
+        'auditlog.user': 'USER',
+        'auditlog.timestamp': 'TIMESTAMP',
+        'auditlog.details': 'DETAILS',
         
         // Profile Page
         'profile.title': 'Profile',
@@ -120,6 +199,7 @@ const translations = {
         'profile.signOut': 'Sign Out',
         'profile.administrator': 'Administrator',
         'profile.joined': 'Joined',
+        'profile.admin': 'Admin',
         
         // Buttons
         'btn.add': 'Add',
@@ -129,6 +209,9 @@ const translations = {
         'btn.cancel': 'Cancel',
         'btn.confirm': 'Confirm',
         'btn.close': 'Close',
+        'btn.apply': 'Apply',
+        'btn.export': 'Export',
+        'btn.filter': 'Filter',
         
         // Days of week
         'day.mon': 'Mon',
@@ -138,6 +221,12 @@ const translations = {
         'day.fri': 'Fri',
         'day.sat': 'Sat',
         'day.sun': 'Sun',
+        
+        // Common
+        'common.loading': 'Loading...',
+        'common.noData': 'No data available',
+        'common.search': 'Search',
+        'common.sort': 'Sort',
     },
     
     tl: {
@@ -149,8 +238,22 @@ const translations = {
         'nav.rentals': 'Mga Renta',
         'nav.rates': 'Mga Presyo',
         'nav.reports': 'Mga Ulat',
+        'nav.feedback': 'Feedback',
+        'nav.notifications': 'Mga Abiso',
         'nav.auditlog': 'Talaan ng Audit',
         'sidebar.adminPanel': 'Admin Panel',
+        
+        // Login Page (Tagalog)
+        'login.title': 'Pag-login ng Admin',
+        'login.subtitle': 'Mag-sign in sa iyong CoinCubby admin panel',
+        'login.email': 'Email Address',
+        'login.emailPlaceholder': 'Ilagay ang iyong email',
+        'login.password': 'Password',
+        'login.passwordPlaceholder': 'Ilagay ang iyong password',
+        'login.rememberMe': 'Tandaan ako',
+        'login.signIn': 'Mag-sign In',
+        'login.welcome': 'Maligayang pagdating sa',
+        'login.desc': 'Pamahalaan ang iyong locker rental system nang mahusay',
         
         // Overview Page (Tagalog)
         'overview.title': 'Pangkalahatang-Tanaw ng Admin',
@@ -162,6 +265,7 @@ const translations = {
         'overview.customRange': 'Pasadyang Saklaw',
         'overview.from': 'Mula',
         'overview.to': 'Hanggang',
+        'overview.apply': 'Ilapat',
         'stat.totalLockers': 'KABUUANG LOCKER',
         'stat.activeRentals': 'AKTIBONG RENTA',
         'stat.customers': 'MGA CUSTOMER',
@@ -171,6 +275,7 @@ const translations = {
         'overview.recentRentals': 'Kamakailang Renta',
         'overview.noRecentRentals': 'Walang kamakailang renta.',
         'overview.loading': 'Nilo-load ang mga module at locker...',
+        'overview.available': 'magagamit',
         
         // Status Legend (Tagalog)
         'status.available': 'Magagamit',
@@ -183,12 +288,31 @@ const translations = {
         'lockers.subtitle': 'Kontrolin ang mga compartment, i-toggle ang maintenance, at i-configure ang mga module.',
         'lockers.addModule': 'Magdagdag ng Module',
         'lockers.deleteModule': 'Tanggalin ang Module',
-        'lockers.code': 'Code',
-        'lockers.size': 'Laki',
-        'lockers.module': 'Module',
-        'lockers.device': 'Device',
-        'lockers.status': 'Kalagayan',
-        'lockers.actions': 'Mga Aksyon',
+        'lockers.allModules': 'Lahat ng Module',
+        'lockers.code': 'CODE',
+        'lockers.size': 'LAKI',
+        'lockers.module': 'MODULE',
+        'lockers.device': 'DEVICE',
+        'lockers.status': 'KALAGAYAN',
+        'lockers.actions': 'MGA AKSYON',
+        'lockers.lockers': 'LOCKER',
+        
+        // Rental Details Modal (Tagalog)
+        'modal.rentalDetails': 'Detalye ng Renta',
+        'modal.lockerInfo': 'Impormasyon ng Locker',
+        'modal.lockerNumber': 'Numero ng Locker',
+        'modal.size': 'Laki',
+        'modal.module': 'Module',
+        'modal.status': 'Kalagayan',
+        'modal.renterInfo': 'Impormasyon ng Nangungupahan',
+        'modal.customerName': 'Pangalan ng Customer',
+        'modal.email': 'Email',
+        'modal.phone': 'Telepono',
+        'modal.rentalTime': 'Oras ng Renta',
+        'modal.startTime': 'Oras ng Simula',
+        'modal.duration': 'Tagal',
+        'modal.amount': 'Halaga',
+        'modal.close': 'Isara',
         
         // Customers Page (Tagalog)
         'customers.title': 'Mga Customer',
@@ -198,38 +322,82 @@ const translations = {
         'customers.oldest': 'Pinaka-luma Una',
         'customers.nameAsc': 'Pangalan (A-Z)',
         'customers.nameDesc': 'Pangalan (Z-A)',
-        'customers.name': 'Pangalan',
-        'customers.email': 'Email',
-        'customers.userId': 'User ID',
-        'customers.wallet': 'Wallet',
-        'customers.rentals': 'Mga Renta',
-        'customers.totalSpent': 'Kabuuang Ginastos',
-        'customers.joined': 'Sumali',
+        'customers.name': 'PANGALAN',
+        'customers.email': 'EMAIL',
+        'customers.userId': 'USER ID',
+        'customers.wallet': 'WALLET',
+        'customers.rentals': 'MGA RENTA',
+        'customers.totalSpent': 'KABUUANG GINASTOS',
+        'customers.joined': 'SUMALI',
         'customers.loading': 'Nilo-load ang mga customer...',
         
         // Transactions Page (Tagalog)
         'transactions.title': 'Mga Transaksyon',
         'transactions.subtitle': 'Tingnan ang lahat ng bayad at kasaysayan ng transaksyon.',
-        'transactions.id': 'Transaction ID',
-        'transactions.date': 'Petsa at Oras',
-        'transactions.customer': 'Customer',
-        'transactions.type': 'Uri',
-        'transactions.method': 'Paraan',
-        'transactions.locker': 'Locker',
-        'transactions.amount': 'Halaga',
+        'transactions.id': 'TRANSACTION ID',
+        'transactions.date': 'PETSA AT ORAS',
+        'transactions.customer': 'CUSTOMER',
+        'transactions.type': 'URI',
+        'transactions.method': 'PARAAN',
+        'transactions.locker': 'LOCKER',
+        'transactions.amount': 'HALAGA',
+        'transactions.status': 'KALAGAYAN',
         'transactions.loading': 'Nilo-load ang mga transaksyon...',
         
         // Rentals Page (Tagalog)
         'rentals.title': 'Aktibong Renta',
         'rentals.subtitle': 'Subaybayan ang lahat ng kasalukuyang renta ng locker.',
-        'rentals.locker': 'Locker',
-        'rentals.customer': 'Customer',
-        'rentals.startTime': 'Oras ng Simula',
-        'rentals.duration': 'Tagal',
-        'rentals.cost': 'Gastos',
-        'rentals.status': 'Kalagayan',
-        'rentals.actions': 'Mga Aksyon',
+        'rentals.locker': 'LOCKER',
+        'rentals.customer': 'CUSTOMER',
+        'rentals.startTime': 'ORAS NG SIMULA',
+        'rentals.duration': 'TAGAL',
+        'rentals.cost': 'GASTOS',
+        'rentals.status': 'KALAGAYAN',
+        'rentals.actions': 'MGA AKSYON',
         'rentals.loading': 'Nilo-load ang mga renta...',
+        
+        // Rates Page (Tagalog)
+        'rates.title': 'Presyo at Mga Rate',
+        'rates.subtitle': 'I-configure ang presyo para sa iba\'t ibang laki ng locker.',
+        'rates.addRate': 'Magdagdag ng Bagong Rate',
+        'rates.size': 'LAKI',
+        'rates.rate': 'RATE',
+        'rates.duration': 'TAGAL',
+        'rates.description': 'PAGLALARAWAN',
+        'rates.actions': 'MGA AKSYON',
+        
+        // Reports Page (Tagalog)
+        'reports.title': 'Mga Ulat at Pagsusuri',
+        'reports.subtitle': 'Tingnan ang komprehensibong mga ulat at insight.',
+        'reports.dateRange': 'Saklaw ng Petsa',
+        'reports.generate': 'Gumawa ng Ulat',
+        'reports.export': 'I-export',
+        'reports.revenue': 'Kita',
+        'reports.rentals': 'Mga Renta',
+        'reports.customers': 'Mga Customer',
+        
+        // Feedback Page (Tagalog)
+        'feedback.title': 'Feedback ng Customer',
+        'feedback.subtitle': 'Tingnan at pamahalaan ang feedback ng customer.',
+        'feedback.filter': 'I-filter ayon sa Kalagayan',
+        'feedback.all': 'Lahat',
+        'feedback.pending': 'Naghihintay',
+        'feedback.resolved': 'Nalutas',
+        
+        // Notifications Page (Tagalog)
+        'notifications.title': 'Mga Abiso',
+        'notifications.subtitle': 'Pamahalaan ang mga abiso ng system.',
+        'notifications.markAllRead': 'Markahan Lahat bilang Nabasa',
+        'notifications.new': 'Bago',
+        'notifications.earlier': 'Mas Maaga',
+        
+        // Audit Log Page (Tagalog)
+        'auditlog.title': 'Talaan ng Audit',
+        'auditlog.subtitle': 'Subaybayan ang lahat ng aktibidad at pagbabago ng system.',
+        'auditlog.action': 'AKSYON',
+        'auditlog.user': 'USER',
+        'auditlog.timestamp': 'ORAS',
+        'auditlog.details': 'MGA DETALYE',
         
         // Profile Page (Tagalog)
         'profile.title': 'Profile',
@@ -258,6 +426,7 @@ const translations = {
         'profile.signOut': 'Mag-sign Out',
         'profile.administrator': 'Tagapangasiwa',
         'profile.joined': 'Sumali',
+        'profile.admin': 'Admin',
         
         // Buttons (Tagalog)
         'btn.add': 'Magdagdag',
@@ -267,6 +436,9 @@ const translations = {
         'btn.cancel': 'Kanselahin',
         'btn.confirm': 'Kumpirmahin',
         'btn.close': 'Isara',
+        'btn.apply': 'Ilapat',
+        'btn.export': 'I-export',
+        'btn.filter': 'I-filter',
         
         // Days of week (Tagalog)
         'day.mon': 'Lun',
@@ -276,6 +448,12 @@ const translations = {
         'day.fri': 'Biy',
         'day.sat': 'Sab',
         'day.sun': 'Lin',
+        
+        // Common (Tagalog)
+        'common.loading': 'Nilo-load...',
+        'common.noData': 'Walang available na data',
+        'common.search': 'Maghanap',
+        'common.sort': 'I-sort',
     }
 };
 
