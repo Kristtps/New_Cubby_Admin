@@ -4,6 +4,8 @@
  */
 
 let allNotifications = [];
+let currentFilter = 'all';
+let searchQuery = '';
 
 // Initialize notifications page
 document.addEventListener('DOMContentLoaded', async function () {
@@ -63,54 +65,185 @@ async function loadNotifications() {
 }
 
 /**
+ * Set the notification filter (all, unread, read)
+ */
+window.setNotificationFilter = function(filter, btnElement) {
+    currentFilter = filter;
+    
+    // Update active tab styling
+    document.querySelectorAll('.filter-tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    if (btnElement) btnElement.classList.add('active');
+    
+    renderNotifications();
+};
+
+/**
+ * Search notifications
+ */
+window.onSearchNotifications = function(query) {
+    searchQuery = query.toLowerCase().trim();
+    renderNotifications();
+};
+
+/**
+ * Format a Date object to e.g. "Today • 8:04 AM"
+ */
+function formatNotificationDate(dateString) {
+    const date = new Date(dateString);
+    const now = new Date();
+    const isToday = date.getDate() === now.getDate() && date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+    
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    const isYesterday = date.getDate() === yesterday.getDate() && date.getMonth() === yesterday.getMonth() && date.getFullYear() === yesterday.getFullYear();
+
+    let timeString = date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    
+    if (isToday) {
+        return `Today • ${timeString}`;
+    } else if (isYesterday) {
+        return `Yesterday • ${timeString}`;
+    } else {
+        const dateStr = date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+        return `${dateStr} • ${timeString}`;
+    }
+}
+
+/**
+ * Determine the group a notification belongs to
+ */
+function getNotificationGroup(dateString) {
+    const date = new Date(dateString);
+    const now = new Date();
+    
+    // Reset time for accurate day difference
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const notifDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    
+    const diffTime = Math.abs(today - notifDate);
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays <= 7) return 'This Week';
+    return 'Older';
+}
+
+/**
  * Render notifications
  */
 function renderNotifications() {
     const container = document.getElementById('notifications-container');
+    if (!container) return;
 
-    if (allNotifications.length === 0) {
+    // 1. Filter notifications
+    let filtered = allNotifications.filter(notification => {
+        // Filter by Read/Unread status
+        if (currentFilter === 'unread' && notification.is_read) return false;
+        if (currentFilter === 'read' && !notification.is_read) return false;
+        
+        // Filter by Search query
+        if (searchQuery) {
+            const title = (notification.title || '').toLowerCase();
+            const message = (notification.message || '').toLowerCase();
+            if (!title.includes(searchQuery) && !message.includes(searchQuery)) {
+                return false;
+            }
+        }
+        return true;
+    });
+
+    if (filtered.length === 0) {
         container.innerHTML = `
             <div class="empty-notifications">
                 <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
                     <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
                 </svg>
-                <h3>No notifications yet</h3>
-                <p>You'll see system notifications here when they arrive.</p>
+                <h3>No notifications found</h3>
+                <p>Try adjusting your search or filters.</p>
             </div>
         `;
         return;
     }
 
-    container.innerHTML = allNotifications.map(notification => {
-        const isUnread = !notification.is_read;
-        const timeAgo = getTimeAgo(notification.created_at);
-        const icon = getNotificationIcon(notification.type);
-        const iconClass = getNotificationIconClass(notification.type);
-        const priorityBadge = notification.priority !== 'normal'
-            ? `<span class="notification-badge badge-${notification.priority}">${notification.priority}</span>`
-            : '';
+    // 2. Group notifications
+    const groups = {
+        'Today': [],
+        'Yesterday': [],
+        'This Week': [],
+        'Older': []
+    };
 
-        return `
-            <div class="notification-item ${isUnread ? 'unread' : ''}" onclick="markAsRead('${notification.notification_id}')">
-                <div class="notification-content">
-                    <div class="notification-icon ${iconClass}">
-                        ${icon}
-                    </div>
-                    <div class="notification-details">
-                        <div class="notification-header-row">
-                            <div class="notification-title">${notification.title}</div>
-                            <div class="notification-meta">
-                                ${priorityBadge}
-                                <span class="notification-time">${timeAgo}</span>
-                            </div>
+    filtered.forEach(notification => {
+        const group = getNotificationGroup(notification.created_at);
+        groups[group].push(notification);
+    });
+
+    // 3. Render HTML
+    let htmlContent = '';
+    
+    ['Today', 'Yesterday', 'This Week', 'Older'].forEach(groupName => {
+        const groupItems = groups[groupName];
+        if (groupItems.length === 0) return;
+        
+        htmlContent += `<h3 class="group-header">${groupName}</h3>`;
+        
+        htmlContent += groupItems.map(notification => {
+            const isUnread = !notification.is_read;
+            const timeAgo = getTimeAgo(notification.created_at);
+            const formattedDate = formatNotificationDate(notification.created_at);
+            const icon = getNotificationIcon(notification.type);
+            const iconClass = getNotificationIconClass(notification.type);
+            
+            return `
+                <div id="notif-${notification.notification_id}" class="notification-item ${isUnread ? 'unread' : ''}" onclick="markAsRead('${notification.notification_id}')">
+                    <div class="notification-content">
+                        <div class="notification-icon ${iconClass}">
+                            ${icon}
                         </div>
-                        <div class="notification-message">${notification.message}</div>
+                        <div class="notification-details">
+                            <div class="notification-header-row">
+                                <div class="notification-title">${notification.title || 'Notification'}</div>
+                                <div class="notification-meta">
+                                    <span class="relative-time">${timeAgo}</span>
+                                    ${isUnread ? '<div class="unread-dot"></div>' : ''}
+                                </div>
+                            </div>
+                            <div class="notification-message">${notification.message || ''}</div>
+                            <div class="notification-datetime">${formattedDate}</div>
+                        </div>
                     </div>
                 </div>
-            </div>
-        `;
-    }).join('');
+            `;
+        }).join('');
+    });
+
+    container.innerHTML = htmlContent + `
+        <button class="load-more-btn">Load More</button>
+    `;
+
+    // Highlight specific notification if present in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const highlightId = urlParams.get('highlight_id');
+    
+    if (highlightId) {
+        setTimeout(() => {
+            const notifElement = document.getElementById(`notif-${highlightId}`);
+            if (notifElement) {
+                notifElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                notifElement.classList.add('highlight-pulse');
+                
+                if (notifElement.classList.contains('unread')) {
+                    markAsRead(highlightId);
+                }
+                
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+        }, 100);
+    }
 }
 
 /**

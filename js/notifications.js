@@ -110,6 +110,9 @@ async function getUnreadNotificationCount() {
     }
 }
 
+// Track processed notifications in this session to prevent duplicates
+const processedNotifications = new Set();
+
 /**
  * Set up Supabase realtime subscription to listen for new notifications.
  * Increments badge count and triggers device popup notification immediately.
@@ -124,6 +127,12 @@ function setupRealtimeListener() {
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, async (payload) => {
             const newNotif = payload.new;
             if (newNotif && newNotif.is_read === false) {
+                // Prevent duplicate notifications in the same session
+                if (processedNotifications.has(newNotif.notification_id)) {
+                    return;
+                }
+                processedNotifications.add(newNotif.notification_id);
+
                 // Increment badge count
                 const badge = document.getElementById('notificationBadge');
                 if (badge) {
@@ -139,8 +148,8 @@ function setupRealtimeListener() {
                     await loadDropdownNotifications();
                 }
 
-                // Trigger desktop/phone system notification popup
-                showDeviceNotification(newNotif.title, newNotif.message);
+                // Trigger desktop/phone system notification popup or in-app toast
+                showDeviceNotification(newNotif.notification_id, newNotif.title, newNotif.message);
             }
         })
         .subscribe();
@@ -163,40 +172,84 @@ function requestDeviceNotificationPermission() {
 /**
  * Show a device/desktop notification in the system notification panel/bar
  */
-function showDeviceNotification(title, message) {
-    if (!('Notification' in window)) {
+function showDeviceNotification(id, title, message) {
+    if (!('Notification' in window) || Notification.permission !== 'granted') {
+        // Fallback to in-app toast popup if desktop notifications disabled/unsupported
+        showInAppToast(id, title, message);
         return;
     }
 
-    if (Notification.permission === 'granted') {
-        const options = {
-            body: message,
-            icon: '../assets/logo.png',
-            badge: '../assets/logo.png',
-            vibrate: [200, 100, 200], // Vibration pattern for supported mobile devices
-            tag: 'coincubby-notification',
-            renotify: true
-        };
+    const options = {
+        body: message,
+        icon: '../assets/logo.png',
+        badge: '../assets/logo.png',
+        vibrate: [200, 100, 200], // Vibration pattern for supported mobile devices
+        tag: 'coincubby-notification-' + id,
+        renotify: true
+    };
 
-        try {
-            const notification = new Notification(title, options);
+    try {
+        const notification = new Notification(title, options);
+        
+        notification.onclick = function(event) {
+            event.preventDefault();
+            window.focus();
+            notification.close();
             
-            notification.onclick = function(event) {
-                event.preventDefault();
-                window.focus();
-                notification.close();
-                
-                // Focus the notification dropdown in UI
-                const dropdown = document.getElementById('notificationDropdown');
-                if (dropdown) {
-                    dropdown.style.display = 'flex';
-                    loadDropdownNotifications();
-                }
-            };
-        } catch (err) {
-            console.error('Failed to create device notification:', err);
-        }
+            // Navigate to notifications page and highlight
+            window.location.href = `notifications.html?highlight_id=${id}`;
+        };
+    } catch (err) {
+        console.error('Failed to create device notification:', err);
+        showInAppToast(id, title, message);
     }
+}
+
+/**
+ * Show an in-app toast notification as a fallback
+ */
+function showInAppToast(id, title, message) {
+    let container = document.getElementById('toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'toast-container';
+        document.body.appendChild(container);
+    }
+
+    const toast = document.createElement('div');
+    toast.className = 'toast-notification';
+    toast.onclick = function(e) {
+        if (e.target.closest('.toast-close')) return; // Ignore if clicking close
+        window.location.href = `notifications.html?highlight_id=${id}`;
+    };
+
+    toast.innerHTML = `
+        <img src="../assets/logo.png" alt="CoinCubby" class="toast-icon">
+        <div class="toast-content">
+            <div class="toast-title">
+                ${title}
+                <span class="toast-time">Just now</span>
+            </div>
+            <div class="toast-message">${message}</div>
+        </div>
+        <button class="toast-close" onclick="this.closest('.toast-notification').remove(); event.stopPropagation();">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+        </button>
+    `;
+
+    container.appendChild(toast);
+
+    // Trigger animation
+    setTimeout(() => toast.classList.add('show'), 10);
+
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 400); // Wait for transition
+    }, 5000);
 }
 
 /**

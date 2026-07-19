@@ -1173,6 +1173,12 @@ label {
     transform: translateY(0);
 }
 
+/* Hide native password reveal icon in Edge/IE to prevent overlapping with custom toggle icons */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+    display: none;
+}
+
 /* ==================== TABLE CONTAINER ==================== */
 .table-container {
     background: var(--color-panel-bg);
@@ -3310,4 +3316,131 @@ textarea:focus {
 .custom-option-item.selected {
     background: var(--color-primary-bg);
     color: var(--color-primary-dark);
+}
+
+/* ==================== TOAST & DESKTOP NOTIFICATIONS ==================== */
+#toast-container {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.toast-notification {
+    background: var(--color-panel-bg);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    width: 320px;
+    padding: 16px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    cursor: pointer;
+    transform: translateX(120%);
+    opacity: 0;
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s;
+    border-left: 4px solid var(--color-primary);
+}
+
+.toast-notification.show {
+    transform: translateX(0);
+    opacity: 1;
+}
+
+.toast-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    flex-shrink: 0;
+    object-fit: contain;
+    background: var(--color-bg-light);
+    padding: 4px;
+}
+
+.toast-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.toast-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--color-dark);
+    margin-bottom: 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.toast-time {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--color-text-muted);
+}
+
+.toast-message {
+    font-size: 13px;
+    color: var(--color-text-muted);
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.toast-close {
+    background: none;
+    border: none;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    padding: 2px;
+    margin-left: 8px;
+    border-radius: 4px;
+}
+.toast-close:hover {
+    background: var(--color-bg-light);
+    color: var(--color-dark);
+}
+
+/* Highlight Animation */
+@keyframes highlightPulse {
+    0% { background-color: rgba(239, 68, 68, 0.2); transform: scale(1.02); }
+    50% { background-color: rgba(239, 68, 68, 0.1); transform: scale(1); }
+    100% { background-color: transparent; }
+}
+
+.highlight-pulse {
+    animation: highlightPulse 2.5s ease-out;
+}
+
+[data-theme="dark"] .toast-notification {
+    background: var(--dark-bg-secondary);
+    border-color: var(--dark-border);
+}
+
+[data-theme="dark"] .toast-title {
+    color: var(--dark-text-primary);
+}
+
+[data-theme="dark"] .toast-message,
+[data-theme="dark"] .toast-time {
+    color: var(--dark-text-secondary);
+}
+
+[data-theme="dark"] .toast-icon {
+    background: var(--dark-bg-tertiary);
+}
+
+/* ==================== GLOBAL STICKY TABLE HEADERS ==================== */
+.table-container thead,
+.transactions-table-wrapper thead,
+.customers-table-wrapper thead,
+.rates-history-table-wrapper thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
 }

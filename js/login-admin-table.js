@@ -140,6 +140,16 @@ async function handleLoginSubmit(e) {
         console.log('✓ Admin authenticated:', adminData.email);
         showSuccess('Login successful! Redirecting...');
 
+        // Request desktop notification permission since this is tied to a user gesture
+        if ('Notification' in window && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+            try {
+                await Notification.requestPermission();
+                console.log('Notification permission requested during login');
+            } catch (err) {
+                console.warn('Could not request notification permission:', err);
+            }
+        }
+
         // Store auth data
         storeLoginCredentials({
             id: adminData.id,

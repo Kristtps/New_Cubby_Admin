@@ -5,6 +5,11 @@
 // Audit log entries (initially empty)
 const auditLogEntries = [];
 
+// Current filter states
+let auditCategoryFilter = 'all';
+let auditDateFilter = 'all';
+let auditSearchQuery = '';
+
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', async function () {
     // Check authentication
@@ -24,18 +29,14 @@ async function initializeAuditLog() {
     await loadAuditLogEntries();
     displayAuditLog();
     initializeAuditLogSearch();
+    initializeAuditAutoRefresh();
+    initializeAuditInfiniteScroll();
 }
 
 /**
  * Format timestamp to readable format with Manila/Singapore timezone (UTC+8)
- * Properly handles server timestamps from Supabase ap-southeast-1 region
- * 
- * Since database stores timestamps without timezone info and assumes UTC+8,
- * we format them directly for display using formatForDisplay with Manila timezone
  */
 function formatTimestamp(timestamp) {
-    // Use the centralized formatForDisplay function for consistency
-    // This automatically converts to Manila timezone (UTC+8)
     if (!timestamp) return 'N/A';
 
     const formatted = formatForDisplay(timestamp, {
@@ -52,6 +53,52 @@ function formatTimestamp(timestamp) {
 }
 
 /**
+ * Get time-only string for card display (e.g., "11:49 PM")
+ */
+function getTimeString(timestamp) {
+    if (!timestamp) return '';
+    try {
+        const date = new Date(timestamp);
+        return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
+    } catch (e) {
+        return '';
+    }
+}
+
+/**
+ * Get full date string for card display (e.g., "Jul 18, 2026")
+ */
+function getDateString(timestamp) {
+    if (!timestamp) return '';
+    try {
+        const date = new Date(timestamp);
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    } catch (e) {
+        return '';
+    }
+}
+
+/**
+ * Group audit log entry by date (Today, Yesterday, This Week, Older)
+ */
+function getAuditGroup(timestamp) {
+    if (!timestamp) return 'Older';
+    const date = new Date(timestamp);
+    const now = new Date();
+
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const entryDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+    const diffTime = Math.abs(today - entryDate);
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays <= 7) return 'This Week';
+    return 'Older';
+}
+
+/**
  * Initialize audit log search functionality
  */
 function initializeAuditLogSearch() {
@@ -59,29 +106,44 @@ function initializeAuditLogSearch() {
     if (!searchInput) return;
 
     searchInput.addEventListener('input', function (e) {
-        const searchTerm = e.target.value.toLowerCase().trim();
-
-        if (searchTerm === '') {
-            displayAuditLog();
-        } else {
-            searchAuditLog(searchTerm);
-        }
+        auditSearchQuery = e.target.value.toLowerCase().trim();
+        displayAuditLog();
     });
 }
+
+/**
+ * Set category filter
+ */
+window.setAuditCategoryFilter = function (category, btnElement) {
+    auditCategoryFilter = category;
+
+    document.querySelectorAll('.category-tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    if (btnElement) btnElement.classList.add('active');
+
+    displayAuditLog();
+};
+
+/**
+ * Set date filter
+ */
+window.setAuditDateFilter = function (range) {
+    auditDateFilter = range;
+    displayAuditLog();
+};
 
 /**
  * Load audit log entries from database or localStorage
  */
 async function loadAuditLogEntries() {
     try {
-        // Try to load from Supabase first
         if (typeof isSupabaseConnected !== 'undefined' && isSupabaseConnected()) {
             if (typeof dbOps !== 'undefined' && dbOps.fetchAllAuditLogs) {
                 try {
                     const entries = await dbOps.fetchAllAuditLogs();
                     if (entries && entries.length > 0) {
-                        // Transform database entries to UI format
-                        auditLogEntries.length = 0; // Clear existing entries
+                        auditLogEntries.length = 0;
                         entries.forEach(entry => {
                             const details = entry.details || {};
                             auditLogEntries.push({
@@ -92,11 +154,12 @@ async function loadAuditLogEntries() {
                                 description: details.description || '',
                                 user: entry.user_id || 'system',
                                 timestamp: formatTimestamp(entry.timestamp),
+                                rawTimestamp: entry.timestamp,
                                 icon: details.icon || 'info',
                                 type: details.type || 'system'
                             });
                         });
-                        console.log('✓ Audit log loaded from database:', auditLogEntries);
+                        console.log('✓ Audit log loaded from database:', auditLogEntries.length);
                         return;
                     }
                 } catch (error) {
@@ -105,12 +168,12 @@ async function loadAuditLogEntries() {
             }
         }
 
-        // Fall back to localStorage
         const savedEntries = localStorage.getItem('coincubby_audit_log');
         if (savedEntries) {
             const entries = JSON.parse(savedEntries);
-            auditLogEntries.unshift(...entries);
-            console.log('✓ Audit log entries loaded from localStorage', entries);
+            auditLogEntries.length = 0;
+            auditLogEntries.push(...entries);
+            console.log('✓ Audit log entries loaded from localStorage', entries.length);
         }
     } catch (error) {
         console.warn('Using default audit log entries:', error);
@@ -118,45 +181,144 @@ async function loadAuditLogEntries() {
 }
 
 /**
- * Display audit log entries
+ * Get filtered entries based on current search, category, and date filters
  */
-function displayAuditLog(entries = auditLogEntries) {
-    const auditLogList = document.getElementById('auditLogList');
+function getFilteredEntries() {
+    return auditLogEntries.filter(entry => {
+        // Category filter
+        if (auditCategoryFilter !== 'all') {
+            const entryType = (entry.type || '').toLowerCase();
+            const entryBadge = (entry.badge || '').toLowerCase();
+            if (entryType !== auditCategoryFilter && entryBadge !== auditCategoryFilter) {
+                return false;
+            }
+        }
 
+        // Date filter
+        if (auditDateFilter !== 'all') {
+            const ts = entry.rawTimestamp || entry.timestamp;
+            const group = getAuditGroup(ts);
+            if (auditDateFilter === 'today' && group !== 'Today') return false;
+            if (auditDateFilter === 'week' && group !== 'Today' && group !== 'Yesterday' && group !== 'This Week') return false;
+            if (auditDateFilter === 'month') {
+                const date = new Date(ts);
+                const now = new Date();
+                if (date.getMonth() !== now.getMonth() || date.getFullYear() !== now.getFullYear()) return false;
+            }
+        }
+
+        // Search filter
+        if (auditSearchQuery) {
+            const term = auditSearchQuery;
+            const action = (entry.action || '').toLowerCase();
+            const description = (entry.description || '').toLowerCase();
+            const user = (entry.user || '').toLowerCase();
+            const badge = (entry.badge || '').toLowerCase();
+            const type = (entry.type || '').toLowerCase();
+            if (!action.includes(term) && !description.includes(term) && !user.includes(term) && !badge.includes(term) && !type.includes(term)) {
+                return false;
+            }
+        }
+
+        return true;
+    });
+}
+
+/**
+ * Map icon type to CSS class
+ */
+function getIconClass(iconType) {
+    const map = {
+        success: 'icon-success',
+        warning: 'icon-warning',
+        error: 'icon-error',
+        info: 'icon-info'
+    };
+    return map[iconType] || 'icon-default';
+}
+
+/**
+ * Display audit log entries as grouped cards
+ */
+function displayAuditLog() {
+    const auditLogList = document.getElementById('auditLogList');
     if (!auditLogList) {
         console.error('Audit log list container not found');
         return;
     }
 
-    if (entries.length === 0) {
+    const filtered = getFilteredEntries();
+
+    if (filtered.length === 0) {
         auditLogList.innerHTML = `
             <div class="auditlog-empty">
                 <div class="auditlog-empty-icon">📋</div>
                 <div class="auditlog-empty-title">No audit entries</div>
-                <div class="auditlog-empty-message">No actions have been logged yet</div>
+                <div class="auditlog-empty-message">No actions match your current filters.</div>
             </div>
         `;
         return;
     }
 
-    auditLogList.innerHTML = entries.map(entry => `
-        <div class="auditlog-entry">
-            <div class="auditlog-icon ${entry.icon}">
-                ${getIconSVG(entry.icon)}
-            </div>
-            <div class="auditlog-content">
-                <div class="auditlog-header">
-                    <span class="auditlog-action">${entry.action}</span>
-                    <span class="auditlog-badge badge-${entry.badgeType || 'secondary'}">${entry.badge}</span>
+    // Group entries
+    const groups = {
+        'Today': [],
+        'Yesterday': [],
+        'This Week': [],
+        'Older': []
+    };
+
+    filtered.forEach(entry => {
+        const ts = entry.rawTimestamp || entry.timestamp;
+        const group = getAuditGroup(ts);
+        groups[group].push(entry);
+    });
+
+    // Render
+    let html = '';
+    ['Today', 'Yesterday', 'This Week', 'Older'].forEach(groupName => {
+        const items = groups[groupName];
+        if (items.length === 0) return;
+
+        html += `<div class="auditlog-group-header">${groupName}</div>`;
+
+        items.forEach(entry => {
+            const ts = entry.rawTimestamp || entry.timestamp;
+            const timeStr = getTimeString(ts);
+            const dateStr = getDateString(ts);
+            const iconClass = getIconClass(entry.icon);
+
+            html += `
+                <div class="auditlog-card">
+                    <div class="auditlog-card-icon ${iconClass}">
+                        ${getIconSVG(entry.icon)}
+                    </div>
+                    <div class="auditlog-card-body">
+                        <div class="auditlog-card-top-row">
+                            <div class="auditlog-card-title-area">
+                                <span class="auditlog-card-title">${entry.action}</span>
+                                <span class="auditlog-card-badge badge-${entry.badgeType || 'secondary'}">${entry.badge}</span>
+                            </div>
+                            <div class="auditlog-card-time">
+                                <div>${timeStr}</div>
+                                <div class="auditlog-card-time-full">${dateStr}</div>
+                            </div>
+                        </div>
+                        <p class="auditlog-card-desc">${entry.description}</p>
+                        <div class="auditlog-card-meta">
+                            <span class="auditlog-card-user">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                                ${entry.user}
+                            </span>
+                        </div>
+                    </div>
                 </div>
-                <p class="auditlog-description">${entry.description}</p>
-                <div class="auditlog-meta">
-                    <span class="auditlog-user">${entry.user}</span>
-                    <span class="auditlog-timestamp">${entry.timestamp}</span>
-                </div>
-            </div>
-        </div>
-    `).join('');
+            `;
+        });
+    });
+
+    auditLogList.innerHTML = html;
+    console.log(`✓ Displayed ${filtered.length} audit entries`);
 }
 
 /**
@@ -178,7 +340,6 @@ function getIconSVG(iconType) {
  */
 async function addAuditLogEntry(entry) {
     try {
-        // Use convertToSGT to ensure proper timezone conversion when saving
         const timestamp = convertToSGT(new Date()).toISOString();
 
         const dbEntry = {
@@ -194,7 +355,6 @@ async function addAuditLogEntry(entry) {
             timestamp: timestamp
         };
 
-        // Persist to Supabase if connected
         if (typeof isSupabaseConnected !== 'undefined' && isSupabaseConnected()) {
             if (typeof dbOps !== 'undefined' && dbOps.createAuditLog) {
                 await dbOps.createAuditLog(dbEntry);
@@ -204,6 +364,7 @@ async function addAuditLogEntry(entry) {
         const uiEntry = {
             id: Date.now(),
             timestamp: formatTimestamp(new Date()),
+            rawTimestamp: new Date().toISOString(),
             ...entry
         };
 
@@ -230,29 +391,19 @@ function saveToLocalStorage() {
 }
 
 /**
- * Filter audit log by type
+ * Search audit log entries (legacy compatibility)
  */
-function filterAuditLogByType(type) {
-    const filtered = type === 'all'
-        ? auditLogEntries
-        : auditLogEntries.filter(entry => entry.type === type);
-
-    displayAuditLog(filtered);
+function searchAuditLog(searchTerm) {
+    auditSearchQuery = searchTerm.toLowerCase();
+    displayAuditLog();
 }
 
 /**
- * Search audit log entries
+ * Filter audit log by type (legacy compatibility)
  */
-function searchAuditLog(searchTerm) {
-    const term = searchTerm.toLowerCase();
-    const filtered = auditLogEntries.filter(entry =>
-        (entry.action && entry.action.toLowerCase().includes(term)) ||
-        (entry.description && entry.description.toLowerCase().includes(term)) ||
-        (entry.user && entry.user.toLowerCase().includes(term)) ||
-        (entry.badge && entry.badge.toLowerCase().includes(term))
-    );
-
-    displayAuditLog(filtered);
+function filterAuditLogByType(type) {
+    auditCategoryFilter = type;
+    displayAuditLog();
 }
 
 /**
@@ -417,17 +568,9 @@ window.logSystemEvent = logSystemEvent;
 window.logMaintenanceEvent = logMaintenanceEvent;
 window.logCashCollectionEvent = logCashCollectionEvent;
 
-
 // ==================== AJAX FUNCTIONALITY ====================
 
-/**
- * Store current state for AJAX operations
- */
 let autoRefreshAuditInterval = null;
-let allAuditLogsData = [];
-let displayedAuditCount = 0;
-const AUDIT_ITEMS_PER_LOAD = 30;
-let isLoadingMoreAudit = false;
 
 /**
  * Initialize auto-refresh for real-time audit log updates (every 15 seconds)
@@ -436,11 +579,12 @@ function initializeAuditAutoRefresh() {
     autoRefreshAuditInterval = setInterval(async function () {
         try {
             await loadAuditLogEntries();
+            displayAuditLog();
             console.log('✓ Audit log auto-refreshed');
         } catch (error) {
             console.error('Audit log auto-refresh error:', error);
         }
-    }, 15000); // 15 seconds
+    }, 15000);
 }
 
 /**
@@ -462,125 +606,7 @@ function initializeAuditInfiniteScroll() {
 
     container.addEventListener('scroll', function () {
         if (container.scrollTop + container.clientHeight >= container.scrollHeight - 100) {
-            loadMoreAuditLogs();
+            // Future: load more entries if pagination is needed
         }
     });
-}
-
-/**
- * Load more audit log entries
- */
-function loadMoreAuditLogs() {
-    if (isLoadingMoreAudit) return;
-
-    isLoadingMoreAudit = true;
-    const auditLogList = document.getElementById('auditLogList');
-
-    if (!auditLogList) return;
-
-    const currentCount = auditLogList.querySelectorAll('.auditlog-entry').length;
-
-    // If we've already loaded all entries, don't load more
-    if (currentCount >= auditLogEntries.length) {
-        isLoadingMoreAudit = false;
-        return;
-    }
-
-    // Simulate loading delay for better UX
-    setTimeout(() => {
-        const nextBatch = auditLogEntries.slice(currentCount, currentCount + AUDIT_ITEMS_PER_LOAD);
-        const nextBatchHTML = nextBatch.map(entry => `
-            <div class="auditlog-entry">
-                <div class="auditlog-icon ${entry.icon}">
-                    ${getIconSVG(entry.icon)}
-                </div>
-                <div class="auditlog-content">
-                    <div class="auditlog-header">
-                        <span class="auditlog-action">${entry.action}</span>
-                        <span class="auditlog-badge badge-${entry.badgeType || 'secondary'}">${entry.badge}</span>
-                    </div>
-                    <p class="auditlog-description">${entry.description}</p>
-                    <div class="auditlog-meta">
-                        <span class="auditlog-user">${entry.user}</span>
-                        <span class="auditlog-timestamp">${entry.timestamp}</span>
-                    </div>
-                </div>
-            </div>
-        `).join('');
-
-        auditLogList.innerHTML += nextBatchHTML;
-        isLoadingMoreAudit = false;
-        console.log(`✓ Loaded ${nextBatch.length} more audit entries`);
-    }, 300);
-}
-
-/**
- * Store all audit logs for lazy loading
- */
-function storeAllAuditLogsData() {
-    allAuditLogsData = [...auditLogEntries];
-}
-
-/**
- * Update displayAuditLog to support lazy loading
- */
-const originalDisplayAuditLog = displayAuditLog;
-function displayAuditLog(entries = auditLogEntries) {
-    const auditLogList = document.getElementById('auditLogList');
-
-    if (!auditLogList) {
-        console.error('Audit log list container not found');
-        return;
-    }
-
-    if (entries.length === 0) {
-        auditLogList.innerHTML = `
-            <div class="auditlog-empty">
-                <div class="auditlog-empty-icon">📋</div>
-                <div class="auditlog-empty-title">No audit entries</div>
-                <div class="auditlog-empty-message">No actions have been logged yet</div>
-            </div>
-        `;
-        return;
-    }
-
-    storeAllAuditLogsData();
-
-    // Initially load only first AUDIT_ITEMS_PER_LOAD items
-    const initialBatch = entries.slice(0, AUDIT_ITEMS_PER_LOAD);
-
-    auditLogList.innerHTML = initialBatch.map(entry => `
-        <div class="auditlog-entry">
-            <div class="auditlog-icon ${entry.icon}">
-                ${getIconSVG(entry.icon)}
-            </div>
-            <div class="auditlog-content">
-                <div class="auditlog-header">
-                    <span class="auditlog-action">${entry.action}</span>
-                    <span class="auditlog-badge badge-${entry.badgeType || 'secondary'}">${entry.badge}</span>
-                </div>
-                <p class="auditlog-description">${entry.description}</p>
-                <div class="auditlog-meta">
-                    <span class="auditlog-user">${entry.user}</span>
-                    <span class="auditlog-timestamp">${entry.timestamp}</span>
-                </div>
-            </div>
-        </div>
-    `).join('');
-
-    console.log(`✓ Displayed ${initialBatch.length} audit entries (${entries.length} total)`);
-}
-
-/**
- * Enhanced initialize audit log with AJAX features
- */
-const originalInitializeAuditLog = initializeAuditLog;
-async function initializeAuditLog() {
-    await loadAuditLogEntries();
-    displayAuditLog();
-    initializeAuditLogSearch();
-
-    // Initialize AJAX features
-    initializeAuditAutoRefresh();
-    initializeAuditInfiniteScroll();
 }

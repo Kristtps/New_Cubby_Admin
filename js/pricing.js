@@ -2,30 +2,7 @@
 // PRICING CALCULATION MODULE
 // ========================================
 
-/**
- * PRICING LOGIC:
- * 
- * 1. Rates come from database (Small, Medium, Large hourly rates)
- * 
- * 2. Fixed-Duration (Prepaid):
- *    - Hours × Hourly Rate
- *    - Example (₱15/hr): 1hr = ₱15, 2hr = ₱30, 3hr = ₱45
- * 
- * 3. Open Hour (Pay-as-you-go):
- *    - Charged in 30-minute steps
- *    - First 30 min: Half hourly rate
- *    - Next 30 min: Full hourly rate
- *    - Example (₱15/hr): 1-30min = ₱7.50, 31-60min = ₱15.00
- * 
- * 4. Overtime (Exceeding Prepaid):
- *    - Charged in 30-minute steps
- *    - 10-minute free grace period at start of each block
- *    - Example (₱15/hr):
- *      0-10 min late: ₱0 (Free)
- *      11-30 min late: ₱7.50 (Half-rate)
- *      31-40 min late: ₱7.50 
- *      41-60 min late: ₱15.00 (Full-rate)
- */
+
 
 /**
  * Get rates from database

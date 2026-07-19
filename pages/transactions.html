@@ -214,7 +214,7 @@
                 <h2 class="section-title" data-i18n="transactions.sectionTitle">All Transactions</h2>
 
                 <div class="transactions-table-container">
-                    <div class="transactions-table-wrapper">
+                    <div class="transactions-table-wrapper" style="max-height: 500px; overflow-y: auto;">
                         <table class="transactions-table">
                             <thead>
                                 <tr>
@@ -227,10 +227,6 @@
                                     <th class="amount-header" data-i18n="transactions.amount">Amount</th>
                                 </tr>
                             </thead>
-                        </table>
-                    </div>
-                    <div class="transactions-table-body-wrapper">
-                        <table class="transactions-table">
                             <tbody id="transactionTableBody">
                                 <!-- Data will be populated by JavaScript -->
                             </tbody>

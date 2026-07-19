@@ -1,388 +1,506 @@
 /* ========================================
-   AUDIT LOG PAGE - SPECIFIC STYLES
+   AUDIT LOG PAGE - CARD-BASED ACTIVITY FEED
    ======================================== */
 
-/* Override main content to prevent page scrolling */
-.main-content {
-    height: 100vh;
-    overflow: hidden;
+/* Page Wrapper */
+.auditlog-page-wrapper {
     display: flex;
     flex-direction: column;
-}
-
-/* Audit Log Container */
-.auditlog-container {
-    background: white;
-    border-radius: 12px;
-    padding: 24px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-    border: 1px solid #e5e7eb;
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-
-    /* Make container flex to fill available space */
     flex: 1;
-    display: flex;
-    flex-direction: column;
     overflow: hidden;
-    height: calc(100vh - 100px);
-    /* increased height */
-    /* adjust as needed */
+    gap: 0;
 }
 
-.auditlog-container:hover {
-    border-color: var(--color-primary);
-}
-
-[data-theme="dark"] .auditlog-container {
-    background: #242424;
-    border-color: #3d3d3d;
-}
-
-[data-theme="dark"] .auditlog-container:hover {
-    box-shadow: 0 8px 25px rgba(110, 231, 183, 0.1);
-    border-color: var(--color-primary);
-}
-
-/* Audit Log List */
-.auditlog-list {
+/* ==================== TOOLBAR ==================== */
+.auditlog-toolbar {
+    background: var(--color-panel-bg);
+    border: 1px solid var(--color-border);
+    border-radius: 14px;
+    padding: 16px 20px;
+    margin-bottom: 20px;
     display: flex;
     flex-direction: column;
-    gap: 1px;
-    /* Make list scrollable */
+    gap: 14px;
+}
+
+.auditlog-search-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.auditlog-search-container svg {
+    position: absolute;
+    left: 14px;
+    color: var(--color-text-muted);
+    pointer-events: none;
+}
+
+.auditlog-search-container input {
+    width: 100%;
+    padding: 10px 14px 10px 40px;
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    font-size: 14px;
+    color: var(--color-dark);
+    background: var(--color-bg-light, #f9fafb);
+    transition: border-color 0.2s, box-shadow 0.2s;
+    outline: none;
+}
+
+.auditlog-search-container input:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+.auditlog-filters-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+/* Category Tabs */
+.auditlog-category-tabs {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.category-tab {
+    padding: 6px 14px;
+    border: 1px solid var(--color-border);
+    background: transparent;
+    border-radius: 8px;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: var(--color-text-muted);
+}
+
+.category-tab:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+    background: rgba(16, 185, 129, 0.05);
+}
+
+.category-tab.active {
+    background: var(--color-primary);
+    color: white;
+    border-color: var(--color-primary);
+}
+
+/* Date Select */
+.auditlog-date-select {
+    padding: 7px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-text);
+    background: var(--color-panel-bg);
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.auditlog-date-select:focus {
+    border-color: var(--color-primary);
+}
+
+/* ==================== FEED CONTAINER ==================== */
+.auditlog-container {
     flex: 1;
     overflow-y: auto;
-    padding-right: 8px;
-    /* space for scrollbar */
+    overflow-x: hidden;
+    padding-right: 4px;
+    padding-bottom: 20px;
 }
 
-/* Audit Log Entry */
-.auditlog-entry {
+.auditlog-feed {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+/* ==================== DATE GROUP HEADER ==================== */
+.auditlog-group-header {
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-dark);
+    padding: 20px 0 10px 4px;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.auditlog-group-header::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--color-border);
+}
+
+.auditlog-group-header:first-child {
+    padding-top: 0;
+}
+
+/* ==================== AUDIT LOG CARD ==================== */
+.auditlog-card {
+    background: var(--color-panel-bg);
+    border: 1px solid var(--color-border);
+    border-radius: 14px;
+    padding: 18px 20px;
     display: flex;
     gap: 16px;
-    padding: 20px;
-    border-bottom: 1px solid #f0f0f0;
-    transition: background-color 0.2s ease;
+    align-items: flex-start;
+    margin-bottom: 12px;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
 }
 
-.auditlog-entry:last-child {
-    border-bottom: none;
+.auditlog-card:hover {
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.06);
+    transform: translateY(-1px);
+    border-color: rgba(16, 185, 129, 0.2);
 }
 
-.auditlog-entry:hover {
-    background-color: #f8fafc;
-}
-
-/* Entry Icon */
-.auditlog-icon {
+/* Card Icon */
+.auditlog-card-icon {
     flex-shrink: 0;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: var(--color-nav-cream);
-    color: var(--color-primary);
-    font-size: 18px;
 }
 
-.auditlog-icon.info {
-    background-color: var(--color-nav-cream);
-    color: var(--color-primary);
+.auditlog-card-icon svg {
+    width: 20px;
+    height: 20px;
 }
 
-.auditlog-icon.warning {
-    background-color: #fef3c7;
-    color: #f59e0b;
+/* Icon color variants */
+.auditlog-card-icon.icon-success {
+    background: #d1fae5;
+    color: #059669;
 }
 
-.auditlog-icon.success {
-    background-color: #d1fae5;
-    color: #10b981;
+.auditlog-card-icon.icon-warning {
+    background: #fef3c7;
+    color: #d97706;
 }
 
-.auditlog-icon.error {
-    background-color: #fee2e2;
-    color: #ef4444;
+.auditlog-card-icon.icon-info {
+    background: #dbeafe;
+    color: #2563eb;
 }
 
-/* Entry Content */
-.auditlog-content {
+.auditlog-card-icon.icon-error {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.auditlog-card-icon.icon-default {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
+/* Card Body */
+.auditlog-card-body {
     flex: 1;
     min-width: 0;
 }
 
-/* Entry Header */
-.auditlog-header {
+.auditlog-card-top-row {
     display: flex;
     align-items: center;
-    gap: 12px;
-    margin-bottom: 8px;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 6px;
+}
+
+.auditlog-card-title-area {
+    display: flex;
+    align-items: center;
+    gap: 10px;
     flex-wrap: wrap;
 }
 
-.auditlog-action {
+.auditlog-card-title {
     font-size: 14px;
-    font-weight: 600;
-    color: #1f2937;
+    font-weight: 700;
+    color: var(--color-dark);
     margin: 0;
 }
 
-/* Entry Badge */
-.auditlog-badge {
+/* Category Badge */
+.auditlog-card-badge {
     display: inline-block;
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 12px;
-    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 10.5px;
+    font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     white-space: nowrap;
 }
 
-.badge-primary {
-    background-color: #dbeafe;
-    color: #1e40af;
-}
+.badge-primary { background: #dbeafe; color: #1e40af; }
+.badge-success { background: #d1fae5; color: #065f46; }
+.badge-warning { background: #fef3c7; color: #92400e; }
+.badge-danger  { background: #fee2e2; color: #991b1b; }
+.badge-secondary { background: #f3f4f6; color: #374151; }
 
-.badge-success {
-    background-color: #d1fae5;
-    color: #065f46;
-}
-
-.badge-warning {
-    background-color: #fef3c7;
-    color: #92400e;
-}
-
-.badge-danger {
-    background-color: #fee2e2;
-    color: #7f1d1d;
-}
-
-.badge-secondary {
-    background-color: #e5e7eb;
-    color: #374151;
-}
-
-/* Entry Description */
-.auditlog-description {
-    font-size: 13px;
-    color: #6b7280;
-    margin: 0 0 8px 0;
-    padding: 0;
-}
-
-/* Entry Meta */
-.auditlog-meta {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 12px;
+/* Card Timestamp (top right) */
+.auditlog-card-time {
     font-size: 12px;
-    color: #9ca3af;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    white-space: nowrap;
+    text-align: right;
+    flex-shrink: 0;
 }
 
-.auditlog-user {
+.auditlog-card-time-full {
+    font-size: 11px;
+    color: var(--color-text-muted);
+    opacity: 0.7;
+    margin-top: 2px;
+}
+
+/* Card Description */
+.auditlog-card-desc {
+    font-size: 13px;
+    color: var(--color-text-muted);
+    margin: 0 0 8px 0;
+    line-height: 1.5;
+}
+
+/* Card Meta (bottom row) */
+.auditlog-card-meta {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--color-text-muted);
 }
 
-.auditlog-user::before {
-    content: '•';
+.auditlog-card-user {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-weight: 600;
+    color: var(--color-text);
 }
 
-.auditlog-timestamp {
-    white-space: nowrap;
+.auditlog-card-user svg {
+    width: 13px;
+    height: 13px;
+    opacity: 0.5;
 }
 
-.auditlog-timestamp::before {
-    content: '•';
-    margin-right: 6px;
-}
-
-/* Empty State */
+/* ==================== EMPTY STATE ==================== */
 .auditlog-empty {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 60px 20px;
+    padding: 80px 20px;
     text-align: center;
 }
 
 .auditlog-empty-icon {
-    width: 60px;
-    height: 60px;
+    width: 64px;
+    height: 64px;
     border-radius: 50%;
-    background-color: #f3f4f6;
+    background: var(--color-bg-light, #f3f4f6);
     display: flex;
     align-items: center;
     justify-content: center;
     margin-bottom: 20px;
-    color: #d1d5db;
-    font-size: 24px;
+    font-size: 28px;
 }
 
 .auditlog-empty-title {
     font-size: 18px;
-    font-weight: 600;
-    color: #1f2937;
+    font-weight: 700;
+    color: var(--color-dark);
     margin-bottom: 8px;
 }
 
 .auditlog-empty-message {
     font-size: 14px;
-    color: #6b7280;
+    color: var(--color-text-muted);
 }
 
-/* Loading State */
+/* ==================== LOADING STATE ==================== */
 .auditlog-loading {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 40px 20px;
+    padding: 60px 20px;
 }
 
 .auditlog-loader {
-    display: inline-block;
     width: 40px;
     height: 40px;
-    border: 4px solid #e5e7eb;
+    border: 4px solid var(--color-border);
     border-top-color: var(--color-primary);
     border-radius: 50%;
-    animation: spin 0.8s linear infinite;
+    animation: auditSpin 0.8s linear infinite;
 }
 
-@keyframes spin {
-    to {
-        transform: rotate(360deg);
-    }
+@keyframes auditSpin {
+    to { transform: rotate(360deg); }
 }
 
-/* Filters */
-.auditlog-filters {
-    display: flex;
-    gap: 12px;
-    margin-bottom: 20px;
-    flex-wrap: wrap;
+/* ==================== DARK MODE ==================== */
+[data-theme="dark"] .auditlog-toolbar {
+    background: var(--dark-bg-secondary);
+    border-color: var(--dark-border);
 }
 
-.filter-btn {
-    padding: 8px 16px;
-    border: 1px solid #e5e7eb;
-    background-color: white;
-    border-radius: 6px;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    color: #6b7280;
+[data-theme="dark"] .auditlog-search-container input {
+    background: var(--dark-bg-tertiary);
+    border-color: var(--dark-border);
+    color: var(--dark-text-primary);
 }
 
-.filter-btn:hover {
-    border-color: #d1d5db;
-    background-color: #f9fafb;
+[data-theme="dark"] .category-tab {
+    border-color: var(--dark-border);
+    color: var(--dark-text-secondary);
 }
 
-.filter-btn.active {
-    background-color: var(--color-primary);
+[data-theme="dark"] .category-tab:hover {
+    background: rgba(16, 185, 129, 0.1);
+}
+
+[data-theme="dark"] .category-tab.active {
+    background: var(--color-primary);
     color: white;
     border-color: var(--color-primary);
 }
 
-/* Responsive Design */
+[data-theme="dark"] .auditlog-date-select {
+    background: var(--dark-bg-tertiary);
+    border-color: var(--dark-border);
+    color: var(--dark-text-primary);
+}
+
+[data-theme="dark"] .auditlog-card {
+    background: var(--dark-bg-secondary);
+    border-color: var(--dark-border);
+}
+
+[data-theme="dark"] .auditlog-card:hover {
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+    border-color: rgba(16, 185, 129, 0.3);
+}
+
+[data-theme="dark"] .auditlog-card-title {
+    color: var(--dark-text-primary);
+}
+
+[data-theme="dark"] .auditlog-card-desc {
+    color: var(--dark-text-secondary);
+}
+
+[data-theme="dark"] .auditlog-card-user {
+    color: var(--dark-text-primary);
+}
+
+[data-theme="dark"] .auditlog-group-header {
+    color: var(--dark-text-primary);
+}
+
+[data-theme="dark"] .auditlog-group-header::after {
+    background: var(--dark-border);
+}
+
+[data-theme="dark"] .auditlog-empty-icon {
+    background: var(--dark-bg-tertiary);
+}
+
+[data-theme="dark"] .auditlog-empty-title {
+    color: var(--dark-text-primary);
+}
+
+/* ==================== RESPONSIVE ==================== */
 @media (max-width: 768px) {
-    .auditlog-container {
-        padding: 16px;
+    .auditlog-toolbar {
+        padding: 14px;
+        border-radius: 12px;
     }
 
-    .auditlog-entry {
-        gap: 12px;
-        padding: 16px;
+    .auditlog-filters-row {
+        flex-direction: column;
+        align-items: stretch;
     }
 
-    .auditlog-icon {
-        width: 36px;
-        height: 36px;
-        font-size: 16px;
+    .auditlog-category-tabs {
+        overflow-x: auto;
+        padding-bottom: 4px;
+        flex-wrap: nowrap;
     }
 
-    .auditlog-header {
-        gap: 8px;
+    .auditlog-card {
+        padding: 14px 16px;
+        border-radius: 12px;
     }
 
-    .auditlog-action {
-        font-size: 13px;
-    }
-
-    .auditlog-badge {
-        font-size: 11px;
-        padding: 3px 6px;
-    }
-
-    .auditlog-description {
-        font-size: 12px;
-    }
-
-    .auditlog-meta {
+    .auditlog-card-top-row {
         flex-direction: column;
         align-items: flex-start;
-        gap: 6px;
     }
 
-    .auditlog-user,
-    .auditlog-timestamp {
-        display: block;
+    .auditlog-card-time {
+        text-align: left;
     }
 
-    .auditlog-user::before,
-    .auditlog-timestamp::before {
-        display: none;
+    .auditlog-card-icon {
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+    }
+
+    .auditlog-card-icon svg {
+        width: 18px;
+        height: 18px;
     }
 }
 
 @media (max-width: 480px) {
-    .auditlog-container {
+    .auditlog-toolbar {
         padding: 12px;
-        border-radius: 8px;
     }
 
-    .auditlog-entry {
-        gap: 10px;
-        padding: 14px;
-    }
-
-    .auditlog-icon {
-        width: 32px;
-        height: 32px;
-        font-size: 14px;
-    }
-
-    .auditlog-action {
-        font-size: 12px;
-    }
-
-    .auditlog-badge {
-        font-size: 10px;
-        padding: 2px 4px;
-    }
-
-    .auditlog-description {
+    .category-tab {
+        padding: 5px 10px;
         font-size: 11px;
     }
 
-    .auditlog-meta {
-        font-size: 11px;
+    .auditlog-card {
+        padding: 12px 14px;
+        gap: 12px;
+        margin-bottom: 10px;
     }
 
-    .auditlog-filters {
-        gap: 8px;
+    .auditlog-card-title {
+        font-size: 13px;
     }
 
-    .filter-btn {
-        padding: 6px 12px;
+    .auditlog-card-desc {
         font-size: 12px;
+    }
+
+    .auditlog-card-badge {
+        font-size: 9.5px;
     }
 }
