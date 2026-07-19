@@ -119,43 +119,46 @@ const processedNotifications = new Set();
  */
 function setupRealtimeListener() {
     if (!window.supabase) {
-        console.warn('Supabase not initialized, realtime listener not set');
+        console.warn("Supabase not initialized");
         return;
     }
-    const channel = window.supabase.channel('public:notifications');
+
+    console.log("Creating realtime channel...");
+
+    const channel = window.supabase.channel("notifications");
+
     channel
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, async (payload) => {
-            const newNotif = payload.new;
-            if (newNotif && newNotif.is_read === false) {
-                // Prevent duplicate notifications in the same session
-                if (processedNotifications.has(newNotif.notification_id)) {
-                    return;
-                }
-                processedNotifications.add(newNotif.notification_id);
+        .on(
+            "postgres_changes",
+            {
+                event: "INSERT",
+                schema: "public",
+                table: "notifications"
+            },
+            async (payload) => {
 
-                // Increment badge count
-                const badge = document.getElementById('notificationBadge');
-                if (badge) {
-                    let current = parseInt(badge.textContent) || 0;
-                    current += 1;
-                    badge.textContent = current > 99 ? '99+' : current;
-                    badge.style.display = 'flex';
-                }
+                console.log("🔥 Realtime event received:", payload);
 
-                // If dropdown is open, reload it
-                const dropdown = document.getElementById('notificationDropdown');
-                if (dropdown && dropdown.style.display === 'flex') {
-                    await loadDropdownNotifications();
-                }
+                const newNotif = payload.new;
 
-                // Trigger desktop/phone system notification popup or in-app toast
-                showDeviceNotification(newNotif.notification_id, newNotif.title, newNotif.message);
+                console.log("Notification:", newNotif);
+
+                if (newNotif && !newNotif.is_read) {
+
+                    console.log("Calling showDeviceNotification()");
+
+                    showDeviceNotification(
+                        newNotif.notification_id,
+                        newNotif.title,
+                        newNotif.message
+                    );
+                }
             }
-        })
-        .subscribe();
-    console.log('✅ Subscribed to real‑time notifications');
+        )
+        .subscribe((status) => {
+            console.log("Realtime status:", status);
+        });
 }
-
 /**
  * Request permission for device/desktop notifications
  */
@@ -190,12 +193,12 @@ function showDeviceNotification(id, title, message) {
 
     try {
         const notification = new Notification(title, options);
-        
-        notification.onclick = function(event) {
+
+        notification.onclick = function (event) {
             event.preventDefault();
             window.focus();
             notification.close();
-            
+
             // Navigate to notifications page and highlight
             window.location.href = `notifications.html?highlight_id=${id}`;
         };
@@ -218,7 +221,7 @@ function showInAppToast(id, title, message) {
 
     const toast = document.createElement('div');
     toast.className = 'toast-notification';
-    toast.onclick = function(e) {
+    toast.onclick = function (e) {
         if (e.target.closest('.toast-close')) return; // Ignore if clicking close
         window.location.href = `notifications.html?highlight_id=${id}`;
     };
@@ -265,7 +268,7 @@ function setupDropdownListeners() {
         bell.addEventListener('click', async function (e) {
             e.preventDefault();
             e.stopPropagation();
-            
+
             const isOpen = dropdown.style.display === 'flex';
             if (isOpen) {
                 dropdown.style.display = 'none';
