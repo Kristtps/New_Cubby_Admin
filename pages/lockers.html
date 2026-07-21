@@ -19,6 +19,15 @@
             }
         })();
     </script>
+    <style>
+        .size-badge { padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 700; }
+        .size-small { background: #dbeafe; color: #1e40af; }
+        .size-medium { background: #fef3c7; color: #92400e; }
+        .size-large { background: #fecaca; color: #991b1b; }
+        [data-theme="dark"] .size-small { background: rgba(59, 130, 246, 0.15); color: #93c5fd; }
+        [data-theme="dark"] .size-medium { background: rgba(245, 158, 11, 0.15); color: #fcd34d; }
+        [data-theme="dark"] .size-large { background: rgba(239, 68, 68, 0.15); color: #fca5a5; }
+    </style>
 </head>
 
 <body>
@@ -149,7 +158,7 @@
                     <label for="module-name">Module Name</label>
                     <input type="text" id="module-name" name="module_name" placeholder="e.g., M1, M2, Module A..."
                         required>
-                    <small style="color: #6b7280;">This will be displayed as the module identifier</small>
+                    <small style="color: var(--color-text-muted);">This will be displayed as the module identifier</small>
                 </div>
 
                 <div class="form-group">
@@ -157,14 +166,14 @@
                     <input type="text" id="generated-module-id" name="module_id" maxlength="16"
                         placeholder="Auto-generated 16-char ID" style="font-family: monospace; font-size: 13px;"
                         required>
-                    <small style="color: #6b7280;">Unique 16-character identifier (editable). <button type="button"
+                    <small style="color: var(--color-text-muted);">Unique 16-character identifier (editable). <button type="button"
                             id="regenerate-id-btn"
                             style="background: none; border: none; color: var(--color-primary); text-decoration: underline; cursor: pointer; padding: 0; font-size: inherit;">Regenerate</button></small>
                 </div>
 
-                <div class="form-divider" style="margin: 24px 0; border-top: 1px solid #e5e7eb;"></div>
+                <div class="form-divider" style="margin: 24px 0; border-top: 1px solid var(--color-border);"></div>
 
-                <h3 style="margin-bottom: 16px; font-size: 16px; font-weight: 600; color: #1f2937;">Locker Configuration
+                <h3 style="margin-bottom: 16px; font-size: 16px; font-weight: 600; color: var(--color-dark);">Locker Configuration
                 </h3>
 
                 <!-- Small Lockers -->
@@ -174,12 +183,12 @@
                             <span style="display: flex; align-items: center; gap: 8px;">
                                 <span>Small Compartments</span>
                                 <span
-                                    style="background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 4px; font-size: 12px;">S</span>
+                                    class="size-badge size-small">S</span>
                             </span>
                         </label>
                         <input type="number" id="small-count" name="small_count" min="0" max="50" value="0"
                             placeholder="Number of small lockers">
-                        <small style="color: #6b7280;">Perfect for phones, keys, wallets</small>
+                        <small style="color: var(--color-text-muted);">Perfect for phones, keys, wallets</small>
                     </div>
                 </div>
 
@@ -190,12 +199,12 @@
                             <span style="display: flex; align-items: center; gap: 8px;">
                                 <span>Medium Compartments</span>
                                 <span
-                                    style="background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 4px; font-size: 12px;">M</span>
+                                    class="size-badge size-medium">M</span>
                             </span>
                         </label>
                         <input type="number" id="medium-count" name="medium_count" min="0" max="50" value="0"
                             placeholder="Number of medium lockers">
-                        <small style="color: #6b7280;">Ideal for bags, laptops, tablets</small>
+                        <small style="color: var(--color-text-muted);">Ideal for bags, laptops, tablets</small>
                     </div>
                 </div>
 
@@ -206,19 +215,19 @@
                             <span style="display: flex; align-items: center; gap: 8px;">
                                 <span>Large Compartments</span>
                                 <span
-                                    style="background: #fecaca; color: #991b1b; padding: 2px 8px; border-radius: 4px; font-size: 12px;">L</span>
+                                    class="size-badge size-large">L</span>
                             </span>
                         </label>
                         <input type="number" id="large-count" name="large_count" min="0" max="50" value="0"
                             placeholder="Number of large lockers">
-                        <small style="color: #6b7280;">Great for luggage, backpacks, large items</small>
+                        <small style="color: var(--color-text-muted);">Great for luggage, backpacks, large items</small>
                     </div>
                 </div>
 
                 <div class="form-summary"
-                    style="background: #f9fafb; padding: 16px; border-radius: 8px; margin-top: 16px;">
-                    <p style="font-size: 14px; color: #374151; margin-bottom: 8px;"><strong>Summary:</strong></p>
-                    <p id="module-summary" style="font-size: 14px; color: #6b7280;">
+                    style="background: var(--color-gray-100); padding: 16px; border-radius: 8px; margin-top: 16px;">
+                    <p style="font-size: 14px; color: var(--color-dark); margin-bottom: 8px;"><strong>Summary:</strong></p>
+                    <p id="module-summary" style="font-size: 14px; color: var(--color-text-muted);">
                         Total Compartments: <span id="total-compartments">0</span>
                     </p>
                 </div>
@@ -283,12 +292,12 @@
                 <div class="form-group">
                     <label for="delete-module-select">Select Module to Delete</label>
                     <select id="delete-module-select" required
-                        style="width:100%; padding:10px 12px; border:1px solid #e5e7eb; border-radius:8px; font-size:14px; color:#1f2937; background:white;">
+                        style="width:100%; padding:10px 12px; border:1px solid var(--color-border); border-radius:8px; font-size:14px; color:var(--color-dark); background:var(--color-panel-bg);">
                         <option value="">Loading modules...</option>
                     </select>
                 </div>
 
-                <p style="color: #ef4444; font-size: 14px; margin: 16px 0;">
+                <p style="color: var(--color-occupied); font-size: 14px; margin: 16px 0;">
                     ⚠️ Warning: This will delete the entire module and all its lockers. This action cannot be undone.
                 </p>
 

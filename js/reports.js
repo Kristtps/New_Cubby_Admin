@@ -301,6 +301,18 @@ function initializeCharts() {
 }
 
 /**
+ * Get chart colors based on current theme
+ */
+function getChartColors() {
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    return {
+        borderColor: isDark ? '#2d3f55' : '#ffffff',
+        gridColor: isDark ? '#2d3f55' : '#e5e7eb',
+        textColor: isDark ? '#94a3b8' : '#6b7280',
+    };
+}
+
+/**
  * Initialize Revenue & Rentals Line Chart
  */
 function initializeRevenueChart() {
@@ -308,6 +320,7 @@ function initializeRevenueChart() {
     if (!ctx) return;
 
     const chartData = reportData.revenueAndRentals;
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
 
     if (revenueChartInstance) revenueChartInstance.destroy();
 
@@ -320,7 +333,7 @@ function initializeRevenueChart() {
                     label: 'Revenue',
                     data: chartData.revenue,
                     borderColor: '#4DAA63',
-                    backgroundColor: 'rgba(77, 170, 99, 0.05)',
+                    backgroundColor: isDark ? 'rgba(77, 170, 99, 0.15)' : 'rgba(77, 170, 99, 0.05)',
                     borderWidth: 3,
                     fill: true,
                     tension: 0.4
@@ -329,7 +342,7 @@ function initializeRevenueChart() {
                     label: 'Rentals',
                     data: chartData.rentals,
                     borderColor: '#f59e0b',
-                    backgroundColor: 'rgba(245, 158, 11, 0.05)',
+                    backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : 'rgba(245, 158, 11, 0.05)',
                     borderWidth: 3,
                     fill: true,
                     tension: 0.4
@@ -360,6 +373,8 @@ function initializeRentalsBySizeChart() {
 
     if (rentalsBySizeInstance) rentalsBySizeInstance.destroy();
 
+    const chartColors = getChartColors();
+
     rentalsBySizeInstance = new Chart(ctx, {
         type: 'doughnut',
         data: {
@@ -368,7 +383,7 @@ function initializeRentalsBySizeChart() {
                 {
                     data: chartData.data,
                     backgroundColor: chartData.backgroundColor,
-                    borderColor: '#ffffff',
+                    borderColor: chartColors.borderColor,
                     borderWidth: 2
                 }
             ]
@@ -458,4 +473,10 @@ function stopReportsAutoRefresh() {
 // Cleanup on page unload
 window.addEventListener('beforeunload', function() {
     stopReportsAutoRefresh();
+});
+
+// Re-render charts on theme change
+window.addEventListener('themechange', function() {
+    initializeRevenueChart();
+    initializeRentalsBySizeChart();
 });

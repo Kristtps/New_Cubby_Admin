@@ -923,7 +923,10 @@ function getStatusColor(status) {
  * Update the sales chart SVG with dynamic database values
  * @param {array} salesData - Array of sales items { dateString, dayName, amount }
  */
+let lastSalesData = null;
+
 function updateSalesChart(salesData) {
+    lastSalesData = salesData;
     const svg = document.getElementById('sales-chart-svg');
     if (!svg) return;
 
@@ -944,25 +947,31 @@ function updateSalesChart(salesData) {
         maxScale
     ];
 
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    const gridColor = isDark ? '#2d3f55' : '#f3f4f6';
+    const axisColor = isDark ? '#475569' : '#e5e7eb';
+    const labelColor = isDark ? '#94a3b8' : '#9ca3af';
+    const barEmptyColor = isDark ? '#334155' : '#e5e7eb';
+
     // Build the grid lines
     let svgContent = `
         <!-- Grid lines -->
-        <line x1="50" y1="250" x2="850" y2="250" stroke="#f3f4f6" stroke-width="1" />
-        <line x1="50" y1="200" x2="850" y2="200" stroke="#f3f4f6" stroke-width="1" />
-        <line x1="50" y1="150" x2="850" y2="150" stroke="#f3f4f6" stroke-width="1" />
-        <line x1="50" y1="100" x2="850" y2="100" stroke="#f3f4f6" stroke-width="1" />
-        <line x1="50" y1="50" x2="850" y2="50" stroke="#f3f4f6" stroke-width="1" />
+        <line x1="50" y1="250" x2="850" y2="250" stroke="${gridColor}" stroke-width="1" />
+        <line x1="50" y1="200" x2="850" y2="200" stroke="${gridColor}" stroke-width="1" />
+        <line x1="50" y1="150" x2="850" y2="150" stroke="${gridColor}" stroke-width="1" />
+        <line x1="50" y1="100" x2="850" y2="100" stroke="${gridColor}" stroke-width="1" />
+        <line x1="50" y1="50" x2="850" y2="50" stroke="${gridColor}" stroke-width="1" />
 
         <!-- Axes -->
-        <line x1="50" y1="250" x2="850" y2="250" stroke="#e5e7eb" stroke-width="2" />
-        <line x1="50" y1="50" x2="50" y2="250" stroke="#e5e7eb" stroke-width="2" />
+        <line x1="50" y1="250" x2="850" y2="250" stroke="${axisColor}" stroke-width="2" />
+        <line x1="50" y1="50" x2="50" y2="250" stroke="${axisColor}" stroke-width="2" />
     `;
 
     // Add Y-axis labels
     yTicks.forEach((val, idx) => {
         const yPos = 250 - (idx * 50);
         svgContent += `
-            <text x="40" y="${yPos + 4}" text-anchor="end" font-size="12" font-family="Inter, system-ui, sans-serif" font-weight="500" fill="#9ca3af">${val}</text>
+            <text x="40" y="${yPos + 4}" text-anchor="end" font-size="12" font-family="Inter, system-ui, sans-serif" font-weight="500" fill="${labelColor}">${val}</text>
         `;
     });
 
@@ -982,7 +991,7 @@ function updateSalesChart(salesData) {
 
         // Use a nice premium gradient feel or pure primary color
         const hasSales = day.amount > 0;
-        const barFill = hasSales ? '#4DAA63' : '#e5e7eb';
+        const barFill = hasSales ? '#4DAA63' : barEmptyColor;
 
         svgContent += `
             <!-- Bar -->
@@ -1000,7 +1009,7 @@ function updateSalesChart(salesData) {
 
         // X-axis day name
         svgContent += `
-            <text x="${center}" y="275" text-anchor="middle" font-size="12" font-family="Inter, system-ui, sans-serif" font-weight="600" fill="#6b7280">${day.dayName}</text>
+            <text x="${center}" y="275" text-anchor="middle" font-size="12" font-family="Inter, system-ui, sans-serif" font-weight="600" fill="${labelColor}">${day.dayName}</text>
         `;
     });
 
@@ -2333,4 +2342,493 @@ function initializeCustomDropdowns() {
         document.querySelectorAll('.filter-combo').forEach(c => c.classList.remove('active'));
     });
 }
+
+// Re-render sales chart on theme change
+window.addEventListener('themechange', function() {
+    if (lastSalesData) {
+        updateSalesChart(lastSalesData);
+    }
+});
+
+// ==================== NOTIFICATION PANEL (Overview SPA) ====================
+
+let panelNotifications = [];
+let panelCurrentFilter = 'all';
+let panelSearchQuery = '';
+let panelSelectedNotificationId = null;
+let panelAutoRefreshInterval = null;
+
+/**
+ * Open the notifications panel from sidebar (no page navigation)
+ */
+function openNotificationsPanel(e) {
+    if (e) e.preventDefault();
+    const panel = document.getElementById('notifications-panel');
+    if (!panel) return;
+
+    // Hide overview content, show panel
+    const overviewSections = document.querySelectorAll('.main-content > .header, .main-content > .custom-range, .main-content > .stats-grid, .main-content > .charts-section, .main-content > .status-legend, .main-content > .modules-section');
+    overviewSections.forEach(s => s.style.display = 'none');
+
+    panel.classList.add('open');
+    // Trigger reflow for animation
+    void panel.offsetHeight;
+    panel.classList.add('visible');
+
+    // Update sidebar active state
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    const navNotif = document.getElementById('nav-notifications');
+    if (navNotif) navNotif.classList.add('active');
+
+    // Load notifications
+    panelLoadNotifications();
+
+    // Auto-refresh every 30 seconds
+    if (panelAutoRefreshInterval) clearInterval(panelAutoRefreshInterval);
+    panelAutoRefreshInterval = setInterval(function () {
+        panelLoadNotifications();
+    }, 30000);
+}
+
+/**
+ * Close the notifications panel, return to overview
+ */
+function closeNotificationsPanel() {
+    const panel = document.getElementById('notifications-panel');
+    if (!panel) return;
+
+    panel.classList.remove('visible');
+    setTimeout(() => {
+        panel.classList.remove('open');
+    }, 350);
+
+    // Show overview content
+    const overviewSections = document.querySelectorAll('.main-content > .header, .main-content > .custom-range, .main-content > .stats-grid, .main-content > .charts-section, .main-content > .status-legend, .main-content > .modules-section');
+    overviewSections.forEach(s => s.style.display = '');
+
+    // Restore sidebar active state to Overview
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    const navOverview = document.querySelector('.nav-item[href="index.html"]');
+    if (navOverview) navOverview.classList.add('active');
+
+    // Close detail pane if open
+    panelCloseDetailPane();
+
+    // Stop auto-refresh
+    if (panelAutoRefreshInterval) {
+        clearInterval(panelAutoRefreshInterval);
+        panelAutoRefreshInterval = null;
+    }
+}
+
+/**
+ * Load notifications for the panel
+ */
+async function panelLoadNotifications() {
+    const container = document.getElementById('panel-notifications-container');
+    if (!container) return;
+
+    try {
+        if (!window.supabase || typeof window.supabase.from !== 'function') {
+            container.innerHTML = '<div style="text-align: center; padding: 3rem; color: #ef4444;">Database not connected</div>';
+            return;
+        }
+
+        const { data, error } = await window.supabase
+            .from('notifications')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(100);
+
+        if (error) {
+            console.error('Error loading panel notifications:', error);
+            container.innerHTML = '<div style="text-align: center; padding: 3rem; color: #ef4444;">Error loading notifications</div>';
+            return;
+        }
+
+        panelNotifications = data || [];
+        panelRenderNotifications();
+    } catch (err) {
+        console.error('Exception loading panel notifications:', err);
+        container.innerHTML = '<div style="text-align: center; padding: 3rem; color: #ef4444;">Error loading notifications</div>';
+    }
+}
+
+/**
+ * Set notification filter for the panel
+ */
+function panelSetNotificationFilter(filter, btnElement) {
+    panelCurrentFilter = filter;
+    document.querySelectorAll('#notifications-panel .filter-tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    if (btnElement) btnElement.classList.add('active');
+    panelRenderNotifications();
+}
+
+/**
+ * Search notifications in the panel
+ */
+function panelOnSearchNotifications(query) {
+    panelSearchQuery = query.toLowerCase().trim();
+    panelRenderNotifications();
+}
+
+/**
+ * Get notification icon class (panel version)
+ */
+function panelGetNotificationIconClass(type) {
+    const classes = {
+        'new_rental': 'icon-rental',
+        'rental_completed': 'icon-rental',
+        'new_feedback': 'icon-feedback',
+        'new_customer': 'icon-customer',
+        'locker_maintenance': 'icon-maintenance'
+    };
+    return classes[type] || 'icon-rental';
+}
+
+/**
+ * Get notification icon SVG (panel version)
+ */
+function panelGetNotificationIcon(type) {
+    const icons = {
+        'new_rental': '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><rect x="3" y="11" width="18" height="11"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path></svg>',
+        'rental_completed': '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>',
+        'new_feedback': '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>',
+        'new_customer': '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>',
+        'locker_maintenance': '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>'
+    };
+    return icons[type] || icons['new_rental'];
+}
+
+/**
+ * Get notification group
+ */
+function panelGetNotificationGroup(dateString) {
+    const date = new Date(dateString);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const notifDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const diffTime = Math.abs(today - notifDate);
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays <= 7) return 'This Week';
+    return 'Older';
+}
+
+/**
+ * Fix UTC time in notification message to PHT
+ */
+function panelFixNotificationTimezone(message) {
+    if (!message) return message;
+    return message.replace(/before\s+(\d{1,2}):(\d{2})\s*(AM|PM)/gi, function (match, h, m, ampm) {
+        let hour = parseInt(h, 10);
+        const upper = ampm.toUpperCase();
+        if (upper === 'PM' && hour !== 12) hour += 12;
+        if (upper === 'AM' && hour === 12) hour = 0;
+        hour = (hour + 8) % 24;
+        const newAmpm = hour >= 12 ? 'PM' : 'AM';
+        const newHour = hour % 12 || 12;
+        return 'before ' + newHour + ':' + m + ' ' + newAmpm;
+    });
+}
+
+/**
+ * Format notification date
+ */
+function panelFormatNotificationDate(dateString) {
+    const date = new Date(dateString);
+    const now = new Date();
+    const isToday = date.getDate() === now.getDate() && date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    const isYesterday = date.getDate() === yesterday.getDate() && date.getMonth() === yesterday.getMonth() && date.getFullYear() === yesterday.getFullYear();
+    let timeString = date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    if (isToday) return 'Today \u2022 ' + timeString;
+    if (isYesterday) return 'Yesterday \u2022 ' + timeString;
+    const dateStr = date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    return dateStr + ' \u2022 ' + timeString;
+}
+
+/**
+ * Get time ago string
+ */
+function panelGetTimeAgo(timestamp) {
+    const now = new Date();
+    const past = new Date(timestamp);
+    const diffMs = now - past;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return diffMins + 'm ago';
+    if (diffHours < 24) return diffHours + 'h ago';
+    if (diffDays < 7) return diffDays + 'd ago';
+    return past.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+/**
+ * Render notifications in the panel
+ */
+function panelRenderNotifications() {
+    const container = document.getElementById('panel-notifications-container');
+    if (!container) return;
+
+    // Filter
+    let filtered = panelNotifications.filter(function (notification) {
+        if (panelCurrentFilter === 'unread' && notification.is_read) return false;
+        if (panelCurrentFilter === 'read' && !notification.is_read) return false;
+        if (panelCurrentFilter === 'high' && notification.priority !== 'high' && notification.priority !== 'urgent') return false;
+        if (panelSearchQuery) {
+            var title = (notification.title || '').toLowerCase();
+            var message = (notification.message || '').toLowerCase();
+            if (!title.includes(panelSearchQuery) && !message.includes(panelSearchQuery)) return false;
+        }
+        return true;
+    });
+
+    if (filtered.length === 0) {
+        container.innerHTML = '<div class="empty-notifications">' +
+            '<svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
+            '<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>' +
+            '<path d="M13.73 21a2 2 0 0 1-3.46 0"></path>' +
+            '</svg>' +
+            '<h3>You\'re all caught up!</h3>' +
+            '<p>No notifications to display.</p>' +
+            '</div>';
+        return;
+    }
+
+    // Group
+    var groups = { 'Today': [], 'Yesterday': [], 'This Week': [], 'Older': [] };
+    filtered.forEach(function (n) {
+        var group = panelGetNotificationGroup(n.created_at);
+        groups[group].push(n);
+    });
+
+    var htmlContent = '';
+    ['Today', 'Yesterday', 'This Week', 'Older'].forEach(function (groupName) {
+        var groupItems = groups[groupName];
+        if (groupItems.length === 0) return;
+        htmlContent += '<h3 class="group-header">' + groupName + '</h3>';
+        htmlContent += groupItems.map(function (notification) {
+            var isUnread = !notification.is_read;
+            var timeAgo = panelGetTimeAgo(notification.created_at);
+            var formattedDate = panelFormatNotificationDate(notification.created_at);
+            var icon = panelGetNotificationIcon(notification.type);
+            var iconClass = panelGetNotificationIconClass(notification.type);
+            var priorityBadge = '';
+            if (notification.priority && notification.priority !== 'normal') {
+                priorityBadge = '<span class="notification-badge badge-' + notification.priority + '">' + notification.priority.charAt(0).toUpperCase() + notification.priority.slice(1) + '</span>';
+            }
+            return '<div id="panel-notif-' + notification.notification_id + '" class="notification-item ' + (isUnread ? 'unread' : '') + '" onclick="panelOnNotificationClick(\'' + notification.notification_id + '\')">' +
+                '<div class="notification-content">' +
+                '<div class="notification-icon ' + iconClass + '">' + icon + '</div>' +
+                '<div class="notification-details">' +
+                '<div class="notification-header-row">' +
+                '<div class="notification-title">' + (notification.title || 'Notification') + '</div>' +
+                '<div class="notification-meta">' +
+                priorityBadge +
+                '<span class="relative-time">' + timeAgo + '</span>' +
+                (isUnread ? '<div class="unread-dot"></div>' : '') +
+                '</div>' +
+                '</div>' +
+                '<div class="notification-message">' + panelFixNotificationTimezone(notification.message || '') + '</div>' +
+                '<div class="notification-datetime">' + formattedDate + '</div>' +
+                '</div>' +
+                '</div>' +
+                '</div>';
+        }).join('');
+    });
+
+    container.innerHTML = htmlContent;
+
+    // Re-apply active-detail class
+    if (panelSelectedNotificationId) {
+        var activeEl = document.getElementById('panel-notif-' + panelSelectedNotificationId);
+        if (activeEl) activeEl.classList.add('active-detail');
+    }
+}
+
+/**
+ * Handle notification click in panel
+ */
+async function panelOnNotificationClick(notificationId) {
+    var notification = panelNotifications.find(function (n) { return n.notification_id === notificationId; });
+    if (!notification) return;
+
+    panelSelectedNotificationId = notificationId;
+    panelShowNotificationDetail(notification);
+
+    if (!notification.is_read) {
+        await panelMarkAsRead(notificationId);
+    }
+}
+
+/**
+ * Show notification detail in panel drawer
+ */
+function panelShowNotificationDetail(notification) {
+    if (!notification) return;
+
+    var pane = document.getElementById('panel-notification-detail-pane');
+    var overlay = document.getElementById('panel-detail-overlay');
+    var content = document.getElementById('panel-detail-content');
+    var iconEl = document.getElementById('panel-detail-icon');
+    var titleEl = document.getElementById('panel-detail-title');
+    var typeBadge = document.getElementById('panel-detail-type-badge');
+    var dateEl = document.getElementById('panel-detail-date');
+    var messageEl = document.getElementById('panel-detail-message');
+
+    if (!pane || !content) return;
+
+    var iconClass = panelGetNotificationIconClass(notification.type);
+    iconEl.className = 'detail-icon notification-icon ' + iconClass;
+    iconEl.innerHTML = panelGetNotificationIcon(notification.type);
+    titleEl.textContent = notification.title || 'Notification';
+    typeBadge.textContent = (notification.type || 'info').replace('_', ' ');
+    typeBadge.className = 'detail-type-badge notification-icon ' + iconClass;
+    dateEl.textContent = panelFormatNotificationDate(notification.created_at);
+    messageEl.textContent = panelFixNotificationTimezone(notification.message || '');
+
+    pane.classList.add('open');
+    if (overlay) overlay.classList.add('open');
+
+    // Highlight active item
+    document.querySelectorAll('#notifications-panel .notification-item').forEach(function (el) { el.classList.remove('active-detail'); });
+    var notifEl = document.getElementById('panel-notif-' + notification.notification_id);
+    if (notifEl) notifEl.classList.add('active-detail');
+}
+
+/**
+ * Close detail pane in panel
+ */
+function panelCloseDetailPane() {
+    var pane = document.getElementById('panel-notification-detail-pane');
+    var overlay = document.getElementById('panel-detail-overlay');
+    if (pane) pane.classList.remove('open');
+    if (overlay) overlay.classList.remove('open');
+    document.querySelectorAll('#notifications-panel .notification-item').forEach(function (el) { el.classList.remove('active-detail'); });
+    panelSelectedNotificationId = null;
+}
+
+/**
+ * Mark a notification as read (panel)
+ */
+async function panelMarkAsRead(notificationId) {
+    try {
+        if (!window.supabase || typeof window.supabase.from !== 'function') return;
+
+        var { error } = await window.supabase
+            .from('notifications')
+            .update({ is_read: true, read_at: new Date().toISOString() })
+            .eq('notification_id', notificationId);
+
+        if (error) {
+            console.error('Error marking panel notification as read:', error);
+            return;
+        }
+
+        var notification = panelNotifications.find(function (n) { return n.notification_id === notificationId; });
+        if (notification) {
+            notification.is_read = true;
+            notification.read_at = new Date().toISOString();
+        }
+
+        panelRenderNotifications();
+    } catch (err) {
+        console.error('Exception marking panel notification as read:', err);
+    }
+}
+
+/**
+ * Mark all notifications as read (panel)
+ */
+async function panelMarkAllAsRead() {
+    try {
+        if (!window.supabase || typeof window.supabase.from !== 'function') return;
+
+        var { error } = await window.supabase
+            .from('notifications')
+            .update({ is_read: true, read_at: new Date().toISOString() })
+            .eq('is_read', false);
+
+        if (error) {
+            console.error('Error marking all panel notifications as read:', error);
+            return;
+        }
+
+        panelNotifications.forEach(function (n) {
+            if (!n.is_read) {
+                n.is_read = true;
+                n.read_at = new Date().toISOString();
+            }
+        });
+
+        panelRenderNotifications();
+        alert('All notifications marked as read');
+    } catch (err) {
+        console.error('Exception marking all panel notifications as read:', err);
+    }
+}
+
+/**
+ * Clear all read notifications (panel)
+ */
+async function panelClearAllRead() {
+    if (!confirm('Are you sure you want to delete all read notifications? This cannot be undone.')) return;
+
+    try {
+        if (!window.supabase || typeof window.supabase.from !== 'function') return;
+
+        var { error } = await window.supabase
+            .from('notifications')
+            .delete()
+            .eq('is_read', true);
+
+        if (error) {
+            console.error('Error clearing panel read notifications:', error);
+            return;
+        }
+
+        panelNotifications = panelNotifications.filter(function (n) { return !n.is_read; });
+        panelRenderNotifications();
+        alert('Read notifications cleared');
+    } catch (err) {
+        console.error('Exception clearing panel read notifications:', err);
+    }
+}
+
+// Expose globally
+window.openNotificationsPanel = openNotificationsPanel;
+window.closeNotificationsPanel = closeNotificationsPanel;
+window.panelSetNotificationFilter = panelSetNotificationFilter;
+window.panelOnSearchNotifications = panelOnSearchNotifications;
+window.panelOnNotificationClick = panelOnNotificationClick;
+window.panelCloseDetailPane = panelCloseDetailPane;
+window.panelMarkAllAsRead = panelMarkAllAsRead;
+window.panelClearAllRead = panelClearAllRead;
+
+// Check URL hash on load to auto-open notifications panel
+window.addEventListener('DOMContentLoaded', function () {
+    if (window.location.hash === '#notifications') {
+        setTimeout(function () {
+            openNotificationsPanel();
+        }, 500);
+    }
+});
+
+// Listen for hash changes
+window.addEventListener('hashchange', function () {
+    if (window.location.hash === '#notifications') {
+        openNotificationsPanel();
+    } else if (window.location.hash === '' || window.location.hash === '#') {
+        var panel = document.getElementById('notifications-panel');
+        if (panel && panel.classList.contains('open')) {
+            closeNotificationsPanel();
+        }
+    }
+});
 

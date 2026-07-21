@@ -6,6 +6,7 @@
 let allNotifications = [];
 let currentFilter = 'all';
 let searchQuery = '';
+let selectedNotificationId = null;
 
 // Initialize notifications page
 document.addEventListener('DOMContentLoaded', async function () {
@@ -217,7 +218,7 @@ function renderNotifications() {
             const iconClass = getNotificationIconClass(notification.type);
             
             return `
-                <div id="notif-${notification.notification_id}" class="notification-item ${isUnread ? 'unread' : ''}" onclick="markAsRead('${notification.notification_id}')">
+                <div id="notif-${notification.notification_id}" class="notification-item ${isUnread ? 'unread' : ''}" onclick="onNotificationClick('${notification.notification_id}')">
                     <div class="notification-content">
                         <div class="notification-icon ${iconClass}">
                             ${icon}
@@ -261,6 +262,12 @@ function renderNotifications() {
                 window.history.replaceState({}, document.title, window.location.pathname);
             }
         }, 100);
+    }
+
+    // Re-apply active-detail class for selected notification
+    if (selectedNotificationId) {
+        const activeEl = document.getElementById('notif-' + selectedNotificationId);
+        if (activeEl) activeEl.classList.add('active-detail');
     }
 }
 
@@ -340,12 +347,69 @@ async function markAsRead(notificationId) {
             notification.read_at = new Date().toISOString();
         }
 
+        // Populate detail panel
+        showNotificationDetail(notification || allNotifications.find(n => n.notification_id === notificationId));
+
         renderNotifications();
 
     } catch (err) {
         console.error('Exception marking notification as read:', err);
     }
 }
+
+/**
+ * Show notification detail in right drawer
+ */
+function showNotificationDetail(notification) {
+    if (!notification) return;
+
+    const pane = document.getElementById('notification-detail-pane');
+    const overlay = document.getElementById('detail-overlay');
+    const content = document.getElementById('detail-content');
+    const iconEl = document.getElementById('detail-icon');
+    const titleEl = document.getElementById('detail-title');
+    const typeBadge = document.getElementById('detail-type-badge');
+    const dateEl = document.getElementById('detail-date');
+    const messageEl = document.getElementById('detail-message');
+
+    if (!pane || !content) return;
+
+    const iconClass = getNotificationIconClass(notification.type);
+    iconEl.className = 'detail-icon notification-icon ' + iconClass;
+    iconEl.innerHTML = getNotificationIcon(notification.type);
+    titleEl.textContent = notification.title || 'Notification';
+    typeBadge.textContent = (notification.type || 'info').replace('_', ' ');
+    typeBadge.className = 'detail-type-badge notification-icon ' + iconClass;
+    dateEl.textContent = formatNotificationDate(notification.created_at);
+    messageEl.textContent = fixNotificationTimezone(notification.message || '');
+
+    pane.classList.add('open');
+    if (overlay) overlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+
+    // Highlight active item
+    document.querySelectorAll('.notification-item').forEach(el => el.classList.remove('active-detail'));
+    const notifEl = document.getElementById('notif-' + notification.notification_id);
+    if (notifEl) notifEl.classList.add('active-detail');
+}
+
+/**
+ * Close detail drawer
+ */
+function closeDetailPane() {
+    const pane = document.getElementById('notification-detail-pane');
+    const overlay = document.getElementById('detail-overlay');
+
+    if (pane) pane.classList.remove('open');
+    if (overlay) overlay.classList.remove('open');
+    document.body.style.overflow = '';
+
+    document.querySelectorAll('.notification-item').forEach(el => el.classList.remove('active-detail'));
+    selectedNotificationId = null;
+}
+
+window.closeDetailPane = closeDetailPane;
+window.showNotificationDetail = showNotificationDetail;
 
 /**
  * Mark all notifications as read
@@ -456,3 +520,20 @@ function subscribeToNotificationChanges() {
 window.markAsRead = markAsRead;
 window.markAllAsRead = markAllAsRead;
 window.clearAllRead = clearAllRead;
+
+/**
+ * Handle notification click: show detail + mark as read
+ */
+async function onNotificationClick(notificationId) {
+    const notification = allNotifications.find(n => n.notification_id === notificationId);
+    if (!notification) return;
+
+    selectedNotificationId = notificationId;
+    showNotificationDetail(notification);
+
+    if (!notification.is_read) {
+        await markAsRead(notificationId);
+    }
+}
+
+window.onNotificationClick = onNotificationClick;

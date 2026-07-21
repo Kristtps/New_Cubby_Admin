@@ -533,3 +533,10 @@ function startLiveAmountTicker() {
         }
     }, 1000);
 }
+
+// Re-render transactions table on theme change
+window.addEventListener('themechange', function() {
+    if (transactionData.length > 0) {
+        refreshTransactionTable(transactionData);
+    }
+});

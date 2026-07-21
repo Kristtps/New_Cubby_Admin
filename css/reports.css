@@ -467,6 +467,89 @@
 }
 
 /* Print Styles */
+/* ==================== DARK MODE ==================== */
+[data-theme="dark"] .subtitle {
+    color: var(--dark-text-secondary);
+}
+
+[data-theme="dark"] .btn-action {
+    background: var(--dark-bg-tertiary);
+    border-color: var(--dark-border);
+    color: var(--dark-text-primary);
+}
+
+[data-theme="dark"] .btn-action:hover {
+    background: var(--dark-bg-secondary);
+    border-color: var(--dark-text-secondary);
+}
+
+[data-theme="dark"] .filter-combo {
+    background: var(--dark-bg-tertiary);
+    border-color: var(--dark-border);
+}
+
+[data-theme="dark"] .filter-icon {
+    color: var(--dark-text-secondary);
+}
+
+[data-theme="dark"] .filter-combo select {
+    color: var(--dark-text-primary);
+}
+
+[data-theme="dark"] .filter-combo::after {
+    border-top-color: var(--dark-text-secondary);
+}
+
+[data-theme="dark"] .custom-range {
+    background: var(--dark-bg-tertiary);
+    border-color: var(--dark-border);
+}
+
+[data-theme="dark"] .custom-range label {
+    color: var(--dark-text-secondary);
+}
+
+[data-theme="dark"] .range-sep {
+    color: var(--dark-text-secondary);
+}
+
+[data-theme="dark"] .reports-stats .stat-card {
+    background: var(--dark-bg-secondary);
+    border-color: var(--dark-border);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="dark"] .reports-stats .stat-label {
+    color: var(--dark-text-secondary);
+}
+
+[data-theme="dark"] .reports-stats .stat-value {
+    color: var(--dark-text-primary);
+}
+
+[data-theme="dark"] .chart-card {
+    background: var(--dark-bg-secondary);
+    border-color: var(--dark-border);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="dark"] .chart-card:hover {
+    border-color: var(--color-primary);
+}
+
+[data-theme="dark"] .chart-header h3 {
+    color: var(--dark-text-primary);
+}
+
+[data-theme="dark"] .chart-loading {
+    color: var(--dark-text-secondary);
+}
+
+[data-theme="dark"] .chart-loading::after {
+    border-color: var(--dark-border);
+    border-top-color: var(--color-primary);
+}
+
 @media print {
     .sidebar {
         display: none;

@@ -432,6 +432,37 @@
     color: var(--dark-text-primary);
 }
 
+[data-theme="dark"] .auditlog-card-icon.icon-success {
+    background: rgba(16, 185, 129, 0.15);
+    color: #6ee7b7;
+}
+
+[data-theme="dark"] .auditlog-card-icon.icon-warning {
+    background: rgba(245, 158, 11, 0.15);
+    color: #fcd34d;
+}
+
+[data-theme="dark"] .auditlog-card-icon.icon-info {
+    background: rgba(59, 130, 246, 0.15);
+    color: #93c5fd;
+}
+
+[data-theme="dark"] .auditlog-card-icon.icon-error {
+    background: rgba(239, 68, 68, 0.15);
+    color: #fca5a5;
+}
+
+[data-theme="dark"] .auditlog-card-icon.icon-default {
+    background: rgba(148, 163, 184, 0.12);
+    color: #94a3b8;
+}
+
+[data-theme="dark"] .badge-primary { background: rgba(59, 130, 246, 0.15); color: #93c5fd; }
+[data-theme="dark"] .badge-success { background: rgba(16, 185, 129, 0.15); color: #6ee7b7; }
+[data-theme="dark"] .badge-warning { background: rgba(245, 158, 11, 0.15); color: #fcd34d; }
+[data-theme="dark"] .badge-danger  { background: rgba(239, 68, 68, 0.15); color: #fca5a5; }
+[data-theme="dark"] .badge-secondary { background: rgba(148, 163, 184, 0.12); color: #cbd5e1; }
+
 /* ==================== RESPONSIVE ==================== */
 @media (max-width: 768px) {
     .auditlog-toolbar {

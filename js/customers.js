@@ -161,7 +161,7 @@ function initializeCustomerSearch() {
             if (!document.getElementById('no-search-results')) {
                 const noResultsRow = document.createElement('tr');
                 noResultsRow.id = 'no-search-results';
-                noResultsRow.innerHTML = `<td colspan="7" style="text-align: center; color: var(--text-muted); padding: 2rem;">No customers found matching "${searchTerm}"</td>`;
+                noResultsRow.innerHTML = `<td colspan="7" style="text-align: center; color: var(--color-text-muted); padding: 2rem;">No customers found matching "${searchTerm}"</td>`;
                 tbody.appendChild(noResultsRow);
             }
         } else if (document.getElementById('no-search-results')) {
@@ -286,7 +286,7 @@ async function loadCustomersFromSupabase() {
             console.log('ℹ️ No customers found in database');
             const tbody = document.getElementById('customers-tbody');
             if (tbody) {
-                tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 3rem;">No customers found in the database.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--color-text-muted); padding: 3rem;">No customers found in the database.</td></tr>`;
             }
         } else {
             console.log(`✓ Successfully mapped ${mapped.length} customers for display`);
@@ -297,7 +297,7 @@ async function loadCustomersFromSupabase() {
         console.error('❌ Failed to load customers:', err);
         const tbody = document.getElementById('customers-tbody');
         if (tbody) {
-            tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--danger); padding: 1rem;">Failed to load customers: ${err.message}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--color-occupied); padding: 1rem;">Failed to load customers: ${err.message}</td></tr>`;
         }
     }
 }
