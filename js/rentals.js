@@ -14,6 +14,7 @@ let isLoadingMoreRentals = false;
 let countdownIntervals = {}; // Store countdown intervals for each rental
 let showingRentalHistory = false;
 const RENTALS_PER_LOAD = 25;
+let rentalsRealtimeChannel = null;
 
 /**
  * Initialize rentals page
@@ -35,8 +36,11 @@ async function initializeRentalsPage() {
     initializeRentalDetailsModal();
     initializeRentalHistoryToggle();
 
-    // Initialize auto-refresh (every 20 seconds)
+    // Initialize auto-refresh (every 20 seconds) — fallback if realtime disconnects
     initializeRentalsAutoRefresh();
+
+    // Subscribe to realtime changes on the transactions table
+    subscribeToRentalChanges();
 
     // Initialize infinite scroll
     initializeRentalsInfiniteScroll();
@@ -59,7 +63,7 @@ async function loadRentalsFromSupabase() {
                 *,
                 customers (full_name),
                 lockers (locker_number),
-                payments (amount),
+                payment_sessions (amount_paid),
                 rates (rate_id, price_per_hour)
             `)
             .order('start_time', { ascending: false });
@@ -92,9 +96,9 @@ async function loadRentalsFromSupabase() {
             }
 
             let totalAmount = 0;
-            if (tx.payments && Array.isArray(tx.payments)) {
-                tx.payments.forEach(p => {
-                    totalAmount += parseFloat(p.amount || 0);
+            if (tx.payment_sessions && Array.isArray(tx.payment_sessions)) {
+                tx.payment_sessions.forEach(ps => {
+                    totalAmount += parseFloat(ps.amount_paid || 0);
                 });
             }
 
@@ -154,6 +158,29 @@ async function loadRentalsFromSupabase() {
             tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--color-occupied); padding: 1rem;">Failed to load rentals: ${err.message}</td></tr>`;
         }
     }
+}
+
+/**
+ * Subscribe to Supabase realtime changes on the transactions table.
+ * Re-fetches data instantly when a rental is inserted, updated, or deleted.
+ */
+function subscribeToRentalChanges() {
+    if (!window.supabase || typeof window.supabase.channel !== 'function') return;
+    if (rentalsRealtimeChannel) return;
+
+    rentalsRealtimeChannel = window.supabase
+        .channel('rentals-realtime')
+        .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'transactions' },
+            () => {
+                console.log('🔔 Rental change detected, refreshing...');
+                loadRentalsFromSupabase();
+            }
+        )
+        .subscribe((status) => {
+            console.log('Rentals realtime status:', status);
+        });
 }
 
 /**

@@ -16,17 +16,19 @@ async function initNotifications() {
         await window.supabasePromise;
     }
 
-    // Check for unread notifications
-    await checkUnreadNotifications();
+    // Set up dropdown toggle and action listeners (UI ready immediately)
+    setupDropdownListeners();
+
+    // Fire badge + dropdown fetch in parallel — don't block UI
+    const badgePromise = checkUnreadNotifications();
+    const dropdownPromise = loadDropdownNotifications();
+    await Promise.allSettled([badgePromise, dropdownPromise]);
 
     // Set up realtime listener for new notifications
     setupRealtimeListener();
 
-    // Set up periodic checks (fallback)
+    // Periodic fallback (only needed if realtime disconnects)
     setInterval(checkUnreadNotifications, NOTIFICATION_CHECK_INTERVAL);
-
-    // Set up dropdown toggle and action listeners
-    setupDropdownListeners();
 
     // Request permission for device/desktop notifications
     requestDeviceNotificationPermission();
@@ -42,10 +44,10 @@ async function checkUnreadNotifications() {
             return;
         }
 
-        // Get unread notification count
-        const { data, error } = await window.supabase
+        // Get unread notification count — head:true means no rows returned, just the count
+        const { count, error } = await window.supabase
             .from('notifications')
-            .select('notification_id', { count: 'exact', head: false })
+            .select('notification_id', { count: 'exact', head: true })
             .eq('is_read', false);
 
         if (error) {
@@ -53,10 +55,8 @@ async function checkUnreadNotifications() {
             return;
         }
 
-        const unreadCount = data ? data.length : 0;
-
         // Update notification badge
-        updateNotificationBadge(unreadCount);
+        updateNotificationBadge(count || 0);
 
         // If the dropdown is currently visible, refresh its content too
         const dropdown = document.getElementById('notificationDropdown');
@@ -93,9 +93,9 @@ async function getUnreadNotificationCount() {
             return 0;
         }
 
-        const { data, error } = await window.supabase
+        const { count, error } = await window.supabase
             .from('notifications')
-            .select('notification_id', { count: 'exact', head: false })
+            .select('notification_id', { count: 'exact', head: true })
             .eq('is_read', false);
 
         if (error) {
@@ -103,7 +103,7 @@ async function getUnreadNotificationCount() {
             return 0;
         }
 
-        return data ? data.length : 0;
+        return count || 0;
     } catch (err) {
         console.error('Exception getting unread count:', err);
         return 0;
@@ -115,11 +115,11 @@ const processedNotifications = new Set();
 
 /**
  * Set up Supabase realtime subscription to listen for new notifications.
- * Increments badge count and triggers device popup notification immediately.
+ * Increments badge count, prepends to dropdown, and triggers device popup immediately.
  */
 function setupRealtimeListener() {
-    if (!window.supabase) {
-        console.warn("Supabase not initialized");
+    if (!window.supabase || typeof window.supabase.channel !== 'function') {
+        console.warn("Supabase not initialized, skipping realtime");
         return;
     }
 
@@ -136,23 +136,34 @@ function setupRealtimeListener() {
                 table: "notifications"
             },
             async (payload) => {
-
                 console.log("🔥 Realtime event received:", payload);
 
                 const newNotif = payload.new;
 
-                console.log("Notification:", newNotif);
+                if (!newNotif || newNotif.is_read) return;
 
-                if (newNotif && !newNotif.is_read) {
-
-                    console.log("Calling showDeviceNotification()");
-
-                    showDeviceNotification(
-                        newNotif.notification_id,
-                        newNotif.title,
-                        newNotif.message
-                    );
+                // 1. Increment badge immediately (no extra query)
+                const badge = document.getElementById('notificationBadge');
+                if (badge) {
+                    const current = parseInt(badge.textContent, 10) || 0;
+                    const next = current + 1;
+                    badge.textContent = next > 99 ? '99+' : next;
+                    badge.style.display = 'flex';
                 }
+
+                // 2. Prepend to dropdown list if it has been loaded
+                if (dropdownNotifications.length > 0) {
+                    dropdownNotifications.unshift(newNotif);
+                    if (dropdownNotifications.length > 5) dropdownNotifications.pop();
+                    renderDropdownNotifications();
+                }
+
+                // 3. Show device/desktop notification
+                showDeviceNotification(
+                    newNotif.notification_id,
+                    newNotif.title,
+                    newNotif.message
+                );
             }
         )
         .subscribe((status) => {
@@ -302,6 +313,9 @@ async function loadDropdownNotifications() {
     const listContainer = document.getElementById('dropdownNotificationsList');
     if (!listContainer) return;
 
+    // Show loading state
+    listContainer.innerHTML = '<div class="dropdown-empty"><p>Loading...</p></div>';
+
     try {
         if (!window.supabase || typeof window.supabase.from !== 'function') {
             listContainer.innerHTML = '<div class="dropdown-empty"><p>Database not connected</p></div>';
@@ -310,7 +324,7 @@ async function loadDropdownNotifications() {
 
         const { data, error } = await window.supabase
             .from('notifications')
-            .select('*')
+            .select('notification_id, title, message, type, priority, is_read, created_at')
             .order('created_at', { ascending: false })
             .limit(5);
 

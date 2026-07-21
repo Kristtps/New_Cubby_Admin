@@ -7,6 +7,22 @@ let allNotifications = [];
 let currentFilter = 'all';
 let searchQuery = '';
 let selectedNotificationId = null;
+const NOTIFICATION_CHECK_INTERVAL = 30000;
+
+/**
+ * Get count of unread notifications (standalone for this page)
+ */
+async function checkUnreadNotifications() {
+    try {
+        if (!window.supabase || typeof window.supabase.from !== 'function') return 0;
+        const { count, error } = await window.supabase
+            .from('notifications')
+            .select('notification_id', { count: 'exact', head: true })
+            .eq('is_read', false);
+        if (error) { console.error('Error getting unread count:', error); return 0; }
+        return count || 0;
+    } catch (err) { console.error('Exception getting unread count:', err); return 0; }
+}
 
 // Initialize notifications page
 document.addEventListener('DOMContentLoaded', async function () {
@@ -17,17 +33,20 @@ document.addEventListener('DOMContentLoaded', async function () {
         await window.supabasePromise;
     }
 
-    await loadNotifications();
+    // Fire notification list + badge count in parallel
+    Promise.allSettled([loadNotifications(), checkUnreadNotifications()]);
 
-    // Auto-refresh notifications every 30 seconds
+    // Set up realtime subscription for live updates
+    subscribeToNotificationChanges();
+
+    // Auto-refresh notifications every 30 seconds (fallback if realtime disconnects)
     setInterval(async function () {
         try {
             await loadNotifications();
-            console.log('✓ Notifications auto-refreshed');
         } catch (err) {
             console.error('Notifications auto-refresh error:', err);
         }
-    }, 30000);
+    }, NOTIFICATION_CHECK_INTERVAL);
 });
 
 /**
@@ -43,10 +62,15 @@ async function loadNotifications() {
             return;
         }
 
-        // Fetch notifications
+        // Show loading state only if this is the first load (container still has the placeholder)
+        if (allNotifications.length === 0) {
+            container.innerHTML = '<div style="text-align: center; padding: 3rem; color: var(--color-text-muted);">Loading notifications...</div>';
+        }
+
+        // Fetch notifications — select only columns the UI renders
         const { data, error } = await window.supabase
             .from('notifications')
-            .select('*')
+            .select('notification_id, title, message, type, is_read, created_at')
             .order('created_at', { ascending: false })
             .limit(100);
 
@@ -484,19 +508,6 @@ async function clearAllRead() {
 }
 let notificationChannel = null;
 
-async function initNotifications() {
-    if (window.supabasePromise) {
-        await window.supabasePromise;
-    }
-
-    await checkUnreadNotifications();
-
-    // Fallback polling in case realtime disconnects
-    setInterval(checkUnreadNotifications, NOTIFICATION_CHECK_INTERVAL);
-
-    subscribeToNotificationChanges();
-}
-
 function subscribeToNotificationChanges() {
     if (!window.supabase || typeof window.supabase.channel !== 'function') {
         return;
@@ -504,12 +515,13 @@ function subscribeToNotificationChanges() {
     if (notificationChannel) return; // avoid duplicate subscriptions
 
     notificationChannel = window.supabase
-        .channel('notifications-badge')
+        .channel('notifications-page')
         .on(
             'postgres_changes',
             { event: '*', schema: 'public', table: 'notifications' },
             () => {
-                // Any insert/update (new notification, or marked read) re-syncs the count
+                // Any insert/update (new notification, or marked read) re-syncs data
+                loadNotifications();
                 checkUnreadNotifications();
             }
         )
