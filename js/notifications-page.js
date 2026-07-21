@@ -132,6 +132,24 @@ function getNotificationGroup(dateString) {
 }
 
 /**
+ * Fix UTC time in notification message text to Philippine Time (UTC+8).
+ * Detects pattern like "before 08:32 AM" and converts to PHT.
+ */
+function fixNotificationTimezone(message) {
+    if (!message) return message;
+    return message.replace(/before\s+(\d{1,2}):(\d{2})\s*(AM|PM)/gi, function (match, h, m, ampm) {
+        let hour = parseInt(h, 10);
+        const upper = ampm.toUpperCase();
+        if (upper === 'PM' && hour !== 12) hour += 12;
+        if (upper === 'AM' && hour === 12) hour = 0;
+        hour = (hour + 8) % 24; // Convert UTC → PHT (+8)
+        const newAmpm = hour >= 12 ? 'PM' : 'AM';
+        const newHour = hour % 12 || 12;
+        return `before ${newHour}:${m} ${newAmpm}`;
+    });
+}
+
+/**
  * Render notifications
  */
 function renderNotifications() {
@@ -212,7 +230,7 @@ function renderNotifications() {
                                     ${isUnread ? '<div class="unread-dot"></div>' : ''}
                                 </div>
                             </div>
-                            <div class="notification-message">${notification.message || ''}</div>
+                            <div class="notification-message">${fixNotificationTimezone(notification.message || '')}</div>
                             <div class="notification-datetime">${formattedDate}</div>
                         </div>
                     </div>

@@ -230,7 +230,7 @@ function showInAppToast(id, title, message) {
                 ${title}
                 <span class="toast-time">Just now</span>
             </div>
-            <div class="toast-message">${message}</div>
+            <div class="toast-message">${fixNotificationTimezone(message)}</div>
         </div>
         <button class="toast-close" onclick="this.closest('.toast-notification').remove(); event.stopPropagation();">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -327,6 +327,24 @@ async function loadDropdownNotifications() {
 }
 
 /**
+ * Fix UTC time in notification message text to Philippine Time (UTC+8).
+ * Detects pattern like "before 08:32 AM" and converts to PHT.
+ */
+function fixNotificationTimezone(message) {
+    if (!message) return message;
+    return message.replace(/before\s+(\d{1,2}):(\d{2})\s*(AM|PM)/gi, function (match, h, m, ampm) {
+        let hour = parseInt(h, 10);
+        const upper = ampm.toUpperCase();
+        if (upper === 'PM' && hour !== 12) hour += 12;
+        if (upper === 'AM' && hour === 12) hour = 0;
+        hour = (hour + 8) % 24; // Convert UTC → PHT (+8)
+        const newAmpm = hour >= 12 ? 'PM' : 'AM';
+        const newHour = hour % 12 || 12;
+        return `before ${newHour}:${m} ${newAmpm}`;
+    });
+}
+
+/**
  * Render notifications in the dropdown list
  */
 function renderDropdownNotifications() {
@@ -362,7 +380,7 @@ function renderDropdownNotifications() {
                 </div>
                 <div class="dropdown-item-content">
                     <div class="dropdown-item-title">${notification.title}</div>
-                    <div class="dropdown-item-msg">${notification.message}</div>
+                    <div class="dropdown-item-msg">${fixNotificationTimezone(notification.message)}</div>
                     <div class="dropdown-item-meta">
                         ${priorityBadge}
                         <span class="dropdown-item-time">${timeAgo}</span>

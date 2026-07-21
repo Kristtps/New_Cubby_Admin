@@ -57,72 +57,29 @@ async function fetchActiveRentals() {
 
 /**
  * Create a new rental
+ * DISABLED: Web app is now view-only for rentals
  */
 async function createRental(rentalData) {
-    try {
-        const supabase = getSupabaseClient();
-        const { data, error } = await supabase
-            .from('rentals')
-            .insert([rentalData])
-            .select();
-
-        if (error) throw error;
-        console.log('✓ Rental created:', data);
-        return data;
-    } catch (error) {
-        console.error('Error creating rental:', error);
-        return null;
-    }
+    console.log('ℹ️ createRental disabled — web is view-only');
+    return null;
 }
 
 /**
  * Update rental status
+ * DISABLED: Web app is now view-only for rentals
  */
 async function updateRentalStatus(transactionId, status) {
-    try {
-        const supabase = getSupabaseClient();
-        const updatePayload = { status: status };
-        if (status === 'Completed') {
-            updatePayload.end_time = new Date().toISOString();
-        }
-        const { data, error } = await supabase
-            .from('transactions')
-            .update(updatePayload)
-            .eq('transaction_id', transactionId)
-            .select();
-
-        if (error) throw error;
-        console.log('✓ Transaction status updated:', data);
-        return data;
-    } catch (error) {
-        console.error('Error updating transaction status:', error);
-        return null;
-    }
+    console.log('ℹ️ updateRentalStatus disabled — web is view-only');
+    return null;
 }
 
 /**
  * Find and complete any active transaction for a specific locker
+ * DISABLED: Web app is now view-only for rentals
  */
 async function completeActiveTransactionForLocker(lockerId) {
-    try {
-        const supabase = getSupabaseClient();
-        const { data, error } = await supabase
-            .from('transactions')
-            .update({
-                status: 'Completed',
-                end_time: new Date().toISOString()
-            })
-            .eq('locker_id', lockerId)
-            .eq('status', 'Active')
-            .select();
-
-        if (error) throw error;
-        console.log('✓ Active transaction completed for locker ID:', lockerId, data);
-        return data;
-    } catch (error) {
-        console.error('Error completing active transaction for locker:', error);
-        return null;
-    }
+    console.log('ℹ️ completeActiveTransactionForLocker disabled — web is view-only');
+    return null;
 }
 
 /**
