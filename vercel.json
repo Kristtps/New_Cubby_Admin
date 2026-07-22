@@ -45,6 +45,10 @@
       "destination": "/pages/profile.html"
     },
     {
+      "source": "/inventory",
+      "destination": "/pages/inventory.html"
+    },
+    {
       "source": "/notifications",
       "destination": "/pages/notifications.html"
     }

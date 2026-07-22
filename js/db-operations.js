@@ -1601,6 +1601,124 @@ async function createPayment(paymentData) {
     }
 }
 
+/**
+ * DEVICE INVENTORY OPERATIONS
+ */
+
+/**
+ * Fetch all devices with their associated device inventory
+ */
+async function fetchDevicesWithInventory() {
+    try {
+        const supabase = getSupabaseClient();
+        const { data, error } = await supabase
+            .from('devices')
+            .select('*, device_inventory(*)');
+
+        if (error) throw error;
+
+        // Format and ensure each device has a device_inventory sub-object
+        const formatted = (data || []).map(device => {
+            const inventory = (device.device_inventory && device.device_inventory.length > 0)
+                ? device.device_inventory[0]
+                : { change_amount: 0, last_refilled_amount: 0, last_refilled_at: null };
+            return {
+                ...device,
+                device_inventory: inventory
+            };
+        });
+        console.log('✓ Devices with inventory fetched:', formatted);
+        return formatted;
+    } catch (error) {
+        console.error('Error fetching devices with inventory:', error);
+        return [];
+    }
+}
+
+/**
+ * Update device inventory
+ */
+async function updateDeviceInventory(deviceId, changeAmount, lastRefilledAmount = null, lastRefilledAt = null) {
+    try {
+        const supabase = getSupabaseClient();
+        const payload = {
+            device_id: deviceId,
+            change_amount: parseFloat(changeAmount),
+            updated_at: new Date().toISOString()
+        };
+        if (lastRefilledAmount !== null) {
+            payload.last_refilled_amount = parseFloat(lastRefilledAmount);
+        }
+        if (lastRefilledAt !== null) {
+            payload.last_refilled_at = lastRefilledAt;
+        }
+
+        const { data, error } = await supabase
+            .from('device_inventory')
+            .upsert(payload, { onConflict: 'device_id' })
+            .select();
+
+        if (error) throw error;
+        console.log('✓ Device inventory updated:', data);
+        return data;
+    } catch (error) {
+        console.error('Error updating device inventory:', error);
+        return null;
+    }
+}
+
+/**
+ * Add an entry to the device inventory history
+ */
+async function addInventoryHistory(deviceId, actionType, amount, previousAmount, newAmount, performedBy, notes = '') {
+    try {
+        const supabase = getSupabaseClient();
+        const payload = {
+            device_id: deviceId,
+            action_type: actionType,
+            amount: parseFloat(amount),
+            previous_amount: parseFloat(previousAmount),
+            new_amount: parseFloat(newAmount),
+            performed_by: performedBy,
+            notes: notes,
+            created_at: new Date().toISOString()
+        };
+
+        const { data, error } = await supabase
+            .from('device_inventory_history')
+            .insert([payload])
+            .select();
+
+        if (error) throw error;
+        console.log('✓ Inventory history recorded:', data);
+        return data;
+    } catch (error) {
+        console.error('Error adding inventory history:', error);
+        return null;
+    }
+}
+
+/**
+ * Fetch history for a specific device
+ */
+async function fetchInventoryHistory(deviceId) {
+    try {
+        const supabase = getSupabaseClient();
+        const { data, error } = await supabase
+            .from('device_inventory_history')
+            .select('*')
+            .eq('device_id', deviceId)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        console.log('✓ Inventory history fetched:', data);
+        return data;
+    } catch (error) {
+        console.error('Error fetching inventory history:', error);
+        return [];
+    }
+}
+
 // Make functions globally accessible
 window.dbOps = {
     // Rentals
@@ -1669,6 +1787,12 @@ window.dbOps = {
     fetchAllPayments,
     fetchPaymentsByTransaction,
     createPayment,
+
+    // Device Inventory
+    fetchDevicesWithInventory,
+    updateDeviceInventory,
+    addInventoryHistory,
+    fetchInventoryHistory,
 
     // System Logging
     logLoginEvent,

@@ -17,6 +17,17 @@
             } catch (e) {
                 document.documentElement.setAttribute('data-theme', 'light');
             }
+
+            // Clear all auth-related data so login page always shows fresh
+            try {
+                localStorage.removeItem('coincubby_auth');
+                // Remove any lingering Supabase Auth keys
+                Object.keys(localStorage).forEach(function(key) {
+                    if (key.startsWith('sb-') || key.includes('supabase')) {
+                        localStorage.removeItem(key);
+                    }
+                });
+            } catch(e) {}
         })();
     </script>
 </head>

@@ -31,7 +31,7 @@
                         style="border-radius: 50%;">
                     <span>CoinCubby</span>
                 </div>
-                <p class="text-muted" data-i18n="sidebar.adminPanel">Admin Panel</p>
+                <p class="text-muted" data-i18n="sidebar.adminPanel">Admin</p>
             </div>
 
             <nav class="nav-menu">
@@ -55,6 +55,13 @@
                     <a href="rentals.html" class="nav-item">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"></circle><path d="M12 1v6m0 6v6M4.22 4.22l4.24 4.24m2.12 2.12l4.24 4.24M1 12h6m6 0h6m-17.78 7.78l4.24-4.24m2.12-2.12l4.24-4.24"></path></svg>
                         <span data-i18n="nav.rentals">Rentals</span>
+                    </a>
+                    <a href="inventory.html" class="nav-item">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
+                        </svg>
+                        <span data-i18n="nav.inventory">Inventory</span>
                     </a>
                   
                     <a href="rates.html" class="nav-item">
@@ -149,7 +156,14 @@
     <script src="../js/theme.js"></script>
     <script src="../js/supabase-client.js"></script>
     <script src="../js/db-operations.js"></script>
-    <script src="../js/script.js"></script>
+        <script>
+        (function () {
+            const auth = localStorage.getItem('coincubby_auth');
+            if (!auth) {
+                window.location.href = 'login.html';
+            }
+        })();
+    </script><script src="../js/script.js"></script>
     <script src="../js/customers.js"></script>
 
 </body>

@@ -12,7 +12,13 @@ function initSupabase() {
     // If it's already present, create the client synchronously (no extra network round-trip).
     if (window.supabase && typeof window.supabase.createClient === 'function') {
         try {
-            const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+                auth: {
+                    persistSession: true,
+                    autoRefreshToken: true,
+                    detectSessionInUrl: false
+                }
+            });
             window.supabase = client;
             window.supabaseClient = client;
             console.log('✓ Supabase Client initialized (sync)');

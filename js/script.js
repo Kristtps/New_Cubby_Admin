@@ -201,6 +201,14 @@ document.addEventListener('DOMContentLoaded', async function () {
             window.location.href = 'login.html';
             return;
         }
+    } else {
+        // Fallback: check localStorage directly
+        const auth = localStorage.getItem('coincubby_auth');
+        if (!auth) {
+            console.log('User not authenticated, redirecting to login...');
+            window.location.href = 'login.html';
+            return;
+        }
     }
 
     initializeSidebar();

@@ -1,348 +1,251 @@
 // ========================================
-// LOGIN PAGE - ADMIN TABLE AUTHENTICATION
+// LOGIN PAGE — ADMIN TABLE AUTHENTICATION
 // ========================================
-// This version authenticates against the admin table in Supabase
-// NOT Supabase Auth - uses your custom admin table
 
-const SUPABASE_URL = "https://cjuimxgxovdmijuenagr.supabase.co";
+const SUPABASE_URL     = "https://cjuimxgxovdmijuenagr.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNqdWlteGd4b3ZkbWlqdWVuYWdyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0MzQ0OTEsImV4cCI6MjA5MjAxMDQ5MX0.t6ixuFiD2iYzrNZsc1QjG3gpdTdBuMY37qTKzwxdg18";
 
-let supabaseClient;
+let supabaseClient = null;
 
-// Initialize login page
-document.addEventListener('DOMContentLoaded', async function () {
-    // Load Supabase script dynamically if it's missing
-    if (!window.supabase) {
-        try {
-            await new Promise((resolve, reject) => {
-                const script = document.createElement('script');
-                script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
-                script.onload = resolve;
-                script.onerror = reject;
-                document.head.appendChild(script);
-            });
-        } catch (e) {
-            console.error('Failed to load Supabase script:', e);
-            showError('Initialization failed. Please check your internet connection.');
-        }
-    }
-
-    if (window.supabase) {
-        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    }
-
-    // Clear stored auth for demo/reset
-    localStorage.removeItem('coincubby_auth');
-    console.log('✓ Demo mode: Auth cleared, login form will show');
-
-    // Only initialize login form if we're on login page
-    if (document.getElementById('loginForm')) {
-        initializeLoginForm();
-    }
-});
-
-/**
- * Initialize login form event listeners
- */
-function initializeLoginForm() {
-    const form = document.getElementById('loginForm');
-    const togglePassword = document.getElementById('togglePassword');
-    const emailInput = document.getElementById('email');
-    const passwordInput = document.getElementById('password');
-
-    // Form submission
-    if (form) {
-        form.addEventListener('submit', handleLoginSubmit);
-    }
-
-    // Toggle password visibility
-    if (togglePassword) {
-        togglePassword.addEventListener('click', function (e) {
-            e.preventDefault();
-            const type = passwordInput.type === 'password' ? 'text' : 'password';
-            passwordInput.type = type;
-            this.style.transform = type === 'text' ? 'scaleX(-1)' : 'scaleX(1)';
+// ── Build Supabase client ─────────────────────────────────────
+function buildSupabaseClient() {
+    try {
+        const lib = window.supabase;
+        if (!lib || typeof lib.createClient !== 'function') return null;
+        return lib.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+            auth: {
+                persistSession:    false,
+                autoRefreshToken:  false,
+                detectSessionInUrl: false
+            }
         });
-    }
-
-    // Real-time validation
-    if (emailInput) {
-        emailInput.addEventListener('blur', validateEmail);
-        emailInput.addEventListener('input', function () {
-            clearError('emailError');
-        });
-    }
-
-    if (passwordInput) {
-        passwordInput.addEventListener('blur', validatePassword);
-        passwordInput.addEventListener('input', function () {
-            clearError('passwordError');
-        });
-    }
-
-    // Auto-focus email on load
-    if (emailInput) {
-        emailInput.focus();
+    } catch (e) {
+        console.error('Could not create Supabase client:', e);
+        return null;
     }
 }
 
-/**
- * Handle login form submission - AUTHENTICATE AGAINST ADMIN TABLE
- */
+// ── DOMContentLoaded ─────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function () {
+
+    // Already logged in? Go straight to dashboard.
+    try {
+        const existing = JSON.parse(localStorage.getItem('coincubby_auth') || 'null');
+        if (existing && existing.isAuthenticated === true) {
+            window.location.href = 'index.html';
+            return;
+        }
+    } catch (_) {
+        localStorage.removeItem('coincubby_auth');
+    }
+
+    // Build client
+    supabaseClient = buildSupabaseClient();
+
+    if (!supabaseClient) {
+        // Retry once after 800 ms (CDN might not have finished loading)
+        setTimeout(() => {
+            supabaseClient = buildSupabaseClient();
+            if (!supabaseClient) {
+                showError('Database connection failed. Please refresh the page.');
+            } else {
+                console.log('✓ Supabase client ready (retry)');
+            }
+        }, 800);
+    } else {
+        console.log('✓ Supabase client ready');
+    }
+
+    initializeLoginForm();
+});
+
+// ── Form initialization ───────────────────────────────────────
+function initializeLoginForm() {
+    const form          = document.getElementById('loginForm');
+    const togglePassword = document.getElementById('togglePassword');
+    const emailInput    = document.getElementById('email');
+    const passwordInput = document.getElementById('password');
+
+    if (form)           form.addEventListener('submit', handleLoginSubmit);
+    if (emailInput)     emailInput.addEventListener('input',  () => clearFieldError('emailError'));
+    if (passwordInput)  passwordInput.addEventListener('input', () => clearFieldError('passwordError'));
+
+    if (togglePassword && passwordInput) {
+        togglePassword.addEventListener('click', (e) => {
+            e.preventDefault();
+            const isText = passwordInput.type === 'text';
+            passwordInput.type = isText ? 'password' : 'text';
+            togglePassword.style.transform = isText ? '' : 'scaleX(-1)';
+        });
+    }
+
+    if (emailInput) emailInput.focus();
+}
+
+// ── Login handler ─────────────────────────────────────────────
 async function handleLoginSubmit(e) {
     e.preventDefault();
-
-    const email = document.getElementById('email').value.trim();
-    const password = document.getElementById('password').value;
-    const rememberMe = document.getElementById('rememberMe').checked;
-
     clearMessages();
 
-    if (!validateEmail() || !validatePassword()) {
+    const email    = document.getElementById('email').value.trim().toLowerCase();
+    const password = document.getElementById('password').value;
+    const remember = document.getElementById('rememberMe')?.checked ?? false;
+
+    // Basic validation
+    let valid = true;
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        showFieldError('emailError', 'Enter a valid email address.');
+        valid = false;
+    }
+    if (!password) {
+        showFieldError('passwordError', 'Password is required.');
+        valid = false;
+    }
+    if (!valid) return;
+
+    // Make sure the client is ready
+    if (!supabaseClient) {
+        supabaseClient = buildSupabaseClient();
+    }
+    if (!supabaseClient) {
+        showError('Database connection not available. Please refresh the page.');
         return;
     }
 
-    const submitBtn = document.querySelector('.btn-login');
-    const originalText = submitBtn.querySelector('.btn-text').textContent;
-    submitBtn.disabled = true;
-    submitBtn.querySelector('.btn-text').textContent = 'Signing in...';
+    // Disable button
+    const btn     = document.querySelector('.btn-login');
+    const btnText = btn?.querySelector('.btn-text');
+    if (btn)     btn.disabled = true;
+    if (btnText) btnText.textContent = 'Signing in…';
 
     try {
-        if (!supabaseClient) {
-            showError('Database connection not initialized. Check your internet connection.');
-            return;
-        }
+        console.log('🔐 Querying admin table for:', email);
 
-        console.log('Authenticating against admin table...');
-
-        // Query admin table for matching email and password
-        const { data: adminData, error: adminError } = await supabaseClient
+        const { data, error } = await supabaseClient
             .from('admin')
-            .select('*')
+            .select('id, email, full_name, password, role')
             .eq('email', email)
-            .eq('password', password)
             .maybeSingle();
 
-        if (adminError) {
-            console.error('Database error:', adminError);
-            showError('Database error. Please try again.');
+        if (error) {
+            console.error('DB error:', error);
+            showError('Database error: ' + error.message);
             return;
         }
 
-        if (!adminData) {
-            // No matching admin found
+        if (!data) {
+            console.warn('No admin row found for email:', email);
             showError('Invalid email or password. Please try again.');
-            console.log('Login failed: No matching admin in database');
             return;
         }
 
-        // Login successful!
-        console.log('✓ Admin authenticated:', adminData.email);
-        showSuccess('Login successful! Redirecting...');
-
-        // Request desktop notification permission since this is tied to a user gesture
-        if ('Notification' in window && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
-            try {
-                await Notification.requestPermission();
-                console.log('Notification permission requested during login');
-            } catch (err) {
-                console.warn('Could not request notification permission:', err);
-            }
+        // Plain-text password comparison (matches your schema)
+        if (data.password !== password) {
+            console.warn('Password mismatch for:', email);
+            showError('Invalid email or password. Please try again.');
+            return;
         }
 
-        // Store auth data
-        storeLoginCredentials({
-            id: adminData.id,
-            email: adminData.email,
-            name: adminData.full_name || adminData.email.split('@')[0],
+        // ── SUCCESS ──────────────────────────────────────────
+        console.log('✓ Login successful for:', data.email);
+        showSuccess('Login successful! Redirecting…');
+
+        // Persist auth
+        localStorage.setItem('coincubby_auth', JSON.stringify({
+            isAuthenticated: true,
+            id:        data.id,
+            email:     data.email,
+            name:      data.full_name || data.email.split('@')[0],
+            role:      data.role || 'Admin',
             loginTime: new Date().toISOString(),
-            rememberMe: rememberMe
-        });
+            rememberMe: remember
+        }));
 
-        // Update last_login in database (if column exists)
-        try {
-            await supabaseClient
-                .from('admin')
-                .update({ last_login: new Date().toISOString() })
-                .eq('id', adminData.id);
-            console.log('✓ Last login updated');
-        } catch (updateErr) {
-            console.warn('Could not update last_login (column may not exist):', updateErr);
-        }
+        // Update last_login in background — don't await, don't block redirect
+        supabaseClient
+            .from('admin')
+            .update({ last_login: new Date().toISOString() })
+            .eq('id', data.id)
+            .then(() => console.log('✓ last_login updated'))
+            .catch(err => console.warn('last_login update failed (non-fatal):', err));
 
+        // Redirect after a short pause so the success message is visible
         setTimeout(() => {
-            redirectToDashboard();
-        }, 1500);
+            window.location.href = 'index.html';
+        }, 1200);
 
-    } catch (error) {
-        console.error('Login error:', error);
-        showError('An error occurred during login. Please try again.');
+    } catch (err) {
+        console.error('Unexpected login error:', err);
+        showError('An unexpected error occurred. Please try again.');
     } finally {
-        submitBtn.disabled = false;
-        submitBtn.querySelector('.btn-text').textContent = originalText;
+        // Re-enable button (except when redirecting)
+        setTimeout(() => {
+            if (btn)     btn.disabled = false;
+            if (btnText) btnText.textContent = 'Sign In';
+        }, 1500);
     }
 }
 
-/**
- * Validate email format
- */
-function validateEmail() {
-    const emailInput = document.getElementById('email');
-    const email = emailInput.value.trim();
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-    if (!email) {
-        showFieldError('emailError', 'Email is required');
-        return false;
-    }
-
-    if (!emailRegex.test(email)) {
-        showFieldError('emailError', 'Please enter a valid email');
-        return false;
-    }
-
-    clearError('emailError');
-    return true;
+// ── UI helpers ────────────────────────────────────────────────
+function showFieldError(id, msg) {
+    const el = document.getElementById(id);
+    if (el) { el.textContent = msg; el.style.display = 'block'; }
 }
 
-/**
- * Validate password
- */
-function validatePassword() {
-    const passwordInput = document.getElementById('password');
-    const password = passwordInput.value;
-
-    if (!password) {
-        showFieldError('passwordError', 'Password is required');
-        return false;
-    }
-
-    clearError('passwordError');
-    return true;
+function clearFieldError(id) {
+    const el = document.getElementById(id);
+    if (el) { el.textContent = ''; el.style.display = 'none'; }
 }
 
-/**
- * Show field-specific error
- */
-function showFieldError(errorElementId, message) {
-    const errorElement = document.getElementById(errorElementId);
-    if (errorElement) {
-        errorElement.textContent = message;
-        errorElement.style.display = 'block';
-    }
+function showError(msg) {
+    clearMessages();
+    const el = document.getElementById('loginError');
+    if (el) { el.textContent = msg; el.style.display = 'flex'; }
 }
 
-/**
- * Clear field error
- */
-function clearError(errorElementId) {
-    const errorElement = document.getElementById(errorElementId);
-    if (errorElement) {
-        errorElement.textContent = '';
-        errorElement.style.display = 'none';
-    }
+function showSuccess(msg) {
+    clearMessages();
+    const el = document.getElementById('loginSuccess');
+    if (el) { el.textContent = msg; el.style.display = 'flex'; }
 }
 
-/**
- * Show error message
- */
-function showError(message) {
-    const errorAlert = document.getElementById('loginError');
-    if (errorAlert) {
-        errorAlert.textContent = message;
-        errorAlert.style.display = 'flex';
-        errorAlert.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }
-}
-
-/**
- * Show success message
- */
-function showSuccess(message) {
-    const successAlert = document.getElementById('loginSuccess');
-    if (successAlert) {
-        successAlert.textContent = message;
-        successAlert.style.display = 'flex';
-        successAlert.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }
-}
-
-/**
- * Clear all messages
- */
 function clearMessages() {
-    const errorAlert = document.getElementById('loginError');
-    const successAlert = document.getElementById('loginSuccess');
-    if (errorAlert) errorAlert.style.display = 'none';
-    if (successAlert) successAlert.style.display = 'none';
+    ['loginError', 'loginSuccess'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+    });
 }
 
-// ==================== AUTHENTICATION MANAGEMENT ====================
-
-/**
- * Store login credentials in localStorage
- */
-function storeLoginCredentials(credentials) {
-    const authData = {
-        isAuthenticated: true,
-        id: credentials.id,
-        email: credentials.email,
-        name: credentials.name,
-        loginTime: credentials.loginTime,
-        rememberMe: credentials.rememberMe || false
-    };
-    localStorage.setItem('coincubby_auth', JSON.stringify(authData));
-    console.log('✓ User authenticated:', credentials.email, '-', credentials.name);
-}
-
-/**
- * Get stored authentication data
- */
+// ── Auth utilities (used by other pages) ─────────────────────
 function getAuthData() {
     try {
-        const authData = localStorage.getItem('coincubby_auth');
-        if (!authData) return null;
-        return JSON.parse(authData);
-    } catch (error) {
-        console.error('Error reading auth data:', error);
+        const raw = localStorage.getItem('coincubby_auth');
+        return raw ? JSON.parse(raw) : null;
+    } catch (_) {
         localStorage.removeItem('coincubby_auth');
         return null;
     }
 }
 
-/**
- * Check if user is authenticated
- */
 function isUserAuthenticated() {
-    const authData = getAuthData();
-    return authData && authData.isAuthenticated === true;
+    const auth = getAuthData();
+    return !!(auth && auth.isAuthenticated === true);
 }
 
-/**
- * Logout user
- */
-async function logoutUser() {
+function logoutUser() {
     localStorage.removeItem('coincubby_auth');
-    console.log('✓ User logged out');
     window.location.href = 'login.html';
 }
 
-/**
- * Redirect to dashboard
- */
-function redirectToDashboard() {
-    window.location.href = 'index.html';
-}
-
-/**
- * Protect pages
- */
 function protectPage() {
-    const authData = getAuthData();
-    if (!authData || !authData.isAuthenticated) {
-        if (!window.redirecting) {
-            window.redirecting = true;
-            window.location.href = 'login.html';
-        }
+    if (!isUserAuthenticated() && !window._redirecting) {
+        window._redirecting = true;
+        window.location.href = 'login.html';
     }
 }
+
+// Expose for use by script.js / profile.js
+window.isUserAuthenticated = isUserAuthenticated;
+window.logoutUser          = logoutUser;
+window.protectPage         = protectPage;
+window.getAuthData         = getAuthData;
