@@ -17,7 +17,6 @@ document.addEventListener('DOMContentLoaded', async function () {
     setupKioskForm();
     setupPasswordForm();
     setupProfileThemeToggle();
-    setupLanguageSelector();
 });
 
 // ─────────────────────────────────────────
@@ -419,21 +418,8 @@ function setupProfileThemeToggle() {
         const isDark = theme === 'dark';
         profileToggleBtn.setAttribute('aria-pressed', isDark ? 'true' : 'false');
         profileToggleBtn.classList.toggle('active', isDark);
-        
-        if (profileThemeIcon) {
-            // Show current mode icon
-            profileThemeIcon.textContent = isDark ? '🌙' : '☀️';
-        }
-        if (profileThemeLabel) {
-            // Use i18n keys for translation support
-            const labelKey = isDark ? 'profile.dark' : 'profile.light';
-            if (typeof languageManager !== 'undefined') {
-                profileThemeLabel.textContent = languageManager.translate(labelKey);
-            } else {
-                profileThemeLabel.textContent = isDark ? 'Dark' : 'Light';
-            }
-            profileThemeLabel.setAttribute('data-i18n', labelKey);
-        }
+        if (profileThemeIcon) profileThemeIcon.textContent = isDark ? '🌙' : '☀️';
+        if (profileThemeLabel) profileThemeLabel.textContent = isDark ? 'Dark' : 'Light';
     }
 
     // Set initial state
@@ -468,18 +454,11 @@ function setupProfileThemeToggle() {
         // Sync with Sidebar Toggle if it exists
         const sidebarToggleBtn = document.getElementById('theme-toggle-btn');
         if (sidebarToggleBtn) {
-            const sidebarIcon = document.getElementById('theme-icon');
+            const sidebarIcon  = document.getElementById('theme-icon');
             const sidebarLabel = document.getElementById('theme-label');
             sidebarToggleBtn.setAttribute('aria-pressed', newTheme === 'dark' ? 'true' : 'false');
-            if (sidebarIcon) sidebarIcon.textContent = newTheme === 'dark' ? '🌙' : '☀️';
-            if (sidebarLabel) {
-                const labelKey = newTheme === 'dark' ? 'profile.dark' : 'profile.light';
-                if (typeof languageManager !== 'undefined') {
-                    sidebarLabel.textContent = languageManager.translate(labelKey);
-                } else {
-                    sidebarLabel.textContent = newTheme === 'dark' ? 'Dark' : 'Light';
-                }
-            }
+            if (sidebarIcon)  sidebarIcon.textContent  = newTheme === 'dark' ? '🌙' : '☀️';
+            if (sidebarLabel) sidebarLabel.textContent = newTheme === 'dark' ? 'Dark' : 'Light';
         }
     });
     
@@ -487,33 +466,6 @@ function setupProfileThemeToggle() {
     window.addEventListener('themechange', function(e) {
         const newTheme = e.detail.theme;
         updateProfileToggleUI(newTheme);
-    });
-}
-
-
-function setupLanguageSelector() {
-    const languageSelect = document.getElementById('language-select');
-    if (!languageSelect) return;
-
-    if (typeof languageManager === 'undefined') {
-        console.error('Language manager not loaded');
-        return;
-    }
-
-    const currentLang = languageManager.getCurrentLanguage();
-    languageSelect.value = currentLang;
-
-    languageSelect.addEventListener('change', function (e) {
-        const selectedLang = e.target.value;
-        console.log('Language changed to:', selectedLang);
-        languageManager.setLanguage(selectedLang);
-    });
-
-    window.addEventListener('languageChanged', function (e) {
-        const newLang = e.detail.language;
-        if (languageSelect.value !== newLang) {
-            languageSelect.value = newLang;
-        }
     });
 }
 
