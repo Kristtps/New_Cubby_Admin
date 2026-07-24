@@ -1183,7 +1183,16 @@ function initializeActionButtons() {
 
     globalActionListenerAttached = true;
 
-    // Action buttons removed - locker rows are clickable to show rental details
+    // Delegated listener for maintenance toggle button
+    tbody.addEventListener('click', function (e) {
+        const btn = e.target.closest('.btn-maintenance');
+        if (!btn) return;
+        e.stopPropagation();
+        const row = btn.closest('tr');
+        if (!row) return;
+        const lockerCode = row.getAttribute('data-locker-code');
+        if (lockerCode) toggleMaintenance(btn, lockerCode);
+    });
 }
 
 /**
@@ -1399,6 +1408,75 @@ async function handleAddLockerSubmit() {
     }
 }
 
+/**
+ * Build the maintenance toggle button HTML for a locker row.
+ */
+function buildMaintenanceBtn(status) {
+    const isMaint = (status || '').toLowerCase() === 'maintenance';
+    const cls     = isMaint ? 'on' : 'off';
+    const label   = isMaint ? '🔧 In Maintenance' : '🔧 Set Maintenance';
+    return `<button class="btn-maintenance ${cls}" title="Toggle Maintenance">${label}</button>`;
+}
+
+/**
+ * Toggle a locker between 'Maintenance' and 'Available' and persist to DB.
+ */
+async function toggleMaintenance(btn, lockerCode) {
+    const row        = btn.closest('tr');
+    const statusBadge = row.querySelector('[data-field="status"]');
+    const currentStatus = (row.getAttribute('data-locker-status') || '').toLowerCase();
+    const isMaint    = currentStatus === 'maintenance';
+    
+    // DB expects capitalized value (e.g. 'Maintenance' or 'Available')
+    const dbStatus   = isMaint ? 'Available' : 'Maintenance';
+    // UI expects lowercase value (e.g. 'maintenance' or 'available')
+    const uiStatus   = dbStatus.toLowerCase();
+
+    // Optimistic UI update
+    btn.disabled = true;
+    statusBadge.className = `status-badge ${uiStatus}`;
+    statusBadge.textContent = uiStatus;
+    row.setAttribute('data-locker-status', uiStatus);
+    btn.className = `btn-maintenance ${uiStatus === 'maintenance' ? 'on' : 'off'}`;
+    btn.textContent = uiStatus === 'maintenance' ? '🔧 In Maintenance' : '🔧 Set Maintenance';
+
+    try {
+        const supabase = window.supabaseClient || window.supabase;
+        if (!supabase) throw new Error('Database not connected');
+
+        // Find the locker's database ID from the in-memory records
+        const locker = (typeof lockerRecords !== 'undefined' ? lockerRecords : [])
+            .find(l => l.code === lockerCode || l.locker_number === lockerCode);
+
+        const dbId = locker?.dbLockerId ?? locker?.locker_id ?? null;
+
+        if (!dbId) throw new Error(`Locker DB ID not found for code: ${lockerCode}`);
+
+        const { error } = await supabase
+            .from('lockers')
+            .update({ status: dbStatus })
+            .eq('locker_id', dbId);
+
+        if (error) throw error;
+
+        // Update in-memory record
+        if (locker) locker.status = uiStatus;
+
+        console.log(`✓ Locker ${lockerCode} status → ${uiStatus} (DB ID: ${dbId})`);
+    } catch (err) {
+        console.error('❌ toggleMaintenance error:', err);
+        // Revert UI on failure
+        statusBadge.className = `status-badge ${currentStatus}`;
+        statusBadge.textContent = currentStatus;
+        row.setAttribute('data-locker-status', currentStatus);
+        btn.className = `btn-maintenance ${currentStatus === 'maintenance' ? 'on' : 'off'}`;
+        btn.textContent = currentStatus === 'maintenance' ? '🔧 In Maintenance' : '🔧 Set Maintenance';
+        alert('Failed to update locker status: ' + err.message);
+    } finally {
+        btn.disabled = false;
+    }
+}
+
 function addLockerRow(lockerData) {
     const tbody = document.getElementById('lockers-tbody');
     if (!tbody) return;
@@ -1417,15 +1495,18 @@ function addLockerRow(lockerData) {
         <td class="module-cell"><span data-field="module">${lockerData.module}</span></td>
         <td class="device-cell"><span data-field="device">${lockerData.device}</span></td>
         <td class="status-cell"><span class="status-badge ${lockerData.status}" data-field="status">${lockerData.status}</span></td>
+        <td class="actions-cell">
+            ${buildMaintenanceBtn(lockerData.status)}
+        </td>
     `;
 
-    // Add click event to show rental details
+    // Add click event to show rental details (skip if clicking the maintenance button)
     newRow.addEventListener('click', async function (e) {
+        if (e.target.closest('.btn-maintenance')) return;
         const lockerCode = this.getAttribute('data-locker-code');
-        const status = this.getAttribute('data-locker-status');
-
-        if (lockerId) {
-            await showRentalDetailsModal(lockerId, status);
+        const status     = this.getAttribute('data-locker-status');
+        if (lockerCode) {
+            await showRentalDetailsModal(lockerCode, status);
         }
     });
 
