@@ -1204,14 +1204,15 @@ async function updateRates(ratesData) {
 async function logLoginEvent(userEmail, success = true, details = '') {
     return await createAuditLog({
         action: success ? 'Admin Login' : 'Failed Login Attempt',
-        user_id: null, // Could be linked to admin table if exists
+        user_id: userEmail || null,
         timestamp: new Date().toISOString(),
         details: {
-            description: success ? `User ${userEmail} logged in successfully.` : `Failed login attempt for ${userEmail}. ${details}`,
+            description: success ? `${userEmail} logged in successfully.` : `Failed login attempt for ${userEmail}. ${details}`,
             type: 'system',
             icon: success ? 'success' : 'error',
             badge: 'AUTH',
-            badgeType: success ? 'primary' : 'danger'
+            badgeType: success ? 'primary' : 'danger',
+            admin: userEmail || 'Unknown'
         }
     });
 }
@@ -1222,14 +1223,15 @@ async function logLoginEvent(userEmail, success = true, details = '') {
 async function logLogoutEvent(userEmail) {
     return await createAuditLog({
         action: 'Admin Logout',
-        user_id: null,
+        user_id: userEmail || null,
         timestamp: new Date().toISOString(),
         details: {
-            description: `User ${userEmail} logged out.`,
+            description: `${userEmail} logged out.`,
             type: 'system',
             icon: 'info',
             badge: 'AUTH',
-            badgeType: 'secondary'
+            badgeType: 'secondary',
+            admin: userEmail || 'Unknown'
         }
     });
 }
@@ -1238,16 +1240,27 @@ async function logLogoutEvent(userEmail) {
  * Log a configuration change
  */
 async function logConfigChangeEvent(action, description, configData) {
+    const authData = JSON.parse(localStorage.getItem('coincubby_auth') || '{}');
+    const admin = authData.email || 'System';
+
+    // Pick an appropriate icon based on the action name
+    const a = (action || '').toLowerCase();
+    let icon = 'info';
+    if (a.includes('delet') || a.includes('fail') || a.includes('error')) icon = 'error';
+    else if (a.includes('maintenance') || a.includes('deduct') || a.includes('updat') || a.includes('rate') || a.includes('fix')) icon = 'warning';
+    else if (a.includes('creat') || a.includes('add') || a.includes('refill') || a.includes('payment') || a.includes('login')) icon = 'success';
+
     return await createAuditLog({
         action: action,
-        user_id: null,
+        user_id: admin,
         timestamp: new Date().toISOString(),
         details: {
             description: description,
-            type: 'system',
-            icon: 'warning',
+            type: 'config',
+            icon: icon,
             badge: 'CONFIG',
             badgeType: 'warning',
+            admin: admin,
             data: configData
         }
     });
@@ -1474,7 +1487,7 @@ async function getReportData(dateFrom, dateTo) {
         const [paymentsResponse, transactionsResponse] = await Promise.all([
             supabase
                 .from('payments')
-                .select('amount, payment_date')
+                .select('amount, payment_date, payment_method')
                 .gte('payment_date', fromDate.toISOString())
                 .lte('payment_date', toDate.toISOString()),
             supabase
@@ -1505,11 +1518,12 @@ async function logLoginEvent(email) {
     return createAuditLog({
         action: 'Admin Login',
         details: {
-            description: `User ${email} logged in successfully.`,
+            description: `${email} logged in successfully.`,
             type: 'system',
-            icon: 'login',
+            icon: 'success',
             badge: 'AUTH',
-            badgeType: 'primary'
+            badgeType: 'primary',
+            admin: email
         }
     });
 }
@@ -1518,24 +1532,34 @@ async function logLogoutEvent(email) {
     return createAuditLog({
         action: 'Admin Logout',
         details: {
-            description: `User ${email} logged out.`,
+            description: `${email} logged out.`,
             type: 'system',
-            icon: 'logout',
+            icon: 'info',
             badge: 'AUTH',
-            badgeType: 'secondary'
+            badgeType: 'secondary',
+            admin: email
         }
     });
 }
 
 async function logConfigChangeEvent(action, description, metadata = {}) {
     const authData = JSON.parse(localStorage.getItem('coincubby_auth') || '{}');
+    const admin = authData.email || 'System';
+
+    // Pick an appropriate icon based on the action name
+    const a = (action || '').toLowerCase();
+    let icon = 'info';
+    if (a.includes('delet') || a.includes('fail') || a.includes('error')) icon = 'error';
+    else if (a.includes('maintenance') || a.includes('deduct') || a.includes('updat') || a.includes('rate') || a.includes('fix')) icon = 'warning';
+    else if (a.includes('creat') || a.includes('add') || a.includes('refill') || a.includes('payment') || a.includes('login')) icon = 'success';
+
     return createAuditLog({
         action: action,
         details: {
             description: description,
-            admin: authData.email || 'System',
+            admin: admin,
             type: 'config',
-            icon: 'settings',
+            icon: icon,
             badge: 'CONFIG',
             badgeType: 'warning',
             ...metadata

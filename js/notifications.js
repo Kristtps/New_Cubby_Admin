@@ -27,6 +27,9 @@ async function initNotifications() {
     // Set up realtime listener for new notifications
     setupRealtimeListener();
 
+    // Watch transactions table — auto-create notification when a new rental starts
+    setupRentalRealtimeListener();
+
     // Periodic fallback (only needed if realtime disconnects)
     setInterval(checkUnreadNotifications, NOTIFICATION_CHECK_INTERVAL);
 
@@ -168,6 +171,78 @@ function setupRealtimeListener() {
         )
         .subscribe((status) => {
             console.log("Realtime status:", status);
+        });
+}
+
+/**
+ * Watch the transactions table for new rentals and auto-create a notification.
+ * This fires whenever a row is INSERTed into transactions (i.e. a locker is rented).
+ */
+function setupRentalRealtimeListener() {
+    if (!window.supabase || typeof window.supabase.channel !== 'function') {
+        return;
+    }
+
+    // Track transaction IDs seen this session to avoid duplicate notifications
+    const seenTransactions = new Set();
+
+    window.supabase
+        .channel('new-rental-watcher')
+        .on(
+            'postgres_changes',
+            {
+                event: 'INSERT',
+                schema: 'public',
+                table: 'transactions'
+            },
+            async (payload) => {
+                const tx = payload.new;
+                if (!tx || !tx.transaction_id) return;
+
+                // Skip if already handled this session
+                if (seenTransactions.has(tx.transaction_id)) return;
+                seenTransactions.add(tx.transaction_id);
+
+                console.log('🔔 New rental detected:', tx);
+
+                // Build a human-friendly message
+                const lockerInfo = tx.locker_id ? `Locker #${tx.locker_id}` : 'a locker';
+                const startTime = new Intl.DateTimeFormat('en-PH', {
+                    timeZone: 'Asia/Manila',
+                    month: 'short', day: 'numeric',
+                    hour: '2-digit', minute: '2-digit'
+                }).format(new Date(tx.start_time || tx.created_at || Date.now()));
+
+                const title = 'New Rental Started';
+                const message = `${lockerInfo} was just rented at ${startTime}.`;
+
+                // Insert notification into the notifications table — the existing
+                // realtime listener on that table will fire automatically and show
+                // the badge + toast + device popup.
+                try {
+                    const { error } = await window.supabase
+                        .from('notifications')
+                        .insert([{
+                            title,
+                            message,
+                            type: 'new_rental',
+                            priority: 'normal',
+                            is_read: false,
+                            created_at: new Date().toISOString()
+                        }]);
+
+                    if (error) {
+                        console.error('Failed to insert new_rental notification:', error);
+                    } else {
+                        console.log('✓ new_rental notification created');
+                    }
+                } catch (err) {
+                    console.error('Exception inserting new_rental notification:', err);
+                }
+            }
+        )
+        .subscribe((status) => {
+            console.log('Rental watcher status:', status);
         });
 }
 /**

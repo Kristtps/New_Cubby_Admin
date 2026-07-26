@@ -135,6 +135,18 @@ async function handleLoginSubmit(e) {
 
         if (!data) {
             console.warn('No admin row found for email:', email);
+            // Log failed attempt
+            try {
+                await supabaseClient.from('audit_logs').insert([{
+                    action: 'Failed Login Attempt',
+                    user_id: email,
+                    timestamp: new Date().toISOString(),
+                    details: {
+                        description: `Failed login attempt for ${email} — account not found.`,
+                        type: 'system', icon: 'error', badge: 'AUTH', badgeType: 'danger', admin: email
+                    }
+                }]);
+            } catch (_) {}
             showError('Invalid email or password. Please try again.');
             return;
         }
@@ -142,6 +154,18 @@ async function handleLoginSubmit(e) {
         // Plain-text password comparison (matches your schema)
         if (data.password !== password) {
             console.warn('Password mismatch for:', email);
+            // Log failed attempt
+            try {
+                await supabaseClient.from('audit_logs').insert([{
+                    action: 'Failed Login Attempt',
+                    user_id: email,
+                    timestamp: new Date().toISOString(),
+                    details: {
+                        description: `Failed login attempt for ${email} — incorrect password.`,
+                        type: 'system', icon: 'error', badge: 'AUTH', badgeType: 'danger', admin: email
+                    }
+                }]);
+            } catch (_) {}
             showError('Invalid email or password. Please try again.');
             return;
         }
@@ -160,6 +184,23 @@ async function handleLoginSubmit(e) {
             loginTime: new Date().toISOString(),
             rememberMe: remember
         }));
+
+        // Log the login event (best-effort, non-blocking)
+        try {
+            await supabaseClient.from('audit_logs').insert([{
+                action: 'Admin Login',
+                user_id: data.email,
+                timestamp: new Date().toISOString(),
+                details: {
+                    description: `${data.email} logged in successfully.`,
+                    type: 'system',
+                    icon: 'success',
+                    badge: 'AUTH',
+                    badgeType: 'primary',
+                    admin: data.email
+                }
+            }]);
+        } catch (_) { /* non-fatal */ }
 
         // Update last_login in background — don't await, don't block redirect
         supabaseClient
@@ -233,6 +274,28 @@ function isUserAuthenticated() {
 }
 
 function logoutUser() {
+    // Log the logout event (best-effort)
+    try {
+        const auth = getAuthData();
+        const email = auth?.email || 'Unknown';
+        const db = window.supabaseClient || window.supabase;
+        if (db && typeof db.from === 'function') {
+            db.from('audit_logs').insert([{
+                action: 'Admin Logout',
+                user_id: email,
+                timestamp: new Date().toISOString(),
+                details: {
+                    description: `${email} logged out.`,
+                    type: 'system',
+                    icon: 'info',
+                    badge: 'AUTH',
+                    badgeType: 'secondary',
+                    admin: email
+                }
+            }]).then(() => {}).catch(() => {});
+        }
+    } catch (_) { /* non-fatal */ }
+
     localStorage.removeItem('coincubby_auth');
     window.location.href = 'login.html';
 }

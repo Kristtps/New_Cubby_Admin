@@ -3,7 +3,7 @@
 // Tables: device_inventory (joined with devices)
 // ============================================================
 
-const INV_MAX_CAPACITY = 2000; // ₱ assumed max per device for fill bar
+const INV_MAX_CAPACITY = 300; // ₱ max capacity per device (change compartment limit)
 const INV_LOW_THRESHOLD = 200; // ₱ warn threshold
 
 let inventoryData = [];
@@ -213,6 +213,10 @@ function openRefillModal(inventoryId, deviceName, currentBalance) {
 function closeRefillModal() {
     const overlay = document.getElementById('refill-modal-overlay');
     if (overlay) overlay.classList.remove('active');
+    const hint = document.getElementById('refill-capacity-hint');
+    if (hint) hint.remove();
+    const inp = document.getElementById('refill-amount-input');
+    if (inp) inp.style.borderColor = '';
     activeRefill = null;
 }
 
@@ -470,7 +474,25 @@ document.addEventListener('DOMContentLoaded', function () {
             if (!activeRefill) return;
             const newBal = activeRefill.current_balance + (parseFloat(this.value) || 0);
             const el = document.getElementById('refill-new-balance');
-            if (el) el.textContent = invFmt(newBal);
+            if (el) {
+                el.textContent = invFmt(Math.min(newBal, INV_MAX_CAPACITY));
+                el.style.color = newBal > INV_MAX_CAPACITY ? '#ef4444' : '';
+            }
+            this.style.borderColor = newBal > INV_MAX_CAPACITY ? '#ef4444' : '';
+            // Show over-capacity hint
+            let hint = document.getElementById('refill-capacity-hint');
+            if (newBal > INV_MAX_CAPACITY) {
+                if (!hint) {
+                    hint = document.createElement('div');
+                    hint.id = 'refill-capacity-hint';
+                    hint.style.cssText = 'color:#ef4444;font-size:12px;margin-top:4px;';
+                    this.parentElement.appendChild(hint);
+                }
+                const remaining = INV_MAX_CAPACITY - activeRefill.current_balance;
+                hint.textContent = `Max refill: ₱${remaining.toFixed(2)} (capacity ₱${INV_MAX_CAPACITY})`;
+            } else if (hint) {
+                hint.remove();
+            }
         });
     }
 
@@ -497,6 +519,15 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             const newBalance = activeRefill.current_balance + amount;
+
+            if (newBalance > INV_MAX_CAPACITY) {
+                const remaining = INV_MAX_CAPACITY - activeRefill.current_balance;
+                const inp = document.getElementById('refill-amount-input');
+                if (inp) inp.style.borderColor = '#ef4444';
+                alert(`Cannot refill ₱${amount.toFixed(2)}. Compartment capacity is ₱${INV_MAX_CAPACITY}. Maximum you can add is ₱${remaining.toFixed(2)}.`);
+                return;
+            }
+
             this.disabled    = true;
             this.textContent = 'Saving…';
 
@@ -518,13 +549,22 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 // Audit log (best-effort)
                 try {
+                    const authData = JSON.parse(localStorage.getItem('coincubby_auth') || '{}');
                     await db.from('audit_logs').insert([{
                         action: 'Inventory Refill',
+                        user_id: authData.email || null,
+                        timestamp: new Date().toISOString(),
                         details: {
+                            description:   `Added ₱${amount.toFixed(2)} to ${activeRefill.device_name}. New balance: ₱${newBalance.toFixed(2)}.`,
                             device_name:   activeRefill.device_name,
                             inventory_id:  activeRefill.inventory_id,
                             refill_amount: amount,
-                            new_balance:   newBalance
+                            new_balance:   newBalance,
+                            badge:         activeRefill.device_name,
+                            badgeType:     'success',
+                            type:          'inventory',
+                            icon:          'success',
+                            admin:         authData.email || 'Admin'
                         }
                     }]);
                 } catch (_) { /* audit log is optional */ }
@@ -610,13 +650,22 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 // Audit log (best-effort)
                 try {
+                    const authData = JSON.parse(localStorage.getItem('coincubby_auth') || '{}');
                     await db.from('audit_logs').insert([{
                         action: 'Inventory Deduction',
+                        user_id: authData.email || null,
+                        timestamp: new Date().toISOString(),
                         details: {
+                            description:   `Deducted ₱${amount.toFixed(2)} from ${activeDeduct.device_name}. New balance: ₱${newBalance.toFixed(2)}.`,
                             device_name:   activeDeduct.device_name,
                             inventory_id:  activeDeduct.inventory_id,
                             deduct_amount: amount,
-                            new_balance:   newBalance
+                            new_balance:   newBalance,
+                            badge:         activeDeduct.device_name,
+                            badgeType:     'warning',
+                            type:          'inventory',
+                            icon:          'warning',
+                            admin:         authData.email || 'Admin'
                         }
                     }]);
                 } catch (_) { /* audit log is optional */ }

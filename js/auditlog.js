@@ -146,17 +146,50 @@ async function loadAuditLogEntries() {
                         auditLogEntries.length = 0;
                         entries.forEach(entry => {
                             const details = entry.details || {};
+
+                            // Resolve the display icon — handle extra icon names written by db-operations
+                            let icon = details.icon || 'info';
+                            if (icon === 'login' || icon === 'logout' || icon === 'settings' || icon === 'config') {
+                                icon = 'info';
+                            }
+
+                            // Resolve badge — inventory logs use a different structure
+                            let badge = details.badge;
+                            if (!badge) {
+                                if (details.device_name) badge = details.device_name;
+                                else badge = '-';
+                            }
+
+                            // Resolve description — build a rich one for inventory events
+                            let description = details.description || '';
+                            if (!description) {
+                                if (entry.action === 'Inventory Refill' && details.refill_amount != null) {
+                                    description = `Added ₱${parseFloat(details.refill_amount).toFixed(2)} to ${details.device_name || 'device'}. New balance: ₱${parseFloat(details.new_balance || 0).toFixed(2)}.`;
+                                } else if (entry.action === 'Inventory Deduction' && details.deduct_amount != null) {
+                                    description = `Deducted ₱${parseFloat(details.deduct_amount).toFixed(2)} from ${details.device_name || 'device'}. New balance: ₱${parseFloat(details.new_balance || 0).toFixed(2)}.`;
+                                }
+                            }
+
+                            // Resolve the user — prefer the stored admin email, fall back to user_id
+                            let user = details.admin || details.user || entry.user_id || 'system';
+
+                            // Resolve badge type
+                            let badgeType = details.badgeType || 'secondary';
+
+                            // Resolve event type for filtering
+                            let type = details.type || 'system';
+
                             auditLogEntries.push({
                                 id: entry.log_id,
                                 action: entry.action || 'Action',
-                                badge: details.badge || '-',
-                                badgeType: details.badgeType || 'secondary',
-                                description: details.description || '',
-                                user: entry.user_id || 'system',
+                                badge,
+                                badgeType,
+                                description,
+                                user,
                                 timestamp: formatTimestamp(entry.timestamp),
                                 rawTimestamp: entry.timestamp,
-                                icon: details.icon || 'info',
-                                type: details.type || 'system'
+                                icon,
+                                type
                             });
                         });
                         console.log('✓ Audit log loaded from database:', auditLogEntries.length);
@@ -286,12 +319,13 @@ function displayAuditLog() {
             const ts = entry.rawTimestamp || entry.timestamp;
             const timeStr = getTimeString(ts);
             const dateStr = getDateString(ts);
-            const iconClass = getIconClass(entry.icon);
+            const resolvedIcon = resolveIconFromAction(entry.action, entry.icon);
+            const iconClass = getIconClass(resolvedIcon);
 
             html += `
                 <div class="auditlog-card">
                     <div class="auditlog-card-icon ${iconClass}">
-                        ${getIconSVG(entry.icon)}
+                        ${getIconSVG(resolvedIcon)}
                     </div>
                     <div class="auditlog-card-body">
                         <div class="auditlog-card-top-row">
@@ -331,8 +365,22 @@ function getIconSVG(iconType) {
         success: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>',
         error: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>'
     };
-
     return icons[iconType] || icons.info;
+}
+
+/**
+ * Derive a display icon type from an action string when the stored icon is generic
+ */
+function resolveIconFromAction(action, storedIcon) {
+    if (storedIcon && storedIcon !== 'info') return storedIcon;
+    const a = (action || '').toLowerCase();
+    if (a.includes('login')) return 'success';
+    if (a.includes('logout')) return 'info';
+    if (a.includes('fail') || a.includes('error') || a.includes('delet')) return 'error';
+    if (a.includes('maintenance') || a.includes('warning') || a.includes('deduct')) return 'warning';
+    if (a.includes('refill') || a.includes('payment') || a.includes('creat') || a.includes('complet')) return 'success';
+    if (a.includes('updat') || a.includes('rate') || a.includes('config') || a.includes('fix')) return 'warning';
+    return 'info';
 }
 
 /**
