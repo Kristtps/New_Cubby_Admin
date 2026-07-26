@@ -320,7 +320,7 @@
 
 .notes-cell:hover {
     white-space: normal;
-    overflow: visible;
+    word-break: break-word;
 }
 
 /* ── Action Type Badges ── */

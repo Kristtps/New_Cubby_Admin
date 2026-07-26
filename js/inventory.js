@@ -216,7 +216,7 @@ function closeRefillModal() {
     activeRefill = null;
 }
 
-// ── Low Balance Alert (threshold: ₱20) ───────────────────────
+// ── Low / Out of Money Alert (threshold: ₱20) ───────────────────────
 const LOW_ALERT_THRESHOLD = 20;
 
 async function checkLowBalanceAlerts(rows) {
@@ -229,6 +229,7 @@ async function checkLowBalanceAlerts(rows) {
         const dev     = row.devices || {};
         const name    = dev.device_name || dev.device_code || 'Unknown Device';
         const balance = Number(row.change_amount) || 0;
+        const isOutOfMoney = balance <= 0;
 
         // Show a toast warning in the UI
         showLowBalanceToast(name, balance);
@@ -249,25 +250,31 @@ async function checkLowBalanceAlerts(rows) {
                     .limit(1);
 
                 if (!existing || existing.length === 0) {
+                    const title = isOutOfMoney ? 'Out of Coin Change' : 'Low Coin Change Balance';
+                    const message = isOutOfMoney
+                        ? `${name} coin change is out of money! Please refill immediately.`
+                        : `${name} coin change balance is critically low: ₱${balance.toFixed(2)}. Please refill soon.`;
+
                     await db.from('notifications').insert([{
                         type:          'inventory_low_balance',
-                        title:         'Low Bill Compartment Balance',
-                        message:       `${name} bill compartment balance is critically low: ₱${balance.toFixed(2)}. Please refill soon.`,
+                        title:         title,
+                        message:       message,
                         related_id:    row.inventory_id,
                         related_table: 'device_inventory',
                         is_read:       false,
-                        priority:      balance === 0 ? 'urgent' : 'high'
+                        priority:      isOutOfMoney ? 'urgent' : 'high'
                     }]);
-                    console.log(`⚠️ Low balance notification created for: ${name}`);
+                    console.log(`⚠️ Coin change alert notification created for: ${name}`);
                 }
             } catch (err) {
-                console.warn('Could not create low balance notification:', err.message);
+                console.warn('Could not create coin change alert notification:', err.message);
             }
         }
     }
 }
 
 function showLowBalanceToast(deviceName, balance) {
+    const isOutOfMoney = balance <= 0;
     // Remove any existing toast for same device
     const existingId = `low-toast-${deviceName.replace(/\s/g, '-')}`;
     const existing = document.getElementById(existingId);
@@ -275,6 +282,7 @@ function showLowBalanceToast(deviceName, balance) {
 
     const toast = document.createElement('div');
     toast.id = existingId;
+    const accentColor = isOutOfMoney ? '#ef4444' : '#f59e0b';
     toast.style.cssText = `
         position: fixed;
         bottom: 24px;
@@ -289,20 +297,25 @@ function showLowBalanceToast(deviceName, balance) {
         align-items: flex-start;
         gap: 12px;
         max-width: 340px;
-        border-left: 4px solid #f59e0b;
+        border-left: 4px solid ${accentColor};
         animation: slideInRight 0.3s ease;
     `;
+
+    const titleText = isOutOfMoney ? 'Out of Coin Change' : 'Low Coin Change Warning';
+    const messageHtml = isOutOfMoney
+        ? `<strong style="color:#fbbf24;">${deviceName}</strong> coin change is <strong style="color:#ef4444;">out of money</strong>! Please refill immediately.`
+        : `<strong style="color:#fbbf24;">${deviceName}</strong> coin change balance is at <strong style="color:#ef4444;">₱${balance.toFixed(2)}</strong> — below the ₱${LOW_ALERT_THRESHOLD} threshold. Please refill.`;
+
     toast.innerHTML = `
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" style="flex-shrink:0;margin-top:1px;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${accentColor}" stroke-width="2" style="flex-shrink:0;margin-top:1px;">
             <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
             <line x1="12" y1="9" x2="12" y2="13"></line>
             <line x1="12" y1="17" x2="12.01" y2="17"></line>
         </svg>
         <div>
-            <div style="font-weight:700;font-size:13px;margin-bottom:3px;">Low Balance Warning</div>
+            <div style="font-weight:700;font-size:13px;margin-bottom:3px;">${titleText}</div>
             <div style="font-size:12px;color:#94a3b8;line-height:1.4;">
-                <strong style="color:#fbbf24;">${deviceName}</strong> bill compartment is at 
-                <strong style="color:#ef4444;">₱${balance.toFixed(2)}</strong> — below the ₱${LOW_ALERT_THRESHOLD} threshold. Please refill.
+                ${messageHtml}
             </div>
         </div>
         <button onclick="this.parentElement.remove()" style="background:none;border:none;color:#64748b;cursor:pointer;font-size:18px;line-height:1;flex-shrink:0;padding:0 0 0 4px;">&times;</button>

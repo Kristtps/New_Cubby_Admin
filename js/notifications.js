@@ -343,13 +343,22 @@ async function loadDropdownNotifications() {
     }
 }
 
+function sanitizeNotificationTerminology(text) {
+    if (!text) return text;
+    return text
+        .replace(/Low Bill Compartment Balance/gi, 'Low Coin Change Balance')
+        .replace(/bill compartment/gi, 'coin change')
+        .replace(/Bill Compartment/gi, 'Coin Change');
+}
+
 /**
  * Fix UTC time in notification message text to Philippine Time (UTC+8).
  * Detects pattern like "before 08:32 AM" and converts to PHT.
  */
 function fixNotificationTimezone(message) {
     if (!message) return message;
-    return message.replace(/before\s+(\d{1,2}):(\d{2})\s*(AM|PM)/gi, function (match, h, m, ampm) {
+    let text = sanitizeNotificationTerminology(message);
+    return text.replace(/before\s+(\d{1,2}):(\d{2})\s*(AM|PM)/gi, function (match, h, m, ampm) {
         let hour = parseInt(h, 10);
         const upper = ampm.toUpperCase();
         if (upper === 'PM' && hour !== 12) hour += 12;
@@ -389,6 +398,7 @@ function renderDropdownNotifications() {
         const priorityBadge = notification.priority !== 'normal'
             ? `<span class="notification-badge badge-${notification.priority}">${notification.priority}</span>`
             : '';
+        const titleClean = sanitizeNotificationTerminology(notification.title || 'Notification');
 
         return `
             <div class="dropdown-item ${isUnread ? 'unread' : ''}" onclick="markDropdownAsRead('${notification.notification_id}', event)">
@@ -396,7 +406,7 @@ function renderDropdownNotifications() {
                     ${icon}
                 </div>
                 <div class="dropdown-item-content">
-                    <div class="dropdown-item-title">${notification.title}</div>
+                    <div class="dropdown-item-title">${titleClean}</div>
                     <div class="dropdown-item-msg">${fixNotificationTimezone(notification.message)}</div>
                     <div class="dropdown-item-meta">
                         ${priorityBadge}
@@ -500,7 +510,8 @@ function getNotificationIconSvg(type) {
         'rental_completed': '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>',
         'new_feedback': '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>',
         'new_customer': '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>',
-        'locker_maintenance': '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>'
+        'locker_maintenance': '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>',
+        'inventory_low_balance': '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>'
     };
     return icons[type] || icons['new_rental'];
 }
@@ -514,7 +525,8 @@ function getNotificationIconClassStr(type) {
         'rental_completed': 'icon-rental',
         'new_feedback': 'icon-feedback',
         'new_customer': 'icon-customer',
-        'locker_maintenance': 'icon-maintenance'
+        'locker_maintenance': 'icon-maintenance',
+        'inventory_low_balance': 'icon-maintenance'
     };
     return classes[type] || 'icon-rental';
 }

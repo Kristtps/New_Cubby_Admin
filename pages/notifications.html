@@ -77,6 +77,54 @@
         .notifications-container {
             max-width: 900px;
             margin: 0 auto;
+            max-height: calc(100vh - 280px);
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding-right: 8px;
+            scroll-behavior: smooth;
+        }
+
+        /* Custom Scrollbar Styling */
+        .notifications-container::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .notifications-container::-webkit-scrollbar-track {
+            background: var(--color-bg-light);
+            border-radius: 10px;
+        }
+
+        .notifications-container::-webkit-scrollbar-thumb {
+            background: var(--color-border);
+            border-radius: 10px;
+            transition: background 0.2s;
+        }
+
+        .notifications-container::-webkit-scrollbar-thumb:hover {
+            background: var(--color-primary);
+        }
+
+        /* Firefox Scrollbar */
+        .notifications-container {
+            scrollbar-width: thin;
+            scrollbar-color: var(--color-border) var(--color-bg-light);
+        }
+
+        /* Dark Mode Scrollbar */
+        [data-theme="dark"] .notifications-container::-webkit-scrollbar-track {
+            background: var(--dark-bg-primary);
+        }
+
+        [data-theme="dark"] .notifications-container::-webkit-scrollbar-thumb {
+            background: var(--dark-border);
+        }
+
+        [data-theme="dark"] .notifications-container::-webkit-scrollbar-thumb:hover {
+            background: var(--color-primary);
+        }
+
+        [data-theme="dark"] .notifications-container {
+            scrollbar-color: var(--dark-border) var(--dark-bg-primary);
         }
 
         .notification-item {
