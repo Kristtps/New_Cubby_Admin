@@ -1422,17 +1422,16 @@ function buildMaintenanceBtn(status) {
  * Toggle a locker between 'Maintenance' and 'Available' and persist to DB.
  */
 async function toggleMaintenance(btn, lockerCode) {
-    const row        = btn.closest('tr');
+    const row         = btn.closest('tr');
     const statusBadge = row.querySelector('[data-field="status"]');
     const currentStatus = (row.getAttribute('data-locker-status') || '').toLowerCase();
-    const isMaint    = currentStatus === 'maintenance';
-    
-    // DB expects capitalized value (e.g. 'Maintenance' or 'Available')
-    const dbStatus   = isMaint ? 'Available' : 'Maintenance';
-    // UI expects lowercase value (e.g. 'maintenance' or 'available')
-    const uiStatus   = dbStatus.toLowerCase();
+    const isMaint     = currentStatus === 'maintenance';
 
-    // Optimistic UI update
+    // DB expects Title Case; UI uses lowercase
+    const dbStatus = isMaint ? 'Available' : 'Maintenance';
+    const uiStatus = dbStatus.toLowerCase();
+
+    // Optimistic UI update immediately
     btn.disabled = true;
     statusBadge.className = `status-badge ${uiStatus}`;
     statusBadge.textContent = uiStatus;
@@ -1444,13 +1443,41 @@ async function toggleMaintenance(btn, lockerCode) {
         const supabase = window.supabaseClient || window.supabase;
         if (!supabase) throw new Error('Database not connected');
 
-        // Find the locker's database ID from the in-memory records
-        const locker = (typeof lockerRecords !== 'undefined' ? lockerRecords : [])
-            .find(l => l.code === lockerCode || l.locker_number === lockerCode);
+        // 1. Best path: data-locker-db-id is always the numeric locker_id
+        let dbId = row.getAttribute('data-locker-db-id') || null;
+        if (dbId) dbId = parseInt(dbId, 10);
 
-        const dbId = locker?.dbLockerId ?? locker?.locker_id ?? null;
+        // 2. Fallback: parse data-locker-row if it's purely numeric
+        if (!dbId) {
+            const rowAttr = row.getAttribute('data-locker-row') || '';
+            const parsed  = parseInt(rowAttr, 10);
+            if (!isNaN(parsed) && String(parsed) === rowAttr) dbId = parsed;
+        }
 
-        if (!dbId) throw new Error(`Locker DB ID not found for code: ${lockerCode}`);
+        // 3. Fallback: search lockerRecords with loose equality (number vs string safe)
+        if (!dbId) {
+            const locker = (typeof lockerRecords !== 'undefined' ? lockerRecords : [])
+                .find(l => String(l.code) === String(lockerCode) ||
+                           String(l.locker_number) === String(lockerCode));
+            dbId = locker?.dbLockerId ?? locker?.locker_id ?? null;
+            if (dbId) dbId = parseInt(dbId, 10);
+        }
+
+        // 4. Last resort: query Supabase directly by locker_number
+        if (!dbId) {
+            console.warn(`Locker ${lockerCode} not in memory — querying DB...`);
+            const numericCode = parseInt(lockerCode, 10);
+            const { data, error: fetchErr } = await supabase
+                .from('lockers')
+                .select('locker_id')
+                .eq('locker_number', isNaN(numericCode) ? lockerCode : numericCode)
+                .maybeSingle();
+            if (fetchErr) throw fetchErr;
+            if (!data) throw new Error(`Locker "${lockerCode}" not found in database`);
+            dbId = data.locker_id;
+        }
+
+        if (!dbId) throw new Error(`Could not resolve DB id for locker: ${lockerCode}`);
 
         const { error } = await supabase
             .from('lockers')
@@ -1459,13 +1486,15 @@ async function toggleMaintenance(btn, lockerCode) {
 
         if (error) throw error;
 
-        // Update in-memory record
+        // Keep in-memory record in sync
+        const locker = (typeof lockerRecords !== 'undefined' ? lockerRecords : [])
+            .find(l => String(l.dbLockerId) === String(dbId));
         if (locker) locker.status = uiStatus;
 
-        console.log(`✓ Locker ${lockerCode} status → ${uiStatus} (DB ID: ${dbId})`);
+        console.log(`✓ Locker ${lockerCode} → ${dbStatus} (locker_id: ${dbId})`);
     } catch (err) {
         console.error('❌ toggleMaintenance error:', err);
-        // Revert UI on failure
+        // Revert UI
         statusBadge.className = `status-badge ${currentStatus}`;
         statusBadge.textContent = currentStatus;
         row.setAttribute('data-locker-status', currentStatus);
@@ -1485,6 +1514,9 @@ function addLockerRow(lockerData) {
     newRow.setAttribute('data-locker-row', lockerData.dbLockerId ? lockerData.dbLockerId : `${lockerData.moduleId || lockerData.module}-${lockerData.code}`);
     newRow.setAttribute('data-locker-code', lockerData.code);
     newRow.setAttribute('data-locker-status', lockerData.status);
+    if (lockerData.dbLockerId) {
+        newRow.setAttribute('data-locker-db-id', lockerData.dbLockerId);
+    }
 
     // Make the row clickable (except when clicking action buttons)
     newRow.style.cursor = 'pointer';
