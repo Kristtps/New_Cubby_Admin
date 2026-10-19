@@ -1,4 +1,11 @@
 {
+  "redirects": [
+    {
+      "source": "/",
+      "destination": "/login",
+      "permanent": false
+    }
+  ],
   "rewrites": [
     {
       "source": "/login",
@@ -43,6 +50,10 @@
     {
       "source": "/profile",
       "destination": "/pages/profile.html"
+    },
+    {
+      "source": "/inventory",
+      "destination": "/pages/inventory.html"
     },
     {
       "source": "/notifications",

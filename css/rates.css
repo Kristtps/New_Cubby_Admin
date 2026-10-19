@@ -147,6 +147,11 @@
     border-color: #3d3d3d;
 }
 
+[data-theme="dark"] .form-input:disabled {
+    background-color: #1a1a1a;
+    color: #6b7280;
+}
+
 [data-theme="dark"] .form-input:focus {
     border-color: var(--color-primary);
     box-shadow: 0 0 0 3px rgba(110, 231, 183, 0.15);
@@ -591,6 +596,54 @@
 
 [data-theme="dark"] .rates-history-container:hover {
     border-color: var(--color-primary);
+}
+
+[data-theme="dark"] .btn-save-rates:disabled {
+    background-color: #4a4a4a;
+    color: #9ca3af;
+}
+
+[data-theme="dark"] .success-message {
+    background-color: rgba(16, 185, 129, 0.12);
+    border-color: rgba(16, 185, 129, 0.25);
+    color: #6ee7b7;
+}
+
+[data-theme="dark"] .error-message {
+    background-color: rgba(239, 68, 68, 0.12);
+    border-color: rgba(239, 68, 68, 0.25);
+    color: #fca5a5;
+}
+
+[data-theme="dark"] .change-badge.increased {
+    background: rgba(16, 185, 129, 0.15);
+    color: #6ee7b7;
+}
+
+[data-theme="dark"] .change-badge.decreased {
+    background: rgba(239, 68, 68, 0.15);
+    color: #fca5a5;
+}
+
+[data-theme="dark"] .change-badge.unchanged {
+    background: rgba(148, 163, 184, 0.1);
+    color: #94a3b8;
+}
+
+[data-theme="dark"] .rates-history-empty {
+    color: var(--dark-text-secondary);
+}
+
+[data-theme="dark"] .rates-history-empty svg {
+    color: #4a4a4a;
+}
+
+[data-theme="dark"] .rates-history-empty p {
+    color: var(--dark-text-secondary);
+}
+
+[data-theme="dark"] .rates-history-empty span {
+    color: var(--dark-text-secondary);
 }
 
 [data-theme="dark"] .rates-history-title {

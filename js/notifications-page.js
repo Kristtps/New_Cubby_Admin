@@ -6,6 +6,23 @@
 let allNotifications = [];
 let currentFilter = 'all';
 let searchQuery = '';
+let selectedNotificationId = null;
+const NOTIFICATION_CHECK_INTERVAL = 30000;
+
+/**
+ * Get count of unread notifications (standalone for this page)
+ */
+async function checkUnreadNotifications() {
+    try {
+        if (!window.supabase || typeof window.supabase.from !== 'function') return 0;
+        const { count, error } = await window.supabase
+            .from('notifications')
+            .select('notification_id', { count: 'exact', head: true })
+            .eq('is_read', false);
+        if (error) { console.error('Error getting unread count:', error); return 0; }
+        return count || 0;
+    } catch (err) { console.error('Exception getting unread count:', err); return 0; }
+}
 
 // Initialize notifications page
 document.addEventListener('DOMContentLoaded', async function () {
@@ -16,17 +33,20 @@ document.addEventListener('DOMContentLoaded', async function () {
         await window.supabasePromise;
     }
 
-    await loadNotifications();
+    // Fire notification list + badge count in parallel
+    Promise.allSettled([loadNotifications(), checkUnreadNotifications()]);
 
-    // Auto-refresh notifications every 30 seconds
+    // Set up realtime subscription for live updates
+    subscribeToNotificationChanges();
+
+    // Auto-refresh notifications every 30 seconds (fallback if realtime disconnects)
     setInterval(async function () {
         try {
             await loadNotifications();
-            console.log('✓ Notifications auto-refreshed');
         } catch (err) {
             console.error('Notifications auto-refresh error:', err);
         }
-    }, 30000);
+    }, NOTIFICATION_CHECK_INTERVAL);
 });
 
 /**
@@ -42,10 +62,15 @@ async function loadNotifications() {
             return;
         }
 
-        // Fetch notifications
+        // Show loading state only if this is the first load (container still has the placeholder)
+        if (allNotifications.length === 0) {
+            container.innerHTML = '<div style="text-align: center; padding: 3rem; color: var(--color-text-muted);">Loading notifications...</div>';
+        }
+
+        // Fetch notifications — select only columns the UI renders
         const { data, error } = await window.supabase
             .from('notifications')
-            .select('*')
+            .select('notification_id, title, message, type, is_read, created_at')
             .order('created_at', { ascending: false })
             .limit(100);
 
@@ -131,6 +156,33 @@ function getNotificationGroup(dateString) {
     return 'Older';
 }
 
+function sanitizeNotificationTerminology(text) {
+    if (!text) return text;
+    return text
+        .replace(/Low Bill Compartment Balance/gi, 'Low Coin Change Balance')
+        .replace(/bill compartment/gi, 'coin change')
+        .replace(/Bill Compartment/gi, 'Coin Change');
+}
+
+/**
+ * Fix UTC time in notification message text to Philippine Time (UTC+8).
+ * Detects pattern like "before 08:32 AM" and converts to PHT.
+ */
+function fixNotificationTimezone(message) {
+    if (!message) return message;
+    let text = sanitizeNotificationTerminology(message);
+    return text.replace(/before\s+(\d{1,2}):(\d{2})\s*(AM|PM)/gi, function (match, h, m, ampm) {
+        let hour = parseInt(h, 10);
+        const upper = ampm.toUpperCase();
+        if (upper === 'PM' && hour !== 12) hour += 12;
+        if (upper === 'AM' && hour === 12) hour = 0;
+        hour = (hour + 8) % 24; // Convert UTC → PHT (+8)
+        const newAmpm = hour >= 12 ? 'PM' : 'AM';
+        const newHour = hour % 12 || 12;
+        return `before ${newHour}:${m} ${newAmpm}`;
+    });
+}
+
 /**
  * Render notifications
  */
@@ -197,22 +249,23 @@ function renderNotifications() {
             const formattedDate = formatNotificationDate(notification.created_at);
             const icon = getNotificationIcon(notification.type);
             const iconClass = getNotificationIconClass(notification.type);
+            const titleClean = sanitizeNotificationTerminology(notification.title || 'Notification');
             
             return `
-                <div id="notif-${notification.notification_id}" class="notification-item ${isUnread ? 'unread' : ''}" onclick="markAsRead('${notification.notification_id}')">
+                <div id="notif-${notification.notification_id}" class="notification-item ${isUnread ? 'unread' : ''}" onclick="onNotificationClick('${notification.notification_id}')">
                     <div class="notification-content">
                         <div class="notification-icon ${iconClass}">
                             ${icon}
                         </div>
                         <div class="notification-details">
                             <div class="notification-header-row">
-                                <div class="notification-title">${notification.title || 'Notification'}</div>
+                                <div class="notification-title">${titleClean}</div>
                                 <div class="notification-meta">
                                     <span class="relative-time">${timeAgo}</span>
                                     ${isUnread ? '<div class="unread-dot"></div>' : ''}
                                 </div>
                             </div>
-                            <div class="notification-message">${notification.message || ''}</div>
+                            <div class="notification-message">${fixNotificationTimezone(notification.message || '')}</div>
                             <div class="notification-datetime">${formattedDate}</div>
                         </div>
                     </div>
@@ -244,6 +297,12 @@ function renderNotifications() {
             }
         }, 100);
     }
+
+    // Re-apply active-detail class for selected notification
+    if (selectedNotificationId) {
+        const activeEl = document.getElementById('notif-' + selectedNotificationId);
+        if (activeEl) activeEl.classList.add('active-detail');
+    }
 }
 
 /**
@@ -255,7 +314,8 @@ function getNotificationIcon(type) {
         'rental_completed': '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>',
         'new_feedback': '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>',
         'new_customer': '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>',
-        'locker_maintenance': '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>'
+        'locker_maintenance': '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>',
+        'inventory_low_balance': '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>'
     };
     return icons[type] || icons['new_rental'];
 }
@@ -269,7 +329,8 @@ function getNotificationIconClass(type) {
         'rental_completed': 'icon-rental',
         'new_feedback': 'icon-feedback',
         'new_customer': 'icon-customer',
-        'locker_maintenance': 'icon-maintenance'
+        'locker_maintenance': 'icon-maintenance',
+        'inventory_low_balance': 'icon-maintenance'
     };
     return classes[type] || 'icon-rental';
 }
@@ -322,12 +383,69 @@ async function markAsRead(notificationId) {
             notification.read_at = new Date().toISOString();
         }
 
+        // Populate detail panel
+        showNotificationDetail(notification || allNotifications.find(n => n.notification_id === notificationId));
+
         renderNotifications();
 
     } catch (err) {
         console.error('Exception marking notification as read:', err);
     }
 }
+
+/**
+ * Show notification detail in right drawer
+ */
+function showNotificationDetail(notification) {
+    if (!notification) return;
+
+    const pane = document.getElementById('notification-detail-pane');
+    const overlay = document.getElementById('detail-overlay');
+    const content = document.getElementById('detail-content');
+    const iconEl = document.getElementById('detail-icon');
+    const titleEl = document.getElementById('detail-title');
+    const typeBadge = document.getElementById('detail-type-badge');
+    const dateEl = document.getElementById('detail-date');
+    const messageEl = document.getElementById('detail-message');
+
+    if (!pane || !content) return;
+
+    const iconClass = getNotificationIconClass(notification.type);
+    iconEl.className = 'detail-icon notification-icon ' + iconClass;
+    iconEl.innerHTML = getNotificationIcon(notification.type);
+    titleEl.textContent = notification.title || 'Notification';
+    typeBadge.textContent = (notification.type || 'info').replace('_', ' ');
+    typeBadge.className = 'detail-type-badge notification-icon ' + iconClass;
+    dateEl.textContent = formatNotificationDate(notification.created_at);
+    messageEl.textContent = fixNotificationTimezone(notification.message || '');
+
+    pane.classList.add('open');
+    if (overlay) overlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+
+    // Highlight active item
+    document.querySelectorAll('.notification-item').forEach(el => el.classList.remove('active-detail'));
+    const notifEl = document.getElementById('notif-' + notification.notification_id);
+    if (notifEl) notifEl.classList.add('active-detail');
+}
+
+/**
+ * Close detail drawer
+ */
+function closeDetailPane() {
+    const pane = document.getElementById('notification-detail-pane');
+    const overlay = document.getElementById('detail-overlay');
+
+    if (pane) pane.classList.remove('open');
+    if (overlay) overlay.classList.remove('open');
+    document.body.style.overflow = '';
+
+    document.querySelectorAll('.notification-item').forEach(el => el.classList.remove('active-detail'));
+    selectedNotificationId = null;
+}
+
+window.closeDetailPane = closeDetailPane;
+window.showNotificationDetail = showNotificationDetail;
 
 /**
  * Mark all notifications as read
@@ -402,19 +520,6 @@ async function clearAllRead() {
 }
 let notificationChannel = null;
 
-async function initNotifications() {
-    if (window.supabasePromise) {
-        await window.supabasePromise;
-    }
-
-    await checkUnreadNotifications();
-
-    // Fallback polling in case realtime disconnects
-    setInterval(checkUnreadNotifications, NOTIFICATION_CHECK_INTERVAL);
-
-    subscribeToNotificationChanges();
-}
-
 function subscribeToNotificationChanges() {
     if (!window.supabase || typeof window.supabase.channel !== 'function') {
         return;
@@ -422,12 +527,13 @@ function subscribeToNotificationChanges() {
     if (notificationChannel) return; // avoid duplicate subscriptions
 
     notificationChannel = window.supabase
-        .channel('notifications-badge')
+        .channel('notifications-page')
         .on(
             'postgres_changes',
             { event: '*', schema: 'public', table: 'notifications' },
             () => {
-                // Any insert/update (new notification, or marked read) re-syncs the count
+                // Any insert/update (new notification, or marked read) re-syncs data
+                loadNotifications();
                 checkUnreadNotifications();
             }
         )
@@ -438,3 +544,20 @@ function subscribeToNotificationChanges() {
 window.markAsRead = markAsRead;
 window.markAllAsRead = markAllAsRead;
 window.clearAllRead = clearAllRead;
+
+/**
+ * Handle notification click: show detail + mark as read
+ */
+async function onNotificationClick(notificationId) {
+    const notification = allNotifications.find(n => n.notification_id === notificationId);
+    if (!notification) return;
+
+    selectedNotificationId = notificationId;
+    showNotificationDetail(notification);
+
+    if (!notification.is_read) {
+        await markAsRead(notificationId);
+    }
+}
+
+window.onNotificationClick = onNotificationClick;

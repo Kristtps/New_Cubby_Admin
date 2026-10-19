@@ -57,72 +57,29 @@ async function fetchActiveRentals() {
 
 /**
  * Create a new rental
+ * DISABLED: Web app is now view-only for rentals
  */
 async function createRental(rentalData) {
-    try {
-        const supabase = getSupabaseClient();
-        const { data, error } = await supabase
-            .from('rentals')
-            .insert([rentalData])
-            .select();
-
-        if (error) throw error;
-        console.log('✓ Rental created:', data);
-        return data;
-    } catch (error) {
-        console.error('Error creating rental:', error);
-        return null;
-    }
+    console.log('ℹ️ createRental disabled — web is view-only');
+    return null;
 }
 
 /**
  * Update rental status
+ * DISABLED: Web app is now view-only for rentals
  */
 async function updateRentalStatus(transactionId, status) {
-    try {
-        const supabase = getSupabaseClient();
-        const updatePayload = { status: status };
-        if (status === 'Completed') {
-            updatePayload.end_time = new Date().toISOString();
-        }
-        const { data, error } = await supabase
-            .from('transactions')
-            .update(updatePayload)
-            .eq('transaction_id', transactionId)
-            .select();
-
-        if (error) throw error;
-        console.log('✓ Transaction status updated:', data);
-        return data;
-    } catch (error) {
-        console.error('Error updating transaction status:', error);
-        return null;
-    }
+    console.log('ℹ️ updateRentalStatus disabled — web is view-only');
+    return null;
 }
 
 /**
  * Find and complete any active transaction for a specific locker
+ * DISABLED: Web app is now view-only for rentals
  */
 async function completeActiveTransactionForLocker(lockerId) {
-    try {
-        const supabase = getSupabaseClient();
-        const { data, error } = await supabase
-            .from('transactions')
-            .update({
-                status: 'Completed',
-                end_time: new Date().toISOString()
-            })
-            .eq('locker_id', lockerId)
-            .eq('status', 'Active')
-            .select();
-
-        if (error) throw error;
-        console.log('✓ Active transaction completed for locker ID:', lockerId, data);
-        return data;
-    } catch (error) {
-        console.error('Error completing active transaction for locker:', error);
-        return null;
-    }
+    console.log('ℹ️ completeActiveTransactionForLocker disabled — web is view-only');
+    return null;
 }
 
 /**
@@ -1247,14 +1204,15 @@ async function updateRates(ratesData) {
 async function logLoginEvent(userEmail, success = true, details = '') {
     return await createAuditLog({
         action: success ? 'Admin Login' : 'Failed Login Attempt',
-        user_id: null, // Could be linked to admin table if exists
+        user_id: userEmail || null,
         timestamp: new Date().toISOString(),
         details: {
-            description: success ? `User ${userEmail} logged in successfully.` : `Failed login attempt for ${userEmail}. ${details}`,
+            description: success ? `${userEmail} logged in successfully.` : `Failed login attempt for ${userEmail}. ${details}`,
             type: 'system',
             icon: success ? 'success' : 'error',
             badge: 'AUTH',
-            badgeType: success ? 'primary' : 'danger'
+            badgeType: success ? 'primary' : 'danger',
+            admin: userEmail || 'Unknown'
         }
     });
 }
@@ -1265,14 +1223,15 @@ async function logLoginEvent(userEmail, success = true, details = '') {
 async function logLogoutEvent(userEmail) {
     return await createAuditLog({
         action: 'Admin Logout',
-        user_id: null,
+        user_id: userEmail || null,
         timestamp: new Date().toISOString(),
         details: {
-            description: `User ${userEmail} logged out.`,
+            description: `${userEmail} logged out.`,
             type: 'system',
             icon: 'info',
             badge: 'AUTH',
-            badgeType: 'secondary'
+            badgeType: 'secondary',
+            admin: userEmail || 'Unknown'
         }
     });
 }
@@ -1281,16 +1240,27 @@ async function logLogoutEvent(userEmail) {
  * Log a configuration change
  */
 async function logConfigChangeEvent(action, description, configData) {
+    const authData = JSON.parse(localStorage.getItem('coincubby_auth') || '{}');
+    const admin = authData.email || 'System';
+
+    // Pick an appropriate icon based on the action name
+    const a = (action || '').toLowerCase();
+    let icon = 'info';
+    if (a.includes('delet') || a.includes('fail') || a.includes('error')) icon = 'error';
+    else if (a.includes('maintenance') || a.includes('deduct') || a.includes('updat') || a.includes('rate') || a.includes('fix')) icon = 'warning';
+    else if (a.includes('creat') || a.includes('add') || a.includes('refill') || a.includes('payment') || a.includes('login')) icon = 'success';
+
     return await createAuditLog({
         action: action,
-        user_id: null,
+        user_id: admin,
         timestamp: new Date().toISOString(),
         details: {
             description: description,
-            type: 'system',
-            icon: 'warning',
+            type: 'config',
+            icon: icon,
             badge: 'CONFIG',
             badgeType: 'warning',
+            admin: admin,
             data: configData
         }
     });
@@ -1517,7 +1487,7 @@ async function getReportData(dateFrom, dateTo) {
         const [paymentsResponse, transactionsResponse] = await Promise.all([
             supabase
                 .from('payments')
-                .select('amount, payment_date')
+                .select('amount, payment_date, payment_method')
                 .gte('payment_date', fromDate.toISOString())
                 .lte('payment_date', toDate.toISOString()),
             supabase
@@ -1548,11 +1518,12 @@ async function logLoginEvent(email) {
     return createAuditLog({
         action: 'Admin Login',
         details: {
-            description: `User ${email} logged in successfully.`,
+            description: `${email} logged in successfully.`,
             type: 'system',
-            icon: 'login',
+            icon: 'success',
             badge: 'AUTH',
-            badgeType: 'primary'
+            badgeType: 'primary',
+            admin: email
         }
     });
 }
@@ -1561,24 +1532,34 @@ async function logLogoutEvent(email) {
     return createAuditLog({
         action: 'Admin Logout',
         details: {
-            description: `User ${email} logged out.`,
+            description: `${email} logged out.`,
             type: 'system',
-            icon: 'logout',
+            icon: 'info',
             badge: 'AUTH',
-            badgeType: 'secondary'
+            badgeType: 'secondary',
+            admin: email
         }
     });
 }
 
 async function logConfigChangeEvent(action, description, metadata = {}) {
     const authData = JSON.parse(localStorage.getItem('coincubby_auth') || '{}');
+    const admin = authData.email || 'System';
+
+    // Pick an appropriate icon based on the action name
+    const a = (action || '').toLowerCase();
+    let icon = 'info';
+    if (a.includes('delet') || a.includes('fail') || a.includes('error')) icon = 'error';
+    else if (a.includes('maintenance') || a.includes('deduct') || a.includes('updat') || a.includes('rate') || a.includes('fix')) icon = 'warning';
+    else if (a.includes('creat') || a.includes('add') || a.includes('refill') || a.includes('payment') || a.includes('login')) icon = 'success';
+
     return createAuditLog({
         action: action,
         details: {
             description: description,
-            admin: authData.email || 'System',
+            admin: admin,
             type: 'config',
-            icon: 'settings',
+            icon: icon,
             badge: 'CONFIG',
             badgeType: 'warning',
             ...metadata
@@ -1641,6 +1622,124 @@ async function createPayment(paymentData) {
     } catch (error) {
         console.error('Error creating payment:', error);
         return null;
+    }
+}
+
+/**
+ * DEVICE INVENTORY OPERATIONS
+ */
+
+/**
+ * Fetch all devices with their associated device inventory
+ */
+async function fetchDevicesWithInventory() {
+    try {
+        const supabase = getSupabaseClient();
+        const { data, error } = await supabase
+            .from('devices')
+            .select('*, device_inventory(*)');
+
+        if (error) throw error;
+
+        // Format and ensure each device has a device_inventory sub-object
+        const formatted = (data || []).map(device => {
+            const inventory = (device.device_inventory && device.device_inventory.length > 0)
+                ? device.device_inventory[0]
+                : { change_amount: 0, last_refilled_amount: 0, last_refilled_at: null };
+            return {
+                ...device,
+                device_inventory: inventory
+            };
+        });
+        console.log('✓ Devices with inventory fetched:', formatted);
+        return formatted;
+    } catch (error) {
+        console.error('Error fetching devices with inventory:', error);
+        return [];
+    }
+}
+
+/**
+ * Update device inventory
+ */
+async function updateDeviceInventory(deviceId, changeAmount, lastRefilledAmount = null, lastRefilledAt = null) {
+    try {
+        const supabase = getSupabaseClient();
+        const payload = {
+            device_id: deviceId,
+            change_amount: parseFloat(changeAmount),
+            updated_at: new Date().toISOString()
+        };
+        if (lastRefilledAmount !== null) {
+            payload.last_refilled_amount = parseFloat(lastRefilledAmount);
+        }
+        if (lastRefilledAt !== null) {
+            payload.last_refilled_at = lastRefilledAt;
+        }
+
+        const { data, error } = await supabase
+            .from('device_inventory')
+            .upsert(payload, { onConflict: 'device_id' })
+            .select();
+
+        if (error) throw error;
+        console.log('✓ Device inventory updated:', data);
+        return data;
+    } catch (error) {
+        console.error('Error updating device inventory:', error);
+        return null;
+    }
+}
+
+/**
+ * Add an entry to the device inventory history
+ */
+async function addInventoryHistory(deviceId, actionType, amount, previousAmount, newAmount, performedBy, notes = '') {
+    try {
+        const supabase = getSupabaseClient();
+        const payload = {
+            device_id: deviceId,
+            action_type: actionType,
+            amount: parseFloat(amount),
+            previous_amount: parseFloat(previousAmount),
+            new_amount: parseFloat(newAmount),
+            performed_by: performedBy,
+            notes: notes,
+            created_at: new Date().toISOString()
+        };
+
+        const { data, error } = await supabase
+            .from('device_inventory_history')
+            .insert([payload])
+            .select();
+
+        if (error) throw error;
+        console.log('✓ Inventory history recorded:', data);
+        return data;
+    } catch (error) {
+        console.error('Error adding inventory history:', error);
+        return null;
+    }
+}
+
+/**
+ * Fetch history for a specific device
+ */
+async function fetchInventoryHistory(deviceId) {
+    try {
+        const supabase = getSupabaseClient();
+        const { data, error } = await supabase
+            .from('device_inventory_history')
+            .select('*')
+            .eq('device_id', deviceId)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        console.log('✓ Inventory history fetched:', data);
+        return data;
+    } catch (error) {
+        console.error('Error fetching inventory history:', error);
+        return [];
     }
 }
 
@@ -1712,6 +1811,12 @@ window.dbOps = {
     fetchAllPayments,
     fetchPaymentsByTransaction,
     createPayment,
+
+    // Device Inventory
+    fetchDevicesWithInventory,
+    updateDeviceInventory,
+    addInventoryHistory,
+    fetchInventoryHistory,
 
     // System Logging
     logLoginEvent,

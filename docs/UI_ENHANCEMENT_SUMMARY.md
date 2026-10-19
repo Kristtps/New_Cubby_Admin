@@ -3,6 +3,56 @@
 ## Overview
 The CoinCubby Admin Panel UI has been comprehensively enhanced with professional design improvements while maintaining all backend connections and functionality intact.
 
+## ✅ Latest Features (Fully Implemented)
+
+### 🔧 Maintenance Toggle for Lockers
+**Location**: Lockers Page (`pages/lockers.html`)
+
+**Features**:
+- **Action column** added to lockers table (6th column, min-width: 140px)
+- **Purple maintenance toggle button** in each locker row
+- **Dynamic button states**:
+  - `🔧 Set Maintenance` - Outlined purple button (when Available/Occupied)
+  - `🔧 In Maintenance` - Solid purple button (when in Maintenance)
+- **Full database integration**:
+  - Updates `lockers` table in Supabase
+  - Changes locker `status` between `'Maintenance'` and `'Available'`
+  - Optimistic UI updates with error rollback
+  - Uses actual `locker_id` from database
+- **Prevents conflicts**: Click on button doesn't trigger rental details modal
+- **Visual feedback**: Button styling and status badge update immediately
+
+**Implementation Files**:
+- `js/script.js` - `toggleMaintenance()` function (lines 1424-1475)
+- `pages/lockers.html` - Button CSS and Action column
+- `css/styles.css` - `.btn-maintenance` styles with `.off` and `.on` states
+
+### 🔔 Low Balance Notification System
+**Location**: Inventory Page (`pages/inventory.html`) + Notifications Page
+
+**Features**:
+- **Threshold**: Alerts when bill compartment balance drops **below ₱20**
+- **Toast notification**: Real-time warning appears on inventory page
+  - Yellow warning icon with device name highlighted
+  - Shows current balance in red
+  - Auto-dismissible with close button
+  - Styled with dark theme and bottom-right positioning
+- **Database persistence**:
+  - Creates notification in `notifications` table
+  - Type: `'inventory_low_balance'`
+  - Title: `'Low Bill Compartment Balance'`
+  - Priority: `'urgent'` if balance is ₱0, `'high'` otherwise
+  - Prevents duplicate notifications (one per device per day)
+- **Integration**:
+  - Automatically runs on inventory page load
+  - Displays in Notifications page with proper icon and styling
+  - Real-time updates via Supabase subscriptions
+
+**Implementation Files**:
+- `js/inventory.js` - `checkLowBalanceAlerts()` function (lines 221-310)
+- `js/notifications-page.js` - Displays low balance notifications with proper icon
+- Database: Uses `notifications` table with `inventory_low_balance` type
+
 ---
 
 ## Key Improvements

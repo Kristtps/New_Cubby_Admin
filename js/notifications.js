@@ -16,17 +16,22 @@ async function initNotifications() {
         await window.supabasePromise;
     }
 
-    // Check for unread notifications
-    await checkUnreadNotifications();
+    // Set up dropdown toggle and action listeners (UI ready immediately)
+    setupDropdownListeners();
+
+    // Fire badge + dropdown fetch in parallel — don't block UI
+    const badgePromise = checkUnreadNotifications();
+    const dropdownPromise = loadDropdownNotifications();
+    await Promise.allSettled([badgePromise, dropdownPromise]);
 
     // Set up realtime listener for new notifications
     setupRealtimeListener();
 
-    // Set up periodic checks (fallback)
-    setInterval(checkUnreadNotifications, NOTIFICATION_CHECK_INTERVAL);
+    // Watch transactions table — auto-create notification when a new rental starts
+    setupRentalRealtimeListener();
 
-    // Set up dropdown toggle and action listeners
-    setupDropdownListeners();
+    // Periodic fallback (only needed if realtime disconnects)
+    setInterval(checkUnreadNotifications, NOTIFICATION_CHECK_INTERVAL);
 
     // Request permission for device/desktop notifications
     requestDeviceNotificationPermission();
@@ -42,10 +47,10 @@ async function checkUnreadNotifications() {
             return;
         }
 
-        // Get unread notification count
-        const { data, error } = await window.supabase
+        // Get unread notification count — head:true means no rows returned, just the count
+        const { count, error } = await window.supabase
             .from('notifications')
-            .select('notification_id', { count: 'exact', head: false })
+            .select('notification_id', { count: 'exact', head: true })
             .eq('is_read', false);
 
         if (error) {
@@ -53,10 +58,8 @@ async function checkUnreadNotifications() {
             return;
         }
 
-        const unreadCount = data ? data.length : 0;
-
         // Update notification badge
-        updateNotificationBadge(unreadCount);
+        updateNotificationBadge(count || 0);
 
         // If the dropdown is currently visible, refresh its content too
         const dropdown = document.getElementById('notificationDropdown');
@@ -93,9 +96,9 @@ async function getUnreadNotificationCount() {
             return 0;
         }
 
-        const { data, error } = await window.supabase
+        const { count, error } = await window.supabase
             .from('notifications')
-            .select('notification_id', { count: 'exact', head: false })
+            .select('notification_id', { count: 'exact', head: true })
             .eq('is_read', false);
 
         if (error) {
@@ -103,7 +106,7 @@ async function getUnreadNotificationCount() {
             return 0;
         }
 
-        return data ? data.length : 0;
+        return count || 0;
     } catch (err) {
         console.error('Exception getting unread count:', err);
         return 0;
@@ -115,11 +118,11 @@ const processedNotifications = new Set();
 
 /**
  * Set up Supabase realtime subscription to listen for new notifications.
- * Increments badge count and triggers device popup notification immediately.
+ * Increments badge count, prepends to dropdown, and triggers device popup immediately.
  */
 function setupRealtimeListener() {
-    if (!window.supabase) {
-        console.warn("Supabase not initialized");
+    if (!window.supabase || typeof window.supabase.channel !== 'function') {
+        console.warn("Supabase not initialized, skipping realtime");
         return;
     }
 
@@ -136,27 +139,110 @@ function setupRealtimeListener() {
                 table: "notifications"
             },
             async (payload) => {
-
                 console.log("🔥 Realtime event received:", payload);
 
                 const newNotif = payload.new;
 
-                console.log("Notification:", newNotif);
+                if (!newNotif || newNotif.is_read) return;
 
-                if (newNotif && !newNotif.is_read) {
-
-                    console.log("Calling showDeviceNotification()");
-
-                    showDeviceNotification(
-                        newNotif.notification_id,
-                        newNotif.title,
-                        newNotif.message
-                    );
+                // 1. Increment badge immediately (no extra query)
+                const badge = document.getElementById('notificationBadge');
+                if (badge) {
+                    const current = parseInt(badge.textContent, 10) || 0;
+                    const next = current + 1;
+                    badge.textContent = next > 99 ? '99+' : next;
+                    badge.style.display = 'flex';
                 }
+
+                // 2. Prepend to dropdown list if it has been loaded
+                if (dropdownNotifications.length > 0) {
+                    dropdownNotifications.unshift(newNotif);
+                    if (dropdownNotifications.length > 5) dropdownNotifications.pop();
+                    renderDropdownNotifications();
+                }
+
+                // 3. Show device/desktop notification
+                showDeviceNotification(
+                    newNotif.notification_id,
+                    newNotif.title,
+                    newNotif.message
+                );
             }
         )
         .subscribe((status) => {
             console.log("Realtime status:", status);
+        });
+}
+
+/**
+ * Watch the transactions table for new rentals and auto-create a notification.
+ * This fires whenever a row is INSERTed into transactions (i.e. a locker is rented).
+ */
+function setupRentalRealtimeListener() {
+    if (!window.supabase || typeof window.supabase.channel !== 'function') {
+        return;
+    }
+
+    // Track transaction IDs seen this session to avoid duplicate notifications
+    const seenTransactions = new Set();
+
+    window.supabase
+        .channel('new-rental-watcher')
+        .on(
+            'postgres_changes',
+            {
+                event: 'INSERT',
+                schema: 'public',
+                table: 'transactions'
+            },
+            async (payload) => {
+                const tx = payload.new;
+                if (!tx || !tx.transaction_id) return;
+
+                // Skip if already handled this session
+                if (seenTransactions.has(tx.transaction_id)) return;
+                seenTransactions.add(tx.transaction_id);
+
+                console.log('🔔 New rental detected:', tx);
+
+                // Build a human-friendly message
+                const lockerInfo = tx.locker_id ? `Locker #${tx.locker_id}` : 'a locker';
+                const startTime = new Intl.DateTimeFormat('en-PH', {
+                    timeZone: 'Asia/Manila',
+                    month: 'short', day: 'numeric',
+                    hour: '2-digit', minute: '2-digit'
+                }).format(new Date(tx.start_time || tx.created_at || Date.now()));
+
+                const title = 'New Rental Started';
+                const message = `${lockerInfo} was just rented at ${startTime}.`;
+
+                // Insert notification into the notifications table — the existing
+                // realtime listener on that table will fire automatically and show
+                // the badge + toast + device popup.
+                try {
+                    const { error } = await window.supabase
+                        .from('notifications')
+                        .insert([{
+                            title,
+                            message,
+                            type: 'new_rental',
+                            priority: 'normal',
+                            is_read: false,
+                            created_at: new Date().toISOString()
+                        }]);
+
+                    if (error) {
+                        console.error('Failed to insert new_rental notification:', error);
+                    } else {
+                        console.log('✓ new_rental notification created');
+                    }
+                } catch (err) {
+                    console.error('Exception inserting new_rental notification:', err);
+                }
+            }
+        )
+        .subscribe((status) => {
+            console.log('Rental watcher status:', status);
         });
 }
 /**
@@ -233,7 +319,7 @@ function showInAppToast(id, title, message) {
                 ${title}
                 <span class="toast-time">Just now</span>
             </div>
-            <div class="toast-message">${message}</div>
+            <div class="toast-message">${fixNotificationTimezone(message)}</div>
         </div>
         <button class="toast-close" onclick="this.closest('.toast-notification').remove(); event.stopPropagation();">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -302,6 +388,9 @@ async function loadDropdownNotifications() {
     const listContainer = document.getElementById('dropdownNotificationsList');
     if (!listContainer) return;
 
+    // Show loading state
+    listContainer.innerHTML = '<div class="dropdown-empty"><p>Loading...</p></div>';
+
     try {
         if (!window.supabase || typeof window.supabase.from !== 'function') {
             listContainer.innerHTML = '<div class="dropdown-empty"><p>Database not connected</p></div>';
@@ -310,7 +399,7 @@ async function loadDropdownNotifications() {
 
         const { data, error } = await window.supabase
             .from('notifications')
-            .select('*')
+            .select('notification_id, title, message, type, priority, is_read, created_at')
             .order('created_at', { ascending: false })
             .limit(5);
 
@@ -327,6 +416,33 @@ async function loadDropdownNotifications() {
         console.error('Exception loading dropdown notifications:', err);
         listContainer.innerHTML = '<div class="dropdown-empty"><p>Error loading notifications</p></div>';
     }
+}
+
+function sanitizeNotificationTerminology(text) {
+    if (!text) return text;
+    return text
+        .replace(/Low Bill Compartment Balance/gi, 'Low Coin Change Balance')
+        .replace(/bill compartment/gi, 'coin change')
+        .replace(/Bill Compartment/gi, 'Coin Change');
+}
+
+/**
+ * Fix UTC time in notification message text to Philippine Time (UTC+8).
+ * Detects pattern like "before 08:32 AM" and converts to PHT.
+ */
+function fixNotificationTimezone(message) {
+    if (!message) return message;
+    let text = sanitizeNotificationTerminology(message);
+    return text.replace(/before\s+(\d{1,2}):(\d{2})\s*(AM|PM)/gi, function (match, h, m, ampm) {
+        let hour = parseInt(h, 10);
+        const upper = ampm.toUpperCase();
+        if (upper === 'PM' && hour !== 12) hour += 12;
+        if (upper === 'AM' && hour === 12) hour = 0;
+        hour = (hour + 8) % 24; // Convert UTC → PHT (+8)
+        const newAmpm = hour >= 12 ? 'PM' : 'AM';
+        const newHour = hour % 12 || 12;
+        return `before ${newHour}:${m} ${newAmpm}`;
+    });
 }
 
 /**
@@ -357,6 +473,7 @@ function renderDropdownNotifications() {
         const priorityBadge = notification.priority !== 'normal'
             ? `<span class="notification-badge badge-${notification.priority}">${notification.priority}</span>`
             : '';
+        const titleClean = sanitizeNotificationTerminology(notification.title || 'Notification');
 
         return `
             <div class="dropdown-item ${isUnread ? 'unread' : ''}" onclick="markDropdownAsRead('${notification.notification_id}', event)">
@@ -364,8 +481,8 @@ function renderDropdownNotifications() {
                     ${icon}
                 </div>
                 <div class="dropdown-item-content">
-                    <div class="dropdown-item-title">${notification.title}</div>
-                    <div class="dropdown-item-msg">${notification.message}</div>
+                    <div class="dropdown-item-title">${titleClean}</div>
+                    <div class="dropdown-item-msg">${fixNotificationTimezone(notification.message)}</div>
                     <div class="dropdown-item-meta">
                         ${priorityBadge}
                         <span class="dropdown-item-time">${timeAgo}</span>
@@ -468,7 +585,8 @@ function getNotificationIconSvg(type) {
         'rental_completed': '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>',
         'new_feedback': '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>',
         'new_customer': '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>',
-        'locker_maintenance': '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>'
+        'locker_maintenance': '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>',
+        'inventory_low_balance': '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>'
     };
     return icons[type] || icons['new_rental'];
 }
@@ -482,7 +600,8 @@ function getNotificationIconClassStr(type) {
         'rental_completed': 'icon-rental',
         'new_feedback': 'icon-feedback',
         'new_customer': 'icon-customer',
-        'locker_maintenance': 'icon-maintenance'
+        'locker_maintenance': 'icon-maintenance',
+        'inventory_low_balance': 'icon-maintenance'
     };
     return classes[type] || 'icon-rental';
 }

@@ -2,12 +2,26 @@
    AUDIT LOG PAGE - CARD-BASED ACTIVITY FEED
    ======================================== */
 
-/* Page Wrapper */
+/* Lock the audit log page — no page-level scroll */
+.auditlog-main {
+    overflow: hidden !important;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+
+/* Header stays fixed height */
+.auditlog-header {
+    flex-shrink: 0;
+    margin-bottom: 0;
+}
+
+/* Page Wrapper fills all remaining vertical space */
 .auditlog-page-wrapper {
     display: flex;
     flex-direction: column;
     flex: 1;
-    overflow: hidden;
+    min-height: 0; /* critical — lets flex children shrink below content size */
     gap: 0;
 }
 
@@ -110,13 +124,87 @@
     border-color: var(--color-primary);
 }
 
-/* ==================== FEED CONTAINER ==================== */
+/* ==================== STATIC SEARCH & FILTER BAR ==================== */
+.auditlog-sticky-bar {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 0;
+    background: var(--color-bg-light);
+    border-bottom: 1px solid var(--color-border);
+    margin-bottom: 0;
+}
+
+.auditlog-search-wrap {
+    position: relative;
+    flex: 1;
+    display: flex;
+    align-items: center;
+}
+
+.auditlog-search-wrap svg {
+    position: absolute;
+    left: 12px;
+    color: var(--color-text-muted);
+    pointer-events: none;
+}
+
+.auditlog-search-wrap input {
+    width: 100%;
+    padding: 10px 14px 10px 38px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    font-size: 14px;
+    color: var(--color-dark);
+    background: var(--color-panel-bg);
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.auditlog-search-wrap input:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+.auditlog-sticky-bar select {
+    padding: 10px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-text);
+    background: var(--color-panel-bg);
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.2s;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.auditlog-sticky-bar select:focus {
+    border-color: var(--color-primary);
+}
+
+[data-theme="dark"] .auditlog-search-wrap input {
+    background: var(--dark-bg-secondary);
+    border-color: var(--dark-border);
+    color: var(--dark-text-primary);
+}
+
+[data-theme="dark"] .auditlog-sticky-bar select {
+    background: var(--dark-bg-secondary);
+    border-color: var(--dark-border);
+    color: var(--dark-text-primary);
+}
+
+/* ==================== SCROLLABLE FEED CONTAINER ==================== */
 .auditlog-container {
     flex: 1;
+    min-height: 0; /* critical — allows this flex child to scroll */
     overflow-y: auto;
     overflow-x: hidden;
-    padding-right: 4px;
-    padding-bottom: 20px;
+    padding: 16px 4px 20px 0;
 }
 
 .auditlog-feed {
@@ -431,6 +519,37 @@
 [data-theme="dark"] .auditlog-empty-title {
     color: var(--dark-text-primary);
 }
+
+[data-theme="dark"] .auditlog-card-icon.icon-success {
+    background: rgba(16, 185, 129, 0.15);
+    color: #6ee7b7;
+}
+
+[data-theme="dark"] .auditlog-card-icon.icon-warning {
+    background: rgba(245, 158, 11, 0.15);
+    color: #fcd34d;
+}
+
+[data-theme="dark"] .auditlog-card-icon.icon-info {
+    background: rgba(59, 130, 246, 0.15);
+    color: #93c5fd;
+}
+
+[data-theme="dark"] .auditlog-card-icon.icon-error {
+    background: rgba(239, 68, 68, 0.15);
+    color: #fca5a5;
+}
+
+[data-theme="dark"] .auditlog-card-icon.icon-default {
+    background: rgba(148, 163, 184, 0.12);
+    color: #94a3b8;
+}
+
+[data-theme="dark"] .badge-primary { background: rgba(59, 130, 246, 0.15); color: #93c5fd; }
+[data-theme="dark"] .badge-success { background: rgba(16, 185, 129, 0.15); color: #6ee7b7; }
+[data-theme="dark"] .badge-warning { background: rgba(245, 158, 11, 0.15); color: #fcd34d; }
+[data-theme="dark"] .badge-danger  { background: rgba(239, 68, 68, 0.15); color: #fca5a5; }
+[data-theme="dark"] .badge-secondary { background: rgba(148, 163, 184, 0.12); color: #cbd5e1; }
 
 /* ==================== RESPONSIVE ==================== */
 @media (max-width: 768px) {

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -77,6 +77,54 @@
         .notifications-container {
             max-width: 900px;
             margin: 0 auto;
+            max-height: calc(100vh - 350px);
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding-right: 8px;
+            scroll-behavior: smooth;
+        }
+
+        /* Custom Scrollbar Styling */
+        .notifications-container::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .notifications-container::-webkit-scrollbar-track {
+            background: var(--color-bg-light);
+            border-radius: 10px;
+        }
+
+        .notifications-container::-webkit-scrollbar-thumb {
+            background: var(--color-border);
+            border-radius: 10px;
+            transition: background 0.2s;
+        }
+
+        .notifications-container::-webkit-scrollbar-thumb:hover {
+            background: var(--color-primary);
+        }
+
+        /* Firefox Scrollbar */
+        .notifications-container {
+            scrollbar-width: thin;
+            scrollbar-color: var(--color-border) var(--color-bg-light);
+        }
+
+        /* Dark Mode Scrollbar */
+        [data-theme="dark"] .notifications-container::-webkit-scrollbar-track {
+            background: var(--dark-bg-primary);
+        }
+
+        [data-theme="dark"] .notifications-container::-webkit-scrollbar-thumb {
+            background: var(--dark-border);
+        }
+
+        [data-theme="dark"] .notifications-container::-webkit-scrollbar-thumb:hover {
+            background: var(--color-primary);
+        }
+
+        [data-theme="dark"] .notifications-container {
+            scrollbar-color: var(--dark-border) var(--dark-bg-primary);
         }
 
         .notification-item {
@@ -269,7 +317,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 24px;
+            margin-bottom: 16px;
             background: var(--color-panel-bg);
             padding: 16px;
             border-radius: 12px;
@@ -413,6 +461,231 @@
         .load-more-btn:hover {
             opacity: 0.9;
         }
+
+        /* ── Notification Detail Modal ── */
+        .notif-modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.5);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            z-index: 900;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease;
+        }
+
+        .notif-modal-overlay.open {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .notif-modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -48%) scale(0.96);
+            width: min(540px, calc(100vw - 32px));
+            background: var(--color-panel-bg);
+            border-radius: 20px;
+            box-shadow: 0 24px 60px rgba(15, 23, 42, 0.18), 0 4px 16px rgba(15, 23, 42, 0.08);
+            border: 1px solid var(--color-border);
+            z-index: 901;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+            max-height: calc(100vh - 80px);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .notif-modal.open {
+            opacity: 1;
+            pointer-events: all;
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        /* Header */
+        .notif-modal-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 24px 24px 20px;
+        }
+
+        .notif-modal-header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            min-width: 0;
+        }
+
+        .notif-modal-header-left .notification-icon {
+            width: 52px;
+            height: 52px;
+            border-radius: 14px;
+            flex-shrink: 0;
+        }
+
+        .notif-modal-title {
+            font-size: 17px;
+            font-weight: 700;
+            color: var(--color-dark);
+            line-height: 1.3;
+            margin-bottom: 6px;
+            word-break: break-word;
+            background: none;
+            -webkit-text-fill-color: unset;
+        }
+
+        .notif-type-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: white;
+            white-space: nowrap;
+        }
+
+        .notif-modal-close {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            border: 1px solid var(--color-border);
+            background: var(--color-bg-light);
+            color: var(--color-text-muted);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: all 0.2s;
+        }
+
+        .notif-modal-close:hover {
+            background: var(--color-occupied-bg);
+            border-color: var(--color-occupied);
+            color: var(--color-occupied);
+        }
+
+        /* Divider */
+        .notif-modal-divider {
+            height: 1px;
+            background: var(--color-border);
+            margin: 0 24px;
+        }
+
+        /* Body */
+        .notif-modal-body {
+            padding: 20px 24px;
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .notif-detail-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .notif-detail-row.column {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .notif-detail-label {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--color-text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            white-space: nowrap;
+        }
+
+        .notif-detail-value {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--color-dark);
+            text-align: right;
+        }
+
+        .notif-detail-message {
+            font-size: 14px;
+            color: var(--color-text);
+            line-height: 1.65;
+            background: var(--color-bg-light);
+            border: 1px solid var(--color-border);
+            border-radius: 10px;
+            padding: 14px 16px;
+            width: 100%;
+            margin: 0;
+        }
+
+        /* Footer */
+        .notif-modal-footer {
+            padding: 16px 24px;
+            border-top: 1px solid var(--color-border);
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        /* Active item highlight */
+        .notification-item.active-detail {
+            outline: 2px solid var(--color-primary);
+            outline-offset: 2px;
+        }
+
+        /* Dark mode */
+        [data-theme="dark"] .notif-modal {
+            background: var(--dark-bg-secondary);
+            border-color: var(--dark-border);
+            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+        }
+
+        [data-theme="dark"] .notif-modal-title {
+            color: var(--dark-text-primary);
+        }
+
+        [data-theme="dark"] .notif-modal-close {
+            background: var(--dark-bg-tertiary);
+            border-color: var(--dark-border);
+            color: var(--dark-text-secondary);
+        }
+
+        [data-theme="dark"] .notif-modal-close:hover {
+            background: rgba(248, 113, 113, 0.12);
+            border-color: var(--color-occupied);
+            color: var(--color-occupied);
+        }
+
+        [data-theme="dark"] .notif-modal-divider,
+        [data-theme="dark"] .notif-modal-footer {
+            border-color: var(--dark-border);
+        }
+
+        [data-theme="dark"] .notif-detail-value {
+            color: var(--dark-text-primary);
+        }
+
+        [data-theme="dark"] .notif-detail-message {
+            background: var(--dark-bg-tertiary);
+            border-color: var(--dark-border);
+            color: var(--dark-text-primary);
+        }
     </style>
 </head>
 
@@ -426,7 +699,7 @@
                         style="border-radius: 50%;">
                     <span>CoinCubby</span>
                 </div>
-                <p class="text-muted" data-i18n="sidebar.adminPanel">Admin Panel</p>
+                <p class="text-muted">Admin</p>
             </div>
 
             <nav class="nav-menu">
@@ -439,7 +712,7 @@
                             <rect x="14" y="14" width="7" height="7"></rect>
                             <rect x="3" y="14" width="7" height="7"></rect>
                         </svg>
-                        <span data-i18n="nav.overview">Overview</span>
+                        <span>Overview</span>
                     </a>
                     <a href="lockers.html" class="nav-item">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -447,7 +720,7 @@
                             <rect x="3" y="11" width="18" height="11"></rect>
                             <path d="M7 11V7a4 4 0 0 1 4-4h2a4 4 0 0 1 4 4v4"></path>
                         </svg>
-                        <span data-i18n="nav.lockers">Lockers</span>
+                        <span>Lockers</span>
                     </a>
                     <a href="customers.html" class="nav-item">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -455,7 +728,7 @@
                             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
                             <circle cx="12" cy="7" r="4"></circle>
                         </svg>
-                        <span data-i18n="nav.customers">Customers</span>
+                        <span>Customers</span>
                     </a>
                     <a href="transactions.html" class="nav-item">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -463,7 +736,7 @@
                             <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"></path>
                             <path d="M12 6v6l4 2"></path>
                         </svg>
-                        <span data-i18n="nav.transactions">Transactions</span>
+                        <span>Transactions</span>
                     </a>
                     <a href="rentals.html" class="nav-item">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -473,8 +746,16 @@
                                 d="M12 1v6m0 6v6M4.22 4.22l4.24 4.24m2.12 2.12l4.24 4.24M1 12h6m6 0h6m-17.78 7.78l4.24-4.24m2.12-2.12l4.24-4.24">
                             </path>
                         </svg>
-                        <span data-i18n="nav.rentals">Rentals</span>
+                        <span>Rentals</span>
                     </a>
+                    <a href="inventory.html" class="nav-item">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
+                        </svg>
+                        <span>Inventory</span>
+                    </a>
+                  
                     <a href="rates.html" class="nav-item">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2">
@@ -482,7 +763,7 @@
                                 d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2zM22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z">
                             </path>
                         </svg>
-                        <span data-i18n="nav.rates">Rates</span>
+                        <span>Rates</span>
                     </a>
                     <a href="reports.html" class="nav-item">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -490,7 +771,7 @@
                             <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
                             <polyline points="9 22 9 12 15 12 15 22"></polyline>
                         </svg>
-                        <span data-i18n="nav.reports">Reports</span>
+                        <span>Reports</span>
                     </a>
 
                     <a href="feedback.html" class="nav-item">
@@ -500,7 +781,7 @@
                                 d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z">
                             </path>
                         </svg>
-                        <span data-i18n="nav.feedback">Feedback</span>
+                        <span>Feedback</span>
                     </a>
                     <a href="auditlog.html" class="nav-item">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -510,7 +791,7 @@
                                 d="M12 1v6m0 6v6M4.22 4.22l4.24 4.24m2.12 2.12l4.24 4.24M1 12h6m6 0h6m-17.78 7.78l4.24-4.24m2.12-2.12l4.24-4.24">
                             </path>
                         </svg>
-                        <span data-i18n="nav.auditlog">Audit Log</span>
+                        <span>Audit Log</span>
                     </a>
                 </div>
             </nav>
@@ -529,8 +810,8 @@
             <!-- Header -->
             <header class="notifications-header">
                 <div>
-                    <h1 data-i18n="notifications.title">Notifications</h1>
-                    <p class="subtitle" data-i18n="notifications.subtitle">Stay updated with system events and activities.</p>
+                    <h1>Notifications</h1>
+                    <p class="subtitle">Stay updated with system events and activities.</p>
                 </div>
                 <div class="notifications-actions">
                     <button onclick="markAllAsRead()" class="btn-primary">
@@ -552,23 +833,23 @@
                 </div>
             </header>
 
-            <div class="notifications-container">
-                <!-- Notifications Toolbar (Search & Filter) -->
-                <div class="notifications-toolbar">
-                    <div class="search-container">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="11" cy="11" r="8"></circle>
-                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                        </svg>
-                        <input type="text" id="notification-search" placeholder="Search notifications..." oninput="onSearchNotifications(this.value)">
-                    </div>
-                    <div class="filter-tabs">
-                        <button class="filter-tab active" onclick="setNotificationFilter('all', this)">All</button>
-                        <button class="filter-tab" onclick="setNotificationFilter('unread', this)">Unread</button>
-                        <button class="filter-tab" onclick="setNotificationFilter('read', this)">Read</button>
-                    </div>
+            <!-- Notifications Toolbar (Search & Filter) — sticky, outside scroll area -->
+            <div class="notifications-toolbar">
+                <div class="search-container">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                    <input type="text" id="notification-search" placeholder="Search notifications..." oninput="onSearchNotifications(this.value)">
                 </div>
+                <div class="filter-tabs">
+                    <button class="filter-tab active" onclick="setNotificationFilter('all', this)">All</button>
+                    <button class="filter-tab" onclick="setNotificationFilter('unread', this)">Unread</button>
+                    <button class="filter-tab" onclick="setNotificationFilter('read', this)">Read</button>
+                </div>
+            </div>
 
+            <div class="notifications-container">
                 <!-- Notifications List -->
                 <div id="notifications-container">
                     <div style="text-align: center; padding: 3rem; color: var(--color-text-muted);">
@@ -579,15 +860,84 @@
         </main>
     </div>
 
+    <!-- Notification Detail Modal -->
+    <div id="detail-overlay" class="notif-modal-overlay" onclick="closeDetailPane()"></div>
+
+    <div id="notification-detail-pane" class="notif-modal" role="dialog" aria-modal="true" aria-labelledby="detail-title">
+        <!-- Modal Header -->
+        <div class="notif-modal-header">
+            <div class="notif-modal-header-left">
+                <div id="detail-icon" class="notification-icon"></div>
+                <div>
+                    <h2 id="detail-title" class="notif-modal-title"></h2>
+                    <span id="detail-type-badge" class="notif-type-badge"></span>
+                </div>
+            </div>
+            <button class="notif-modal-close" onclick="closeDetailPane()" aria-label="Close">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Divider -->
+        <div class="notif-modal-divider"></div>
+
+        <!-- Modal Body -->
+        <div class="notif-modal-body">
+            <!-- Date row -->
+            <div class="notif-detail-row">
+                <div class="notif-detail-label">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                        <line x1="16" y1="2" x2="16" y2="6"></line>
+                        <line x1="8" y1="2" x2="8" y2="6"></line>
+                        <line x1="3" y1="10" x2="21" y2="10"></line>
+                    </svg>
+                    Date &amp; Time
+                </div>
+                <div id="detail-date" class="notif-detail-value"></div>
+            </div>
+
+            <!-- Message row -->
+            <div class="notif-detail-row column">
+                <div class="notif-detail-label">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                    Message
+                </div>
+                <p id="detail-message" class="notif-detail-message"></p>
+            </div>
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="notif-modal-footer">
+            <button class="btn-secondary" onclick="closeDetailPane()">Close</button>
+        </div>
+    </div>
+
     <!-- Database Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="../js/language.js"></script>
     <script src="../js/theme.js"></script>
     <script src="../js/supabase-client.js"></script>
     <script src="../js/db-operations.js"></script>
-    <script src="../js/script.js"></script>
+        <script>
+        (function () {
+            const auth = localStorage.getItem('coincubby_auth');
+            if (!auth) {
+                window.location.href = 'login.html';
+            }
+        })();
+    </script><script src="../js/script.js"></script>
     <script src="../js/notifications-page.js"></script>
-
+    <script>
+        // Close modal on Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') closeDetailPane();
+        });
+    </script>
 </body>
 
 </html>

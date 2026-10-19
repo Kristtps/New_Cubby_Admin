@@ -14,6 +14,7 @@ let isLoadingMoreRentals = false;
 let countdownIntervals = {}; // Store countdown intervals for each rental
 let showingRentalHistory = false;
 const RENTALS_PER_LOAD = 25;
+let rentalsRealtimeChannel = null;
 
 /**
  * Initialize rentals page
@@ -35,8 +36,11 @@ async function initializeRentalsPage() {
     initializeRentalDetailsModal();
     initializeRentalHistoryToggle();
 
-    // Initialize auto-refresh (every 20 seconds)
+    // Initialize auto-refresh (every 20 seconds) — fallback if realtime disconnects
     initializeRentalsAutoRefresh();
+
+    // Subscribe to realtime changes on the transactions table
+    subscribeToRentalChanges();
 
     // Initialize infinite scroll
     initializeRentalsInfiniteScroll();
@@ -59,7 +63,7 @@ async function loadRentalsFromSupabase() {
                 *,
                 customers (full_name),
                 lockers (locker_number),
-                payments (amount),
+                payment_sessions (amount_paid),
                 rates (rate_id, price_per_hour)
             `)
             .order('start_time', { ascending: false });
@@ -92,9 +96,9 @@ async function loadRentalsFromSupabase() {
             }
 
             let totalAmount = 0;
-            if (tx.payments && Array.isArray(tx.payments)) {
-                tx.payments.forEach(p => {
-                    totalAmount += parseFloat(p.amount || 0);
+            if (tx.payment_sessions && Array.isArray(tx.payment_sessions)) {
+                tx.payment_sessions.forEach(ps => {
+                    totalAmount += parseFloat(ps.amount_paid || 0);
                 });
             }
 
@@ -139,7 +143,7 @@ async function loadRentalsFromSupabase() {
                 const emptyMessage = showingRentalHistory
                     ? 'No rental history found.'
                     : 'No active rentals at the moment.';
-                tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 3rem;">${emptyMessage}</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--color-text-muted); padding: 3rem;">${emptyMessage}</td></tr>`;
                 allRentalsData = [];
             }
         } else {
@@ -151,9 +155,32 @@ async function loadRentalsFromSupabase() {
         console.error('Failed to load rentals:', err.message);
         const tbody = document.getElementById('rentals-tbody');
         if (tbody) {
-            tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--danger); padding: 1rem;">Failed to load rentals: ${err.message}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--color-occupied); padding: 1rem;">Failed to load rentals: ${err.message}</td></tr>`;
         }
     }
+}
+
+/**
+ * Subscribe to Supabase realtime changes on the transactions table.
+ * Re-fetches data instantly when a rental is inserted, updated, or deleted.
+ */
+function subscribeToRentalChanges() {
+    if (!window.supabase || typeof window.supabase.channel !== 'function') return;
+    if (rentalsRealtimeChannel) return;
+
+    rentalsRealtimeChannel = window.supabase
+        .channel('rentals-realtime')
+        .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'transactions' },
+            () => {
+                console.log('🔔 Rental change detected, refreshing...');
+                loadRentalsFromSupabase();
+            }
+        )
+        .subscribe((status) => {
+            console.log('Rentals realtime status:', status);
+        });
 }
 
 /**
@@ -202,6 +229,9 @@ function addRentalRow(rentalData) {
         : (fixedPricing ? fixedPricing.prepaidAmount : rentalData.amount);
     const durationValue = isActiveRental ? '--:--:--' : rentalData.duration;
 
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    const overtimeColor = isDark ? '#f87171' : '#b91c1c';
+
     newRow.innerHTML = `
         <td class="customer-cell">
             <div class="customer-info">
@@ -215,8 +245,8 @@ function addRentalRow(rentalData) {
         <td class="status-cell"><span class="${statusBadgeClass}">${rentalData.status}</span></td>
         <td class="amount-cell">
             <span data-amount-id="${rentalData.id}">₱${parseFloat(initialAmount).toFixed(2)}</span>
-            <span data-overtime-id="${rentalData.id}" style="${fixedPricing && fixedPricing.isOvertime ? '' : 'display: none;'} margin-left: 6px; color: #b91c1c; font-size: 0.9rem; font-weight: 700;">+</span>
-            <span data-overtime-fee-id="${rentalData.id}" style="display: ${fixedPricing && fixedPricing.isOvertime ? 'block' : 'none'}; margin-top: 3px; color: #b91c1c; font-size: 0.75rem; font-weight: 600;">Additional: ₱${fixedPricing ? fixedPricing.additionalFee.toFixed(2) : '0.00'}</span>
+            <span data-overtime-id="${rentalData.id}" style="${fixedPricing && fixedPricing.isOvertime ? '' : 'display: none;'} margin-left: 6px; color: ${overtimeColor}; font-size: 0.9rem; font-weight: 700;">+</span>
+            <span data-overtime-fee-id="${rentalData.id}" style="display: ${fixedPricing && fixedPricing.isOvertime ? 'block' : 'none'}; margin-top: 3px; color: ${overtimeColor}; font-size: 0.75rem; font-weight: 600;">Additional: ₱${fixedPricing ? fixedPricing.additionalFee.toFixed(2) : '0.00'}</span>
         </td>
     `;
 
@@ -272,11 +302,12 @@ function startCountdown(rentalData) {
             const mins = overtimeMinutes % 60;
 
             // Format as +HH:MM:SS
+            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
             const overtimeString = `+${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(overtimeSeconds).padStart(2, '0')}`;
             durationElement.textContent = overtimeString;
-            durationElement.style.color = '#7f1d1d'; // Dark red for overtime
+            durationElement.style.color = isDark ? '#f87171' : '#7f1d1d';
             durationElement.style.fontWeight = 'bold';
-            if (row) row.style.backgroundColor = 'rgba(127, 29, 29, 0.06)';
+            if (row) row.style.backgroundColor = isDark ? 'rgba(248, 113, 113, 0.1)' : 'rgba(127, 29, 29, 0.06)';
 
             if (overtimeIndicator) overtimeIndicator.style.display = 'inline';
             const pricing = calculateRentalOvertime(rentalData);
@@ -302,18 +333,19 @@ function startCountdown(rentalData) {
         if (overtimeFeeElement) overtimeFeeElement.style.display = 'none';
 
         // Change color based on time remaining
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
         if (diff <= 1800000) { // 30 minutes or less
-            durationElement.style.color = '#ef4444'; // Red urgent
+            durationElement.style.color = '#ef4444';
             durationElement.style.fontWeight = 'bold';
-            if (row) row.style.backgroundColor = 'rgba(239, 68, 68, 0.06)';
+            if (row) row.style.backgroundColor = isDark ? 'rgba(248, 113, 113, 0.12)' : 'rgba(239, 68, 68, 0.06)';
         } else if (diff <= 3600000) { // 1 hour or less
-            durationElement.style.color = '#f59e0b'; // Orange warning
+            durationElement.style.color = '#f59e0b';
             durationElement.style.fontWeight = '600';
-            if (row) row.style.backgroundColor = 'rgba(245, 158, 11, 0.06)';
+            if (row) row.style.backgroundColor = isDark ? 'rgba(251, 191, 36, 0.12)' : 'rgba(245, 158, 11, 0.06)';
         } else {
-            durationElement.style.color = '#10b981'; // Green plenty of time
+            durationElement.style.color = isDark ? '#34d399' : '#10b981';
             durationElement.style.fontWeight = '600';
-            if (row) row.style.backgroundColor = 'rgba(16, 185, 129, 0.04)';
+            if (row) row.style.backgroundColor = isDark ? 'rgba(52, 211, 153, 0.08)' : 'rgba(16, 185, 129, 0.04)';
         }
     };
 
@@ -450,7 +482,7 @@ function initializeRentalsSearch() {
             if (!document.getElementById('no-rentals-results')) {
                 const noResultsRow = document.createElement('tr');
                 noResultsRow.id = 'no-rentals-results';
-                noResultsRow.innerHTML = `<td colspan="7" style="text-align: center; color: var(--text-muted); padding: 2rem;">No rentals found matching "${searchTerm}"</td>`;
+                noResultsRow.innerHTML = `<td colspan="7" style="text-align: center; color: var(--color-text-muted); padding: 2rem;">No rentals found matching "${searchTerm}"</td>`;
                 tbody.appendChild(noResultsRow);
             }
         } else if (document.getElementById('no-rentals-results')) {
@@ -578,7 +610,8 @@ function startOpenHourTimer(rentalId, startTimeRaw, hourlyRate) {
         durationElement.textContent = timeString;
 
         // Active Open Hour timer styling - blue color for running status
-        durationElement.style.color = '#3b82f6';
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        durationElement.style.color = isDark ? '#60a5fa' : '#3b82f6';
         durationElement.style.fontWeight = '600';
 
         // Calculate and update the dynamic running amount
@@ -594,3 +627,12 @@ function startOpenHourTimer(rentalId, startTimeRaw, hourlyRate) {
     // Update once every second
     countdownIntervals[rentalId] = setInterval(updateTimer, 1000);
 }
+
+// Re-render rentals on theme change so duration colors update
+window.addEventListener('themechange', function() {
+    Object.keys(countdownIntervals).forEach(id => {
+        clearInterval(countdownIntervals[id]);
+        delete countdownIntervals[id];
+    });
+    loadRentalsFromSupabase();
+});
