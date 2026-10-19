@@ -17,12 +17,11 @@
 }
 
 .header h1 {
-    background: linear-gradient(135deg, var(--color-dark) 30%, var(--color-primary) 100%) !important;
     -webkit-background-clip: text !important;
     -webkit-text-fill-color: transparent !important;
     background-clip: text !important;
     color: transparent !important;
-    font-size: 32px;
+    font-size: 34px;
     font-weight: 700;
     margin-bottom: 8px;
 }
@@ -219,9 +218,7 @@
     background: white;
     border-radius: 12px;
     padding: 24px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
     border: 1px solid #e5e7eb;
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .reports-stats .stat-card:hover {
@@ -348,7 +345,7 @@
 
     .header h1 {
         font-size: 24px;
-        background: linear-gradient(135deg, var(--color-dark) 30%, var(--color-primary) 100%) !important;
+        background: rgb(26, 25, 25);
         -webkit-background-clip: text !important;
         -webkit-text-fill-color: transparent !important;
         background-clip: text !important;
@@ -407,7 +404,6 @@
 @media (max-width: 480px) {
     .header h1 {
         font-size: 20px;
-        background: linear-gradient(135deg, var(--color-dark) 30%, var(--color-primary) 100%) !important;
         -webkit-background-clip: text !important;
         -webkit-text-fill-color: transparent !important;
         background-clip: text !important;

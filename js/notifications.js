@@ -4,7 +4,7 @@
  * and manages the floating dropdown & native device popups.
  */
 
-const NOTIFICATION_CHECK_INTERVAL = 30000; // Check every 30 seconds
+const NOTIFICATION_CHECK_INTERVAL = 1000; // Check every 10 seconds
 let dropdownNotifications = [];
 
 /**
