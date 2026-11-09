@@ -392,15 +392,15 @@
 }
 
 .rates-history-table th {
-    padding: 11px 16px;
-    text-align: left;
+    padding: 15px 18px;
+    text-align: center;
     font-size: 11px;
     font-weight: 700;
-    color: #6b7280;
+    color: rgba(19, 18, 18, 0.9);
     text-transform: uppercase;
     letter-spacing: 0.5px;
     white-space: nowrap;
-    background: #f9fafb;
+    background: #eef1ee;
     position: sticky;
     top: 0;
 }
