@@ -213,9 +213,9 @@
 
 /* Success Message */
 .success-message {
-    background-color: #ecfdf5;
-    border: 1px solid #d1fae5;
-    color: #047857;
+    background-color: #edf5ff;
+    border: 1px solid #dfeafc;
+    color: #082b5c;
     padding: 12px 16px;
     border-radius: 8px;
     font-size: 14px;
@@ -387,8 +387,8 @@
 }
 
 .rates-history-table thead tr {
-    background: #f9fafb;
-    border-bottom: 1px solid #e5e7eb;
+    background: #f5f9ff;
+    border-bottom: 1px solid #bfd1f1;
 }
 
 .rates-history-table th {
@@ -396,18 +396,18 @@
     text-align: center;
     font-size: 11px;
     font-weight: 700;
-    color: rgba(19, 18, 18, 0.9);
+    color: #143052;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     white-space: nowrap;
-    background: #eef1ee;
+    background: linear-gradient(180deg, #edf5ff 0%, #e0ecff 100%);
     position: sticky;
     top: 0;
 }
 
 .rates-history-table td {
     padding: 13px 16px;
-    border-bottom: 1px solid #f3f4f6;
+    border-bottom: 1px solid #bfd1f1;
     color: #374151;
     vertical-align: middle;
 }
@@ -421,7 +421,7 @@
 }
 
 .rates-history-table tbody tr:hover {
-    background: #f9fafb;
+    background: #f5f9ff;
 }
 
 /* Row index badge */
@@ -604,9 +604,9 @@
 }
 
 [data-theme="dark"] .success-message {
-    background-color: rgba(16, 185, 129, 0.12);
-    border-color: rgba(16, 185, 129, 0.25);
-    color: #6ee7b7;
+    background-color: rgba(90, 168, 255, 0.12);
+    border-color: rgba(90, 168, 255, 0.25);
+    color: #bfe1ff;
 }
 
 [data-theme="dark"] .error-message {
@@ -616,8 +616,8 @@
 }
 
 [data-theme="dark"] .change-badge.increased {
-    background: rgba(16, 185, 129, 0.15);
-    color: #6ee7b7;
+    background: rgba(90, 168, 255, 0.15);
+    color: #bfe1ff;
 }
 
 [data-theme="dark"] .change-badge.decreased {

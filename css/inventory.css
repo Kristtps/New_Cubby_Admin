@@ -285,11 +285,11 @@
 }
 
 .custom-table th {
-    background: #eef1ee;
+    background: linear-gradient(180deg, #edf5ff 0%, #e0ecff 100%);
     padding: 15px 18px;
     font-size: 11px;
     font-weight: 700;
-    color: rgba(19, 18, 18, 0.9);
+    color: #143052;
     text-transform: uppercase;
     letter-spacing: 0.08em;
     text-align: center;
@@ -301,7 +301,7 @@
     padding: 1rem;
     font-size: 0.875rem;
     color: var(--color-text);
-    border-bottom: 1px solid var(--color-border);
+    border-bottom: 1px solid #bfd1f1;
     vertical-align: middle;
 }
 
@@ -310,7 +310,7 @@
 }
 
 .custom-table tbody tr:hover td {
-    background: var(--color-gray-50);
+    background: #f5f9ff;
 }
 
 .notes-cell {
@@ -377,11 +377,11 @@
     position: fixed;
     bottom: 24px;
     right: 24px;
-    background: #10b981;
+    background: linear-gradient(135deg, #0d4db3 0%, #56b6ff 100%);
     color: #ffffff;
     padding: 0.85rem 1.5rem;
     border-radius: 12px;
-    box-shadow: 0 10px 25px rgba(16, 185, 129, 0.35);
+    box-shadow: 0 10px 25px rgba(13, 77, 179, 0.35);
     display: flex;
     align-items: center;
     font-weight: 600;

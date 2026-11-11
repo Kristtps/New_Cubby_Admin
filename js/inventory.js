@@ -365,7 +365,6 @@ async function loadInventoryHistory() {
 
         historyData = data || [];
         renderHistory(historyData);
-        populateDeviceFilter(historyData);
     } catch (err) {
         console.error('❌ loadInventoryHistory error:', err);
         tbody.innerHTML = `<tr><td colspan="5" class="hist-empty">Failed to load history: ${err.message}</td></tr>`;
@@ -402,21 +401,10 @@ function renderHistory(rows) {
     }).join('');
 }
 
-function populateDeviceFilter(rows) {
-    const sel = document.getElementById('hist-device-filter');
-    if (!sel) return;
-    const devices = [...new Set(rows.map(r => r.details?.device_name).filter(Boolean))];
-    // Keep "All Devices" option, add the rest
-    sel.innerHTML = '<option value="all">All Devices</option>' +
-        devices.map(d => `<option value="${d}">${d}</option>`).join('');
-}
-
 function applyHistoryFilters() {
-    const deviceVal = document.getElementById('hist-device-filter')?.value || 'all';
     const typeVal   = document.getElementById('hist-type-filter')?.value   || 'all';
 
     let filtered = historyData;
-    if (deviceVal !== 'all') filtered = filtered.filter(r => r.details?.device_name === deviceVal);
     if (typeVal   !== 'all') filtered = filtered.filter(r => r.action === typeVal);
     renderHistory(filtered);
 }
@@ -587,10 +575,8 @@ document.addEventListener('DOMContentLoaded', function () {
     loadInventory();
     loadInventoryHistory();
 
-    // History filters
-    const histDeviceSel = document.getElementById('hist-device-filter');
+    // History action filter
     const histTypeSel   = document.getElementById('hist-type-filter');
-    if (histDeviceSel) histDeviceSel.addEventListener('change', applyHistoryFilters);
     if (histTypeSel)   histTypeSel.addEventListener('change', applyHistoryFilters);
 
     // ── Deduct modal wiring ───────────────────────────────────
