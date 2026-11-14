@@ -419,6 +419,12 @@ label {
     min-height: 100vh;
 }
 
+/* When page-scroll-locked is on main-content, kill the outer scroll */
+.main-content.page-scroll-locked {
+    overflow: hidden;
+    min-height: unset;
+}
+
 .main-content::before {
     content: '';
     position: absolute;
@@ -442,11 +448,30 @@ label {
 }
 
 @keyframes admin-particle-drift {
-    0%   { background-position: 0 -340px; transform: translate3d(0, 0, 0); }
-    25%  { background-position: 18px -255px; transform: translate3d(8px, 0, 0); }
-    50%  { background-position: -12px -170px; transform: translate3d(-6px, 0, 0); }
-    75%  { background-position: 14px -85px; transform: translate3d(5px, 0, 0); }
-    100% { background-position: 0 0; transform: translate3d(0, 0, 0); }
+    0% {
+        background-position: 0 -340px;
+        transform: translate3d(0, 0, 0);
+    }
+
+    25% {
+        background-position: 18px -255px;
+        transform: translate3d(8px, 0, 0);
+    }
+
+    50% {
+        background-position: -12px -170px;
+        transform: translate3d(-6px, 0, 0);
+    }
+
+    75% {
+        background-position: 14px -85px;
+        transform: translate3d(5px, 0, 0);
+    }
+
+    100% {
+        background-position: 0 0;
+        transform: translate3d(0, 0, 0);
+    }
 }
 
 .main-content::after {
@@ -456,11 +481,11 @@ label {
     z-index: -1;
     pointer-events: none;
     background-image:
-        radial-gradient(circle 3px at 28px 36px, rgba(255,255,255,0.96) 0 65%, transparent 100%),
-        radial-gradient(circle 2px at 104px 172px, rgba(255,255,255,0.88) 0 65%, transparent 100%),
-        radial-gradient(circle 4px at 218px 92px, rgba(255,255,255,0.94) 0 65%, transparent 100%),
-        radial-gradient(circle 2px at 286px 248px, rgba(255,255,255,0.9) 0 65%, transparent 100%),
-        radial-gradient(circle 3px at 168px 304px, rgba(255,255,255,0.92) 0 65%, transparent 100%);
+        radial-gradient(circle 3px at 28px 36px, rgba(255, 255, 255, 0.96) 0 65%, transparent 100%),
+        radial-gradient(circle 2px at 104px 172px, rgba(255, 255, 255, 0.88) 0 65%, transparent 100%),
+        radial-gradient(circle 4px at 218px 92px, rgba(255, 255, 255, 0.94) 0 65%, transparent 100%),
+        radial-gradient(circle 2px at 286px 248px, rgba(255, 255, 255, 0.9) 0 65%, transparent 100%),
+        radial-gradient(circle 3px at 168px 304px, rgba(255, 255, 255, 0.92) 0 65%, transparent 100%);
     background-size: 340px 360px;
     background-repeat: repeat;
     filter: blur(1px);
@@ -468,14 +493,34 @@ label {
 }
 
 @keyframes admin-snowfall {
-    0%   { background-position: 0 -360px; transform: translateX(0); }
-    25%  { background-position: 14px -270px; transform: translateX(7px); }
-    50%  { background-position: -10px -180px; transform: translateX(-6px); }
-    75%  { background-position: 12px -90px; transform: translateX(5px); }
-    100% { background-position: 0 0; transform: translateX(0); }
+    0% {
+        background-position: 0 -360px;
+        transform: translateX(0);
+    }
+
+    25% {
+        background-position: 14px -270px;
+        transform: translateX(7px);
+    }
+
+    50% {
+        background-position: -10px -180px;
+        transform: translateX(-6px);
+    }
+
+    75% {
+        background-position: 12px -90px;
+        transform: translateX(5px);
+    }
+
+    100% {
+        background-position: 0 0;
+        transform: translateX(0);
+    }
 }
 
 @media (prefers-reduced-motion: reduce) {
+
     .main-content::before,
     .main-content::after {
         animation: none;
@@ -516,8 +561,8 @@ label {
 
 .stat-card {
     background: var(--color-panel-bg);
-    border-radius: 18px;
-    padding: 26px;
+    border-radius: 14px;
+    padding: 18px 20px;
     border: 1px solid var(--color-border);
     position: relative;
     overflow: hidden;
@@ -565,9 +610,9 @@ label {
 }
 
 .stat-icon {
-    width: 46px;
-    height: 46px;
-    border-radius: 14px;
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -598,7 +643,7 @@ label {
 }
 
 .stat-value {
-    font-size: 30px;
+    font-size: 24px;
     font-weight: 800;
     color: var(--color-dark);
     letter-spacing: -0.03em;
@@ -630,15 +675,15 @@ label {
 
 .chart-container {
     background: var(--color-panel-bg);
-    border-radius: 18px;
-    padding: 28px;
+    border-radius: 14px;
+    padding: 20px;
     border: 1px solid var(--color-border);
     transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    min-height: 460px;
+    min-height: 340px;
 }
 
 .chart-container:hover {
@@ -1716,12 +1761,72 @@ input[type="password"]::-ms-clear {
     white-space: nowrap;
 }
 
-/* ==================== TRANSACTIONS SECTION ==================== */
+/* ==================== TRANSACTIONS STATS GRID ==================== */
+.transactions-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(180px, 280px));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+@media (max-width: 900px) {
+    .transactions-stats-grid {
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    }
+}
+
+.transactions-stats-grid .stat-card {
+    padding: 16px 20px;
+    border-radius: 14px;
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s ease, border-color 0.25s ease;
+}
+
+.transactions-stats-grid .stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md), 0 0 0 1px var(--color-primary-light);
+    border-color: var(--color-primary-light);
+}
+
+.transactions-stats-grid .stat-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.transactions-stats-grid .stat-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.transactions-stats-grid .stat-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+}
+
+.transactions-stats-grid .stat-icon svg {
+    width: 18px;
+    height: 18px;
+}
+
+.transactions-stats-grid .stat-value {
+    font-size: 24px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    color: var(--color-dark);
+}
+
+/* ==================== TRANSACTIONS SECTION & TABLE ==================== */
 .transactions-section {
     background: var(--color-panel-bg);
-    border-radius: 18px;
-    padding: 28px;
-    box-shadow: var(--shadow-md);
+    border-radius: 16px;
+    box-shadow: var(--shadow-sm);
     border: 1px solid var(--color-border);
     transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
@@ -1729,7 +1834,7 @@ input[type="password"]::-ms-clear {
 }
 
 .transactions-section:hover {
-    box-shadow: var(--shadow-lg);
+    box-shadow: var(--shadow-md);
     border-color: rgba(16, 185, 129, 0.2);
 }
 
@@ -1743,10 +1848,17 @@ input[type="password"]::-ms-clear {
 .transactions-table-container {
     position: relative;
     z-index: 1;
-    border-radius: 12px;
+    border-radius: 16px;
     border: 1px solid var(--color-border);
     overflow: hidden;
     background: var(--color-panel-bg);
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow 0.25s ease, border-color 0.25s ease;
+}
+
+.transactions-table-container:hover {
+    box-shadow: var(--shadow-md);
+    border-color: rgba(16, 185, 129, 0.25);
 }
 
 .transactions-table-wrapper {
@@ -2092,6 +2204,259 @@ input[type="password"]::-ms-clear {
     border-bottom: none;
 }
 
+/* ==================== FEEDBACK TABLE SECTION ==================== */
+.feedback-table-container {
+    background: var(--color-panel-bg);
+    border-radius: 16px;
+    border: 1px solid var(--color-border);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+    transition: box-shadow 0.25s ease, border-color 0.25s ease;
+}
+
+.feedback-table-container:hover {
+    box-shadow: var(--shadow-md);
+    border-color: rgba(16, 185, 129, 0.25);
+}
+
+.feedback-table-wrapper {
+    max-height: calc(100vh - 280px);
+    overflow-y: auto;
+    overflow-x: auto;
+}
+
+.feedback-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+.feedback-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: #eef1ee;
+}
+
+.feedback-table th {
+    padding: 15px 18px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgba(19, 18, 18, 0.85);
+    background: #eef1ee;
+    border-bottom: 1px solid var(--color-border);
+    white-space: nowrap;
+    text-align: left;
+}
+
+.feedback-table th.th-customer {
+    width: 22%;
+}
+
+.feedback-table th.th-rating {
+    width: 18%;
+}
+
+.feedback-table th.th-comment {
+    width: 38%;
+}
+
+.feedback-table th.th-date {
+    width: 14%;
+}
+
+.feedback-table th.th-actions {
+    width: 8%;
+    text-align: center;
+}
+
+.feedback-table td {
+    padding: 14px 18px;
+    font-size: 13.5px;
+    color: var(--color-text);
+    border-bottom: 1px solid var(--color-border);
+    vertical-align: middle;
+}
+
+.feedback-table tbody tr {
+    transition: background-color 0.15s ease;
+    background: var(--color-panel-bg);
+}
+
+.feedback-table tbody tr:nth-child(even) {
+    background: var(--color-gray-50);
+}
+
+.feedback-table tbody tr:hover {
+    background: rgba(16, 185, 129, 0.04) !important;
+}
+
+.feedback-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Rating display */
+.rating-display {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.rating-stars {
+    display: inline-flex;
+    align-items: center;
+    gap: 2.5px;
+}
+
+.rating-stars svg.star-icon {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+}
+
+.rating-stars svg.star-icon.filled {
+    color: #f59e0b;
+}
+
+.rating-stars svg.star-icon.empty {
+    color: #cbd5e1;
+}
+
+.rating-badge {
+    font-size: 11.5px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 6px;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+}
+
+.rating-badge.rating-5,
+.rating-badge.rating-4 {
+    background: rgba(245, 158, 11, 0.12);
+    color: #d97706;
+}
+
+.rating-badge.rating-3 {
+    background: rgba(100, 116, 139, 0.1);
+    color: #64748b;
+}
+
+.rating-badge.rating-2,
+.rating-badge.rating-1,
+.rating-badge.rating-0 {
+    background: rgba(239, 68, 68, 0.1);
+    color: #dc2626;
+}
+
+/* Comment text */
+.feedback-comment-text {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.45;
+    color: var(--color-dark);
+    font-size: 13px;
+    word-break: break-word;
+}
+
+.feedback-comment-text.is-empty {
+    color: var(--color-text-muted);
+    font-style: italic;
+    font-size: 12px;
+}
+
+/* Date cell */
+.feedback-date-primary {
+    font-weight: 600;
+    color: var(--color-dark);
+    font-size: 13px;
+    line-height: 1.3;
+}
+
+.feedback-date-sub {
+    font-size: 11.5px;
+    color: var(--color-text-muted);
+    margin-top: 2px;
+}
+
+/* Action button */
+.feedback-actions-cell {
+    text-align: center;
+}
+
+.btn-action-view {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--color-dark);
+    background: transparent;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.btn-action-view:hover {
+    background: var(--color-gray-50);
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+    box-shadow: var(--shadow-sm);
+}
+
+/* Dark mode adjustments for Feedback */
+[data-theme="dark"] .feedback-table-container {
+    background: var(--color-panel-bg);
+    border-color: var(--color-border);
+}
+
+[data-theme="dark"] .feedback-table thead,
+[data-theme="dark"] .feedback-table th {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    color: var(--dark-text-primary);
+    border-bottom-color: var(--dark-border);
+}
+
+[data-theme="dark"] .feedback-table td {
+    color: var(--dark-text-primary);
+    border-bottom-color: var(--dark-border);
+}
+
+[data-theme="dark"] .feedback-table tbody tr {
+    background: var(--dark-bg-primary);
+}
+
+[data-theme="dark"] .feedback-table tbody tr:nth-child(even) {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+[data-theme="dark"] .feedback-table tbody tr:hover {
+    background: rgba(16, 185, 129, 0.08) !important;
+}
+
+[data-theme="dark"] .rating-stars svg.star-icon.empty {
+    color: #475569;
+}
+
+[data-theme="dark"] .btn-action-view {
+    color: var(--dark-text-primary);
+    border-color: var(--dark-border);
+}
+
+[data-theme="dark"] .btn-action-view:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: var(--color-primary);
+    color: var(--color-primary-light);
+}
+
 /* ==================== TRANSACTION TABLE CELLS ==================== */
 .userid-cell,
 .user-id-cell {
@@ -2368,7 +2733,10 @@ input[type="password"]::-ms-clear {
 
 .page-scroll-locked .table-container {
     flex: 1;
+    min-height: 0;
+    max-height: none;
     overflow-y: auto;
+    overflow-x: auto;
     scrollbar-width: thin;
 }
 
@@ -3613,7 +3981,8 @@ textarea:focus {
 .table-container thead,
 .transactions-table-wrapper thead,
 .customers-table-wrapper thead,
-.rates-history-table-wrapper thead {
+.rates-history-table-wrapper thead,
+.feedback-table-wrapper thead {
     position: sticky;
     top: 0;
     z-index: 10;

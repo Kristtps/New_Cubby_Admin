@@ -124,21 +124,16 @@
     border-color: var(--color-primary);
 }
 
-/* ==================== STATIC SEARCH & FILTER BAR ==================== */
-.auditlog-sticky-bar {
-    flex-shrink: 0;
+/* ==================== SEARCH & FILTER CONTROLS ==================== */
+.auditlog-controls {
     display: flex;
-    align-items: center;
     gap: 12px;
-    padding: 14px 0;
-    background: var(--color-bg-light);
-    border-bottom: 1px solid var(--color-border);
-    margin-bottom: 0;
+    align-items: center;
 }
 
 .auditlog-search-wrap {
     position: relative;
-    flex: 1;
+    width: 320px;
     display: flex;
     align-items: center;
 }
@@ -146,8 +141,11 @@
 .auditlog-search-wrap svg {
     position: absolute;
     left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
     color: var(--color-text-muted);
     pointer-events: none;
+    transition: color 0.2s ease;
 }
 
 .auditlog-search-wrap input {
@@ -155,35 +153,61 @@
     padding: 10px 14px 10px 38px;
     border: 1px solid var(--color-border);
     border-radius: 8px;
-    font-size: 14px;
+    font-size: 13.5px;
+    font-family: inherit;
     color: var(--color-dark);
     background: var(--color-panel-bg);
     outline: none;
+    box-shadow: var(--shadow-sm);
     transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.auditlog-search-wrap input::placeholder {
+    color: var(--color-text-muted);
+    font-size: 13.5px;
+}
+
+.auditlog-search-wrap input:hover {
+    border-color: var(--color-primary-light, #93c5fd);
 }
 
 .auditlog-search-wrap input:focus {
     border-color: var(--color-primary);
-    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.12);
 }
 
-.auditlog-sticky-bar select {
-    padding: 10px 12px;
+.auditlog-search-wrap:focus-within svg {
+    color: var(--color-primary);
+}
+
+#auditlog-date-filter {
+    padding: 10px 36px 10px 14px;
     border: 1px solid var(--color-border);
     border-radius: 8px;
-    font-size: 14px;
+    font-size: 13.5px;
     font-weight: 600;
-    color: var(--color-text);
+    font-family: inherit;
+    color: var(--color-dark);
     background: var(--color-panel-bg);
     cursor: pointer;
     outline: none;
-    transition: border-color 0.2s;
+    box-shadow: var(--shadow-sm);
+    transition: border-color 0.2s, box-shadow 0.2s;
     white-space: nowrap;
-    flex-shrink: 0;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 14px;
 }
 
-.auditlog-sticky-bar select:focus {
+#auditlog-date-filter:hover {
+    border-color: var(--color-primary-light, #93c5fd);
+}
+
+#auditlog-date-filter:focus {
     border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.12);
 }
 
 [data-theme="dark"] .auditlog-search-wrap input {
@@ -192,10 +216,37 @@
     color: var(--dark-text-primary);
 }
 
-[data-theme="dark"] .auditlog-sticky-bar select {
-    background: var(--dark-bg-secondary);
+[data-theme="dark"] .auditlog-search-wrap input:hover {
+    border-color: var(--color-primary);
+}
+
+[data-theme="dark"] #auditlog-date-filter {
+    background-color: var(--dark-bg-secondary);
     border-color: var(--dark-border);
     color: var(--dark-text-primary);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+}
+
+[data-theme="dark"] #auditlog-date-filter:hover {
+    border-color: var(--color-primary);
+}
+
+@media (max-width: 860px) {
+    .auditlog-header {
+        flex-direction: column;
+        align-items: stretch !important;
+        gap: 14px;
+    }
+
+    .auditlog-controls {
+        width: 100%;
+        margin-top: 0 !important;
+    }
+
+    .auditlog-search-wrap {
+        width: 100%;
+        flex: 1;
+    }
 }
 
 /* ==================== SCROLLABLE FEED CONTAINER ==================== */

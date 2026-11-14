@@ -7,7 +7,7 @@ let allFeedback = [];
 let currentFilter = 'all';
 
 // Initialize feedback page
-document.addEventListener('DOMContentLoaded', async function() {
+document.addEventListener('DOMContentLoaded', async function () {
     if (!document.getElementById('feedback-tbody')) return;
 
     // Wait for Supabase to initialize
@@ -19,7 +19,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     setupEventListeners();
 
     // Auto-refresh feedback every 30 seconds
-    setInterval(async function() {
+    setInterval(async function () {
         try {
             await loadFeedback();
             console.log('✓ Feedback data auto-refreshed via AJAX');
@@ -35,7 +35,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 function setupEventListeners() {
     const ratingFilter = document.getElementById('rating-filter');
     if (ratingFilter) {
-        ratingFilter.addEventListener('change', function() {
+        ratingFilter.addEventListener('change', function () {
             currentFilter = this.value;
             renderFeedback();
         });
@@ -47,7 +47,7 @@ function setupEventListeners() {
  */
 async function loadFeedback() {
     const tbody = document.getElementById('feedback-tbody');
-    
+
     try {
         // Check if Supabase is connected
         if (!window.supabase || typeof window.supabase.from !== 'function') {
@@ -113,11 +113,24 @@ async function loadFeedback() {
 }
 
 /**
+ * Simple HTML escaping helper
+ */
+function escapeHtml(str) {
+    if (str == null) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+/**
  * Render feedback table based on current filter
  */
 function renderFeedback() {
     const tbody = document.getElementById('feedback-tbody');
-    
+
     // Filter feedback
     let filteredFeedback = allFeedback;
     if (currentFilter !== 'all') {
@@ -126,49 +139,66 @@ function renderFeedback() {
     }
 
     if (filteredFeedback.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 2rem; color: #9ca3af;">No feedback found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 2.5rem; color: var(--color-text-muted);">No feedback found</td></tr>';
         return;
     }
 
     tbody.innerHTML = filteredFeedback.map(feedback => {
         const customer = feedback.customers || {};
         const stars = renderStars(feedback.rating);
-        const truncatedComment = feedback.comment 
-            ? (feedback.comment.length > 50 ? feedback.comment.substring(0, 50) + '...' : feedback.comment)
-            : 'No comment';
-        
-        const feedbackDate = feedback.created_at 
-            ? formatForDisplay(feedback.created_at, { 
-                month: 'short', 
-                day: 'numeric', 
-                year: 'numeric',
+        const hasComment = feedback.comment && feedback.comment.trim().length > 0;
+        const commentText = hasComment
+            ? (feedback.comment.length > 90 ? feedback.comment.substring(0, 90) + '…' : feedback.comment)
+            : 'No written review';
+
+        let datePart = 'N/A';
+        let timePart = '';
+        if (feedback.created_at) {
+            datePart = formatForDisplay(feedback.created_at, {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric'
+            });
+            timePart = formatForDisplay(feedback.created_at, {
                 hour: '2-digit',
                 minute: '2-digit'
-              })
-            : 'N/A';
+            });
+        }
+
+        const safeName = escapeHtml(customer.name || 'Anonymous User');
+        const safeEmail = escapeHtml(customer.email || 'No email provided');
 
         return `
             <tr>
-                <td>
-                    <div style="display: flex; flex-direction: column; gap: 4px;">
-                        <span style="font-weight: 600; color: var(--color-dark);">${customer.name || 'Unknown'}</span>
-                        <span style="font-size: 12px; color: var(--color-text-muted);">${customer.email || 'N/A'}</span>
+                <td class="feedback-customer-cell">
+                    <div class="customer-info">
+                        <span class="customer-name">${safeName}</span>
+                        <span class="customer-email">${safeEmail}</span>
                     </div>
                 </td>
-                <td>
-                    <div style="font-size: 16px;">${stars}</div>
+                <td class="feedback-rating-cell">
+                    ${stars}
                 </td>
-                <td>
-                    <span style="color: var(--color-dark);">${truncatedComment}</span>
+                <td class="feedback-comment-cell">
+                    <span class="feedback-comment-text ${hasComment ? '' : 'is-empty'}">
+                        ${escapeHtml(commentText)}
+                    </span>
                 </td>
-                <td style="font-size: 13px; color: var(--color-text-muted);">${feedbackDate}</td>
-                <td>
+                <td class="feedback-date-cell">
+                    <div class="feedback-date-primary">${datePart}</div>
+                    ${timePart ? `<div class="feedback-date-sub">${timePart}</div>` : ''}
+                </td>
+                <td class="feedback-actions-cell">
                     <button 
+                        type="button"
+                        class="btn-action-view"
                         onclick="showFeedbackDetails('${feedback.feedback_id}')"
-                        style="padding: 8px 16px; background: var(--color-primary); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; transition: opacity 0.2s;"
-                        onmouseover="this.style.opacity='0.9'"
-                        onmouseout="this.style.opacity='1'">
-                        View Details
+                        title="View details">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                            <circle cx="12" cy="12" r="3"></circle>
+                        </svg>
+                        <span>View</span>
                     </button>
                 </td>
             </tr>
@@ -180,15 +210,19 @@ function renderFeedback() {
  * Render star rating
  */
 function renderStars(rating) {
-    const fullStar = '⭐';
-    const emptyStar = '☆';
-    let stars = '';
-    
+    const num = Math.max(0, Math.min(5, Number(rating) || 0));
+    let starsHtml = `<div class="rating-display" title="${num} out of 5 stars">`;
+    starsHtml += `<div class="rating-stars">`;
     for (let i = 1; i <= 5; i++) {
-        stars += i <= rating ? fullStar : emptyStar;
+        const isFilled = i <= num;
+        starsHtml += `<svg class="star-icon ${isFilled ? 'filled' : 'empty'}" width="14" height="14" viewBox="0 0 24 24" fill="${isFilled ? '#f59e0b' : 'none'}" stroke="${isFilled ? '#f59e0b' : 'currentColor'}" stroke-width="2">
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+        </svg>`;
     }
-    
-    return stars;
+    starsHtml += `</div>`;
+    starsHtml += `<span class="rating-badge rating-${num}">${num}.0</span>`;
+    starsHtml += `</div>`;
+    return starsHtml;
 }
 
 /**
@@ -198,7 +232,7 @@ function updateStats() {
     const totalFeedback = allFeedback.length;
     const fiveStarCount = allFeedback.filter(f => f.rating === 5).length;
     const lowRatingCount = allFeedback.filter(f => f.rating <= 2).length;
-    
+
     let averageRating = 0;
     if (totalFeedback > 0) {
         const totalRating = allFeedback.reduce((sum, f) => sum + f.rating, 0);
@@ -225,11 +259,11 @@ async function showFeedbackDetails(feedbackId) {
     document.getElementById('modal-customer-name').textContent = customer.name || 'Unknown';
     document.getElementById('modal-customer-email').textContent = customer.email || 'N/A';
     document.getElementById('modal-customer-phone').textContent = customer.phone || 'N/A';
-    
-    document.getElementById('modal-rating').innerHTML = renderStars(feedback.rating) + ` <span style="color: var(--color-text-muted); font-size: 14px;">(${feedback.rating}/5)</span>`;
+
+    document.getElementById('modal-rating').innerHTML = renderStars(feedback.rating);
     document.getElementById('modal-comment').textContent = feedback.comment || 'No comment provided';
-    
-    const feedbackDate = feedback.created_at 
+
+    const feedbackDate = feedback.created_at
         ? formatForDisplay(feedback.created_at)
         : 'N/A';
     document.getElementById('modal-feedback-date').textContent = feedbackDate;

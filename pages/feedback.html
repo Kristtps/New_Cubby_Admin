@@ -27,7 +27,7 @@
         <aside class="sidebar">
             <div class="logo-section">
                 <div class="logo">
-                    <img src="../assets/logo.png" alt="CoinCubby Logo" width="40" height="40"
+                    <img src="../assets/logo.png" alt="CoinCubby Logo" width="30" height="30"
                         style="border-radius: 50%;">
                     <span>CoinCubby</span>
                 </div>
@@ -87,7 +87,7 @@
                         </svg>
                         <span>Inventory</span>
                     </a>
-                   
+
                     <a href="rates.html" class="nav-item">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2">
@@ -149,11 +149,11 @@
                     <div class="filter-combo">
                         <select id="rating-filter">
                             <option value="all">All Ratings</option>
-                            <option value="5">⭐⭐⭐⭐⭐ (5 stars)</option>
-                            <option value="4">⭐⭐⭐⭐ (4 stars)</option>
-                            <option value="3">⭐⭐⭐ (3 stars)</option>
-                            <option value="2">⭐⭐ (2 stars)</option>
-                            <option value="1">⭐ (1 star)</option>
+                            <option value="5">5 Stars ★★★★★</option>
+                            <option value="4">4 Stars ★★★★☆</option>
+                            <option value="3">3 Stars ★★★☆☆</option>
+                            <option value="2">2 Stars ★★☆☆☆</option>
+                            <option value="1">1 Star ★☆☆☆☆</option>
                         </select>
                     </div>
                 </div>
@@ -225,21 +225,23 @@
             </div>
 
             <!-- Feedback Table -->
-            <div class="customers-section">
-                <div class="customers-table-wrapper">
-                    <table class="customers-table">
+            <div class="feedback-table-container">
+                <div class="feedback-table-wrapper">
+                    <table class="feedback-table">
                         <thead>
                             <tr>
-                                <th>Customer</th>
-                                <th>Rating</th>
-                                <th>Comment</th>
-                                <th>Date</th>
-                                <th>Actions</th>
+                                <th class="th-customer">Customer</th>
+                                <th class="th-rating">Rating</th>
+                                <th class="th-comment">Comment</th>
+                                <th class="th-date">Date &amp; Time</th>
+                                <th class="th-actions">Action</th>
                             </tr>
                         </thead>
                         <tbody id="feedback-tbody">
                             <tr class="loading-state">
-                                <td colspan="5" style="text-align: center; padding: 2rem;">Loading feedback...</td>
+                                <td colspan="5"
+                                    style="text-align: center; padding: 2.5rem; color: var(--color-text-muted);">Loading
+                                    feedback...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -307,14 +309,15 @@
     <script src="../js/theme.js"></script>
     <script src="../js/supabase-client.js"></script>
     <script src="../js/db-operations.js"></script>
-        <script>
+    <script>
         (function () {
             const auth = localStorage.getItem('coincubby_auth');
             if (!auth) {
                 window.location.href = 'login.html';
             }
         })();
-    </script><script src="../js/script.js"></script>
+    </script>
+    <script src="../js/script.js"></script>
     <script src="../js/feedback.js"></script>
 
 </body>

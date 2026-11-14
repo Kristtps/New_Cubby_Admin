@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -147,12 +147,33 @@
                 <p class="subtitle">Configure hourly rates displayed on the machine.</p>
             </div>
 
-            <!-- Side by Side Layout -->
+            <!-- Rates Layout: One Above and One Below -->
             <div class="rates-main-layout">
-                <!-- Rates Form Container -->
+                <!-- Rates Form Container (Above) -->
                 <div class="rates-container">
                     <form id="ratesForm" class="rates-form">
-                        <!-- Rates Grid: Small / Medium / Large stacked vertically -->
+                        <div class="rates-form-header">
+                            <div class="rates-title-group">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                                </svg>
+                                <h2 class="rates-section-title">Current Hourly Rates</h2>
+                            </div>
+                            <!-- Edit/Save Button -->
+                            <button type="button" id="btnEditSave" class="btn-save-rates">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                </svg>
+                                <span id="btnText">Edit Rates</span>
+                            </button>
+                        </div>
+
+                        <!-- Rates Grid: Small / Medium / Large horizontal side by side -->
                         <div class="rates-grid">
                             <!-- Small Locker Rate -->
                             <div class="rate-section">
@@ -199,21 +220,10 @@
                                 </div>
                             </div>
                         </div>
-
-
-                        <!-- Edit/Save Button -->
-                        <button type="button" id="btnEditSave" class="btn-save-rates">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="2">
-                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                            </svg>
-                            <span id="btnText">Edit Rates</span>
-                        </button>
                     </form>
                 </div>
 
-                <!-- Rate Change History -->
+                <!-- Rate Change History (Below) -->
                 <div class="rates-history-container">
                     <div class="rates-history-header">
                         <div class="rates-history-title-group">
